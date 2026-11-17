@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Armory.Compatibility;
 using RimWorld;
+using UnityEngine;
 using Verse;
 
 namespace Armory
@@ -72,15 +73,15 @@ namespace Armory
                     WeaponAnalysis row = rows[candidate.Weapon];
                     row.PawnCandidates.Add(candidate);
 
-                    if (candidate.Score > row.BestAnyScore)
+                    if (candidate.Score > row.BestAnyHandScore)
                     {
-                        row.BestAnyScore = candidate.Score;
-                        row.BestAnyPawn = analysis;
+                        row.BestAnyHandScore = candidate.Score;
+                        row.BestAnyHandPawn = analysis;
                     }
-                    if (candidate.Ready && candidate.Score > row.BestScore)
+                    if (candidate.Ready && candidate.Score > row.BestHandScore)
                     {
-                        row.BestScore = candidate.Score;
-                        row.BestPawn = analysis;
+                        row.BestHandScore = candidate.Score;
+                        row.BestHandPawn = analysis;
                     }
                 }
 
@@ -89,15 +90,15 @@ namespace Armory
                     SidearmCandidate sidearm = analysis.SidearmCandidates[i];
                     WeaponAnalysis row = rows[sidearm.Weapon];
 
-                    if (sidearm.Score > row.BestAnySidearmScore)
+                    if (sidearm.Score > row.BestAnyBackupScore)
                     {
-                        row.BestAnySidearmScore = sidearm.Score;
-                        row.BestAnySidearmPawn = analysis;
+                        row.BestAnyBackupScore = sidearm.Score;
+                        row.BestAnyBackupPawn = analysis;
                     }
-                    if (sidearm.Ready && sidearm.Score > row.BestSidearmScore)
+                    if (sidearm.Ready && sidearm.Score > row.BestBackupScore)
                     {
-                        row.BestSidearmScore = sidearm.Score;
-                        row.BestSidearmPawn = analysis;
+                        row.BestBackupScore = sidearm.Score;
+                        row.BestBackupPawn = analysis;
                     }
                 }
             }
@@ -109,21 +110,25 @@ namespace Armory
             {
                 WeaponAnalysis row = rows[snapshot.Weapons[i]];
                 row.PawnCandidates.Sort((a, b) => b.Score.CompareTo(a.Score));
-                if (row.BestPawn != null)
+                if (row.BestHandPawn != null)
                 {
-                    row.Status = "Wanted";
+                    row.Status = "Hand";
                 }
-                else if (row.BestSidearmPawn != null)
+                else if (row.BestBackupPawn != null)
                 {
-                    row.Status = "Sidearm";
+                    row.Status = "Backup";
                 }
-                else if (row.BestAnyPawn != null)
+                else if (row.BestAnyHandPawn != null)
                 {
-                    row.Status = "Only blocked";
+                    row.Status = "Hand blocked";
+                }
+                else if (row.BestAnyBackupPawn != null)
+                {
+                    row.Status = "Backup blocked";
                 }
                 else
                 {
-                    row.Status = row.BestAnySidearmPawn != null ? "Sidearm blocked" : "No user";
+                    row.Status = "No user";
                 }
                 snapshot.WeaponRows.Add(row);
             }
@@ -255,21 +260,17 @@ namespace Armory
                                         PawnFit.Compute(context, analysis.Current);
             }
 
-            // Simple Sidearms has an explicit primary role. Use SS's own QuickSwitch
-            // choice among carried weapons as the baseline; do not assume the best
-            // carried weapon by Armory's score, because SS may skip it (manual use,
-            // dangerous, EMP, role) and Armory would then block a valid upgrade.
             analysis.SidearmState = SimpleSidearmsAdapter.GetState(pawn);
-            if (analysis.SidearmState != null &&
-                analysis.SidearmState.PreferredPrimaryIsRanged.HasValue &&
-                SimpleSidearmsAdapter.RespectEnabled)
+            ResolveRole(analysis, context);
+            ResolveBestCarriedBackup(analysis);
+
+            // Simple Sidearms has an explicit hand role. Use SS's own QuickSwitch choice
+            // among carried weapons as the hand baseline; do not assume the best carried
+            // weapon by Armory's score, because SS may skip it (manual use, dangerous,
+            // EMP, role) and Armory would then block a valid upgrade.
+            if (analysis.HasRole && SimpleSidearmsAdapter.RespectEnabled)
             {
-                bool ranged = analysis.SidearmState.PreferredPrimaryIsRanged.Value;
-                ThingWithComps ssChoice = SimpleSidearmsAdapter.GetPreferredCarriedPrimary(pawn, ranged);
-                if (ssChoice != null && ssChoice != analysis.Current)
-                {
-                    ConsiderCarried(analysis, context, ssChoice, ranged, powerCache);
-                }
+                ResolveBestCarriedHand(analysis, context, powerCache);
             }
 
             for (int i = 0; i < weapons.Count; i++)
@@ -277,6 +278,11 @@ namespace Armory
                 WeaponInfo info = weapons[i];
                 if (info.Thing == analysis.Current)
                 {
+                    continue;
+                }
+                if (!analysis.IsHandType(info.Thing.def))
+                {
+                    // The other type belongs in the backup slot, not the hand ranking.
                     continue;
                 }
 
@@ -321,35 +327,114 @@ namespace Armory
             return analysis;
         }
 
-        private static void BuildSidearmCandidates(PawnAnalysis analysis, PawnFitContext context,
-            List<WeaponInfo> weapons, Dictionary<int, float> powerCache)
+        /// <summary>
+        /// Resolves the hand slot type. SS's per-pawn primary mode wins; otherwise the
+        /// current weapon, then the pawn's better combat skill. When Simple Sidearms is
+        /// absent (or the player turned respect off), there is no typed slot model and
+        /// every weapon competes for the single vanilla hand slot.
+        /// </summary>
+        private static void ResolveRole(PawnAnalysis analysis, PawnFitContext context)
         {
-            if (!SimpleSidearmsAdapter.CanCheckSidearms || analysis.Pawn == null)
+            if (!SimpleSidearmsAdapter.Active || !SimpleSidearmsAdapter.RespectEnabled)
             {
+                analysis.RoleIsRanged = null;
+                analysis.RoleSource = null;
                 return;
             }
 
-            bool? primaryIsRanged = null;
+            if (analysis.SidearmState != null && analysis.SidearmState.PreferredPrimaryIsRanged.HasValue)
+            {
+                analysis.RoleIsRanged = analysis.SidearmState.PreferredPrimaryIsRanged.Value;
+                analysis.RoleSource = "SS mode";
+                return;
+            }
+
             if (analysis.Current != null && analysis.Current.def != null)
             {
                 if (analysis.Current.def.IsRangedWeapon)
                 {
-                    primaryIsRanged = true;
+                    analysis.RoleIsRanged = true;
+                    analysis.RoleSource = "current weapon";
+                    return;
                 }
-                else if (analysis.Current.def.IsMeleeWeapon)
+                if (analysis.Current.def.IsMeleeWeapon)
                 {
-                    primaryIsRanged = false;
+                    analysis.RoleIsRanged = false;
+                    analysis.RoleSource = "current weapon";
+                    return;
                 }
             }
-            if (!primaryIsRanged.HasValue && analysis.SidearmState != null)
+
+            analysis.RoleIsRanged = context.Shooting >= context.Melee;
+            analysis.RoleSource = "combat skill";
+        }
+
+        private static void ResolveBestCarriedHand(PawnAnalysis analysis, PawnFitContext context,
+            Dictionary<int, float> powerCache)
+        {
+            bool ranged = analysis.RoleIsRanged.Value;
+            ThingWithComps ssChoice = SimpleSidearmsAdapter.GetPreferredCarriedPrimary(analysis.Pawn, ranged);
+            if (ssChoice != null)
             {
-                primaryIsRanged = analysis.SidearmState.PreferredPrimaryIsRanged;
+                if (ssChoice != analysis.Current)
+                {
+                    ConsiderCarried(analysis, context, ssChoice, powerCache);
+                }
+                return;
+            }
+
+            if (SimpleSidearmsAdapter.PreferredPrimaryCheckFailed)
+            {
+                // Reflection failed; fall back to the best weapon already in the pawn's
+                // possession so the plan does not stall, but keep the once-only warning.
+                ConsiderCarried(analysis, context, analysis.Current, powerCache);
+                for (int i = 0; i < analysis.Sidearms.Count; i++)
+                {
+                    ConsiderCarried(analysis, context, analysis.Sidearms[i], powerCache);
+                }
+                return;
+            }
+
+            // SS would not switch to any carried weapon. The equipped role-type weapon is
+            // still the baseline; a carried weapon SS skips (manual use, dangerous, EMP)
+            // must not block an upgrade.
+            if (analysis.Current != null && analysis.IsHandType(analysis.Current.def))
+            {
+                ConsiderCarried(analysis, context, analysis.Current, powerCache);
+            }
+        }
+
+        private static void ResolveBestCarriedBackup(PawnAnalysis analysis)
+        {
+            for (int i = 0; i < analysis.CarriedSidearms.Count; i++)
+            {
+                CarriedSidearm carried = analysis.CarriedSidearms[i];
+                if (!analysis.IsBackupType(carried.Thing.def))
+                {
+                    continue;
+                }
+                if (carried.Score > analysis.BestCarriedBackupScore)
+                {
+                    analysis.BestCarriedBackupScore = carried.Score;
+                    analysis.BestCarriedBackup = carried.Thing;
+                }
+            }
+        }
+
+        private static void BuildSidearmCandidates(PawnAnalysis analysis, PawnFitContext context,
+            List<WeaponInfo> weapons, Dictionary<int, float> powerCache)
+        {
+            if (!analysis.HasRole || analysis.SidearmState == null ||
+                !SimpleSidearmsAdapter.CanCheckSidearms || analysis.Pawn == null)
+            {
+                return;
             }
 
             for (int i = 0; i < weapons.Count; i++)
             {
                 WeaponInfo info = weapons[i];
-                if (info.Thing == analysis.Current)
+                if (info.Thing == analysis.Current || !analysis.IsBackupType(info.Thing.def) ||
+                    !IsUsableAsBackup(info.Thing))
                 {
                     continue;
                 }
@@ -370,18 +455,52 @@ namespace Armory
                     continue;
                 }
 
-                bool diverse = primaryIsRanged.HasValue &&
-                               info.Thing.def.IsRangedWeapon != primaryIsRanged.Value;
-                analysis.SidearmCandidates.Add(new SidearmCandidate
+                SidearmCandidate candidate = new SidearmCandidate
                 {
                     Weapon = info,
                     Score = info.Power * PawnFit.Compute(context, info.Thing),
-                    Blocker = reason,
-                    Diverse = diverse
-                });
+                    Blocker = reason
+                };
+                if (!candidate.Ready && analysis.Available &&
+                    SimpleSidearmsAdapter.CanCheckSidearmType &&
+                    SimpleSidearmsAdapter.CanCheckSidearmUse)
+                {
+                    // Only promise a drop-first upgrade when the weapon is reachable and
+                    // SS's remaining objection is capacity, not the weapon type itself.
+                    string worldReason;
+                    string ruleReason;
+                    bool ruleHard;
+                    string typeReason;
+                    string useReason;
+                    candidate.UpgradeAfterDrop =
+                        Eligibility.CheckSidearmWorld(analysis.Pawn, info.Thing, false, out worldReason) &&
+                        !Eligibility.CheckSidearmRules(analysis.Pawn, info.Thing, out ruleReason, out ruleHard) &&
+                        SimpleSidearmsAdapter.CanUseSidearm(analysis.Pawn, info.Thing, out useReason) &&
+                        SimpleSidearmsAdapter.IsValidSidearmType(info.Thing, out typeReason);
+                }
+                analysis.SidearmCandidates.Add(candidate);
             }
 
             analysis.SidearmCandidates.Sort((a, b) => b.Score.CompareTo(a.Score));
+        }
+
+        /// <summary>
+        /// SS's QuickSwitch always skips manual-use ranged weapons, so a Molotov or
+        /// similar item would sit in the bag unused. Do not offer it as a backup.
+        /// </summary>
+        private static bool IsUsableAsBackup(ThingWithComps weapon)
+        {
+            if (weapon == null || weapon.def == null)
+            {
+                return false;
+            }
+            CompEquippable equippable = weapon.GetComp<CompEquippable>();
+            if (equippable == null || equippable.PrimaryVerb == null)
+            {
+                return false;
+            }
+            return !weapon.def.IsRangedWeapon ||
+                   !equippable.PrimaryVerb.verbProps.onlyManualCast;
         }
 
         private static void CollectSidearms(PawnAnalysis analysis, PawnFitContext context,
@@ -404,8 +523,8 @@ namespace Armory
                 }
                 if (!weapon.def.IsRangedWeapon && !weapon.def.IsMeleeWeapon)
                 {
-                    // Keep the sidearm count to combat weapons; tools should not satisfy
-                    // the desired sidearm count or appear as replacement targets.
+                    // Keep the count to combat weapons; tools should not satisfy the
+                    // backup target or appear as replacement targets.
                     continue;
                 }
                 float score = WeaponPower.Get(weapon, powerCache) * PawnFit.Compute(context, weapon);
@@ -421,9 +540,8 @@ namespace Armory
         }
 
         private static void ConsiderCarried(PawnAnalysis analysis, PawnFitContext context,
-            ThingWithComps weapon, bool preferredRanged, Dictionary<int, float> powerCache)
-        {
-            if (weapon == null || !SimpleSidearmsAdapter.MatchesPrimaryType(weapon.def, preferredRanged))
+            ThingWithComps weapon, Dictionary<int, float> powerCache)        {
+            if (weapon == null || !analysis.IsHandType(weapon.def))
             {
                 return;
             }
@@ -437,8 +555,10 @@ namespace Armory
 
         private static void BuildDemand(ArmorySnapshot snapshot)
         {
-            Dictionary<ThingDef, int> wanted = new Dictionary<ThingDef, int>();
-            Dictionary<ThingDef, int> blockedWishes = new Dictionary<ThingDef, int>();
+            Dictionary<ThingDef, int> wantedHand = new Dictionary<ThingDef, int>();
+            Dictionary<ThingDef, int> wantedBackup = new Dictionary<ThingDef, int>();
+            Dictionary<ThingDef, int> blockedHand = new Dictionary<ThingDef, int>();
+            Dictionary<ThingDef, int> blockedBackup = new Dictionary<ThingDef, int>();
             Dictionary<ThingDef, int> stock = new Dictionary<ThingDef, int>();
             Dictionary<ThingDef, int> forbidden = new Dictionary<ThingDef, int>();
 
@@ -457,6 +577,10 @@ namespace Armory
                 }
             }
 
+            ArmorySettings settings = ArmoryMod.Settings;
+            float threshold = settings == null ? 0.1f : settings.upgradeThreshold;
+            bool upgradeBackups = settings == null || settings.replaceWorseSidearms;
+
             for (int i = 0; i < snapshot.Pawns.Count; i++)
             {
                 PawnAnalysis pawn = snapshot.Pawns[i];
@@ -464,49 +588,111 @@ namespace Armory
                 {
                     continue;
                 }
-                Candidate top = pawn.TopReady;
-                if (top == null)
+
+                // Hand slot: the best hand candidate compared with the hand baseline.
+                Candidate handTop = pawn.TopReady;
+                bool handReady = handTop != null;
+                if (handTop == null)
                 {
-                    top = pawn.TopOverall;
-                    if (top == null || pawn.CurrentScore >= top.Score)
+                    handTop = pawn.TopOverall;
+                }
+                if (handTop != null && handTop.Weapon.Thing != pawn.Current)
+                {
+                    float baseline = pawn.HandBaselineScore;
+                    if (handTop.Score > baseline)
+                    {
+                        AddCount(handReady ? wantedHand : blockedHand, handTop.Weapon.Thing.def);
+                    }
+                }
+
+                if (!pawn.HasRole)
+                {
+                    continue;
+                }
+
+                // Backup slot: add the missing opposite type, or upgrade the worst one.
+                int backupCount = 0;
+                float worstBackup = 0f;
+                for (int j = 0; j < pawn.CarriedSidearms.Count; j++)
+                {
+                    CarriedSidearm carried = pawn.CarriedSidearms[j];
+                    if (!pawn.IsBackupType(carried.Thing.def))
                     {
                         continue;
                     }
-                    ThingDef blockedDef = top.Weapon.Thing.def;
-                    int blockedCount;
-                    blockedWishes.TryGetValue(blockedDef, out blockedCount);
-                    blockedWishes[blockedDef] = blockedCount + 1;
-                    continue;
+                    if (backupCount == 0 || carried.Score < worstBackup)
+                    {
+                        worstBackup = carried.Score;
+                    }
+                    backupCount++;
                 }
-                if (pawn.Current != null && pawn.Current == top.Weapon.Thing)
+
+                SidearmCandidate bestAddable = null;
+                SidearmCandidate bestUpgradeable = null;
+                SidearmCandidate bestAny = null;
+                for (int j = 0; j < pawn.SidearmCandidates.Count; j++)
                 {
-                    continue;
+                    SidearmCandidate sidearm = pawn.SidearmCandidates[j];
+                    if (bestAny == null)
+                    {
+                        bestAny = sidearm;
+                    }
+                    if (sidearm.Ready && bestAddable == null)
+                    {
+                        bestAddable = sidearm;
+                    }
+                    if ((sidearm.Ready || sidearm.UpgradeAfterDrop) && bestUpgradeable == null)
+                    {
+                        bestUpgradeable = sidearm;
+                    }
                 }
-                if (pawn.CurrentScore >= top.Score)
+
+                if (backupCount == 0)
                 {
-                    continue;
+                    if (bestAddable != null)
+                    {
+                        AddCount(wantedBackup, bestAddable.Weapon.Thing.def);
+                    }
+                    else if (bestAny != null)
+                    {
+                        AddCount(blockedBackup, bestAny.Weapon.Thing.def);
+                    }
                 }
-                ThingDef def = top.Weapon.Thing.def;
-                int count;
-                wanted.TryGetValue(def, out count);
-                wanted[def] = count + 1;
+                else if (upgradeBackups)
+                {
+                    if (bestUpgradeable != null &&
+                        bestUpgradeable.Score > Mathf.Max(worstBackup, 0.01f) * (1f + threshold))
+                    {
+                        AddCount(wantedBackup, bestUpgradeable.Weapon.Thing.def);
+                    }
+                    else if (bestAny != null && bestAny.Score > worstBackup)
+                    {
+                        AddCount(blockedBackup, bestAny.Weapon.Thing.def);
+                    }
+                }
             }
 
-            HashSet<ThingDef> defs = new HashSet<ThingDef>(wanted.Keys);
-            defs.UnionWith(blockedWishes.Keys);
+            HashSet<ThingDef> defs = new HashSet<ThingDef>(wantedHand.Keys);
+            defs.UnionWith(wantedBackup.Keys);
+            defs.UnionWith(blockedHand.Keys);
+            defs.UnionWith(blockedBackup.Keys);
             defs.UnionWith(stock.Keys);
 
             foreach (ThingDef def in defs)
             {
-                int wantCount;
-                int blockedCount;
+                int wantHand;
+                int wantBackup;
+                int blockHand;
+                int blockBackup;
                 int stockCount;
                 int forbiddenCount;
-                wanted.TryGetValue(def, out wantCount);
-                blockedWishes.TryGetValue(def, out blockedCount);
+                wantedHand.TryGetValue(def, out wantHand);
+                wantedBackup.TryGetValue(def, out wantBackup);
+                blockedHand.TryGetValue(def, out blockHand);
+                blockedBackup.TryGetValue(def, out blockBackup);
                 stock.TryGetValue(def, out stockCount);
                 forbidden.TryGetValue(def, out forbiddenCount);
-                if (wantCount <= 0 && blockedCount <= 0)
+                if (wantHand + wantBackup + blockHand + blockBackup <= 0)
                 {
                     continue;
                 }
@@ -514,8 +700,10 @@ namespace Armory
                 {
                     Def = def,
                     Label = def.LabelCap,
-                    Wanted = wantCount,
-                    Blocked = blockedCount,
+                    WantedHand = wantHand,
+                    WantedBackup = wantBackup,
+                    BlockedHand = blockHand,
+                    BlockedBackup = blockBackup,
                     Stock = stockCount,
                     Forbidden = forbiddenCount
                 });
@@ -539,10 +727,23 @@ namespace Armory
                     return byForbidden;
                 }
                 int byWanted = b.Wanted.CompareTo(a.Wanted);
-                return byWanted != 0
-                    ? byWanted
-                    : string.Compare(a.Label, b.Label, StringComparison.OrdinalIgnoreCase);
+                if (byWanted != 0)
+                {
+                    return byWanted;
+                }
+                return string.Compare(a.Label, b.Label, StringComparison.OrdinalIgnoreCase);
             });
+        }
+
+        private static void AddCount(Dictionary<ThingDef, int> counts, ThingDef def)
+        {
+            if (def == null)
+            {
+                return;
+            }
+            int count;
+            counts.TryGetValue(def, out count);
+            counts[def] = count + 1;
         }
     }
 }

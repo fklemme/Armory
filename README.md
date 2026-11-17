@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.5.1** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.6.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -35,29 +35,38 @@ Four tabs: **Pawns**, **Weapons**, **Demand**, **Log**.
 For every free colonist, including pawns in pods/caskets:
 
 - current weapon and its score;
-- best usable weapon and the delta over current;
-- best overall weapon even when blocked (`Forbidden`, `Outside area`, etc.);
+- a **hand slot** ranking of the pawn's Simple Sidearms type
+  (`ranged` or `melee`), with the best usable upgrade and the delta over the
+  hand baseline;
+- a **backup slot** ranking of the opposite type, with SS's slot/mass/selection
+  blockers and current carried backup;
 - a full ranked list with a status per weapon and an expandable factor ledger;
-- carried sidearms and ranked sidearm candidates with Simple Sidearms limit
-  blockers;
 - a separate `Incompatible` list for biocoded/bonded/role-restricted weapons.
+
+Ranged and melee weapons are never compared in one ranking. A ranged pawn's
+hand slot contains ranged weapons and its backup slot contains melee weapons;
+a melee pawn is the mirror. This removes the old "the monosword is the top wish
+for every shooter" artifact.
 
 ### Weapons
 Every loose weapon on the map with:
 
 - power;
-- best-fit colonist;
-- status (`Wanted`, `Sidearm`, `Only blocked`, `Sidearm blocked`, `No user`);
+- best-fit colonist per slot;
+- status (`Hand`, `Backup`, `Hand blocked`, `Backup blocked`, `No user`);
 - a colonist-by-fit detail view with deep checks (reachability, reservations) and
-  separate primary/sidearm readiness.
+  separate hand/backup readiness.
 
-`Only blocked` means blocked as a **primary**. A melee weapon can be
-`Sidearm` or `sidearm ready` for a ranged-role pawn even when it cannot be that
-pawn's primary.
+`Hand blocked` means blocked as the pawn's **hand** weapon (usually an SS role
+block). A melee weapon can be a `Backup` candidate for a ranged pawn even when it
+cannot be that pawn's primary; if SS's mass cap rejects it, it is
+`Backup blocked` with SS's reason.
 
 ### Demand
-Per weapon def: `Wanted`, `Blocked`, `Stock`, `Forbidden`, `Shortage`.
-This distinguishes "build more" from "unforbid what you already own".
+Per weapon def: `For` (`hand`, `backup`, or `both`), `Wanted`, `Blocked`,
+`Stock`, `Forbidden`, `Shortage`.
+This distinguishes "build more" from "unforbid what you already own", and
+separates hand needs from opposite-type backup needs.
 
 ### Log
 Session-only decision log for the planner: time, colonist, weapon, action,
@@ -184,64 +193,72 @@ Simple Sidearms is detected by packageId and read **entirely through
 reflection**, so Armory still loads in a Core-only game and does not break when
 Simple Sidearms changes.
 
+SS keeps exactly one weapon in `equipment.Primary` — the **hand** — and extra
+weapons in the pawn's inventory — the **bag**. Its per-pawn primary mode
+(`Ranged`, `Melee`, `BySkill`) says which type SS keeps in hand; it is not a
+separate inventory category, and **sidearm limits apply only to the bag**. That
+is why a 2 kg Monosword can be a melee hand weapon but not a melee sidearm under
+SS's Basic preset.
+
+Armory therefore models a pawn as two typed slots:
+
+- **Hand slot** = the SS mode type. Armory may upgrade it with a better weapon of
+  the same type via the vanilla `Equip` job, which also updates SS's remembered
+  preference.
+- **Backup slot** = the opposite type. Armory keeps one legal opposite-type
+  weapon in the bag via `EquipSecondary`. Ranged pawns get a melee backup; melee
+  pawns get a ranged backup.
+
+Ranged and melee are never ranked against each other. The hand baseline is SS's
+own QuickSwitch choice among carried weapons (`findBestRangedWeapon` /
+`findBestMeleeWeapon`), so a weapon SS would skip — manual use, dangerous when
+SS skips dangerous weapons, or EMP — does not block a valid upgrade. If the
+reflection call fails, Armory logs once and uses the current weapon.
+
 When **Respect Simple Sidearms** is on (default):
 
-- a forced primary or forced unarmed state — normal and drafted variants — is a
-  soft blocker; Armory shows the reason and leaves that pawn's primary alone;
-- a carried "default ranged" or "preferred melee" SS setting is shown as a
-  preference and is already part of the carried-weapon upgrade baseline, but it
-  is **not** a hard block; "prefer unarmed" is an automation veto;
-- Armory follows the pawn's primary mode: `Ranged`, `Melee`, or `By skill`
-  resolved with Simple Sidearms' own skill rule. It will not equip a weapon of
-  the other type **when the pawn already carries a weapon of the preferred
-  type**, because Simple Sidearms would immediately switch back. The blocker is
-  shown as `Melee blocked: SS ranged` or `Ranged blocked: SS melee`, and the
-  pawn/weapon detail explains how to change the pawn's SS role;
-- the upgrade baseline is Simple Sidearms' own QuickSwitch choice among carried
-  weapons (its manual-use, dangerous, and EMP filters apply), not merely the
-  best carried weapon by Armory's score;
+- a forced weapon, forced unarmed, or prefer-unarmed state is an automation veto;
+- Armory waits until SS has switched the pawn to its role type before adding a
+  backup, because adding the other type while the wrong weapon is in hand invites
+  SS to promote it and looks like a manual change;
+- explicit hand blockers remain visible as `Melee blocked: SS ranged` or
+  `Ranged blocked: SS melee`;
 - pawns currently running `EquipSecondary` / `ReequipSecondary` /
-  `ReequipSecondaryCombat` are skipped;
-- carried sidearms are listed in the pawn detail (from inventory), with the SS
-  primary mode and any forced state.
+  `ReequipSecondaryCombat` are skipped.
 
-Sidearm management is off by default; when enabled it:
+Backup management is off by default; when enabled it:
 
-- adds loose weapons to inventory via Simple Sidearms' `EquipSecondary` job;
-- can **upgrade a worse sidearm**: if the pawn already has the desired count,
-  Armory may add a better candidate and drop the worst same-type sidearm (or the
-  worst sidearm if no same-type exists), preserving type diversity;
+- adds one opposite-type weapon via Simple Sidearms' `EquipSecondary` job;
 - validates every candidate with `CanPickupSidearmInstance`, so SS slot, mass,
   selection, pacifist-tool, biocoding, and role rules all apply;
-- stops at the configured desired count and uses the same claims, cooldown, and
-  manual-change protection as primaries;
-- only adds sidearms when the pawn has a primary and, if SS has a preferred
-  primary type, that primary matches it — otherwise SS would promote the
-  sidearm and Armory would see a manual change;
-- prefers a sidearm of the opposite type from the primary (ranged primary →
-  melee sidearm, and vice versa) when **Prefer a different type** is on;
+- upgrades only the worst carried weapon of the **same** type; it never drops the
+  last weapon of a type and never drops one type to add the other;
+- if SS has a free slot, picks up the better weapon first and drops the old one
+  after; if slots are full, drops the old one first and restores it if SS still
+  rejects the new one;
+- uses the same claims, per-pawn cooldown, and manual-change protection as hand
+  upgrades;
 - never acts on a pawn with a forced/unarmed/prefer-unarmed SS state.
 
-Upgrades are best-effort: Armory adds the better sidearm first and then drops
-the old one, so it never has to remove a weapon without a replacement already
-queued. If SS's slot limits leave no room for one more sidearm, the upgrade is
-skipped; add-only behavior still applies below the desired count.
+Armory does not add a second backup. Extra same-type weapons the player or SS
+already carries are left alone. If the bag is full of extras, a missing backup
+may have no free slot; Armory reports the blocker rather than dropping a
+hand-type extra.
 
-SS's own mass limits matter: the **Basic** preset caps a melee sidearm at
-1.9 kg. A 2 kg Monosword or Zeushammer is therefore **not a valid melee
-sidearm** (it is still valid as a melee primary), while a 0.85 kg gladius is.
-The Weapons tab shows `Sidearm blocked` with SS's reason, and the pawn detail
-lists the candidate with that blocker.
+SS's mass limits still matter. The **Basic** preset caps a melee sidearm at
+1.9 kg and a ranged sidearm at 2.7 kg, with 3 total slots **including the
+equipped weapon**. A 2 kg Monosword or Zeushammer is therefore **not a valid
+melee backup** (it is still valid as a melee hand weapon), while a 0.85 kg
+gladius is. The Weapons tab shows `Backup blocked` with SS's reason, and the pawn
+detail lists the candidate under the backup slot with that blocker.
 
-Turning **Respect Simple Sidearms** off lets Armory override SS primary modes
-and forced states; the two mods may then fight over primaries. Sidearm jobs are
-always suppressed for forced states.
+Turning **Respect Simple Sidearms** off reverts to a single untyped hand ranking
+and disables backup management; the two mods may then fight over primaries.
 
 SS's primary mode is **per pawn**. Changing SS's global default only affects
 newly generated pawns; existing colonists keep their own mode. Use the Simple
-Sidearms gizmo on a colonist to switch them to Melee or By skill. If every pawn
-is on Ranged, melee weapons stay blocked for them until a pawn is switched, or
-until **Respect Simple Sidearms** is turned off.
+Sidearms gizmo on a colonist to switch them to Melee or By skill. A melee-mode
+pawn gets a ranged backup, subject to SS's 2.7 kg ranged-sidearm cap.
 
 ---
 
@@ -259,11 +276,9 @@ All settings are under **Options → Mod settings → Armory**. The page scrolls
 | Equip drafted colonists | off | — | Queues jobs for drafted pawns |
 | Respect manual weapon changes | on | — | Pause after a player/other-mod change |
 | Manual-change pause | 15000 ticks (~250 s) | 2500–30000 | Length of that pause |
-| Respect Simple Sidearms | on | — | Follow SS primary mode, forced weapons, and carried-primary baseline |
-| Manage sidearms | off | — | Add loose weapons to inventory via `EquipSecondary` |
-| Desired sidearms per colonist | 1 | 0–4 | Target count; upgrades keep the existing count |
-| Prefer a different type than the primary | on | — | Ranged primary → melee sidearm, and vice versa |
-| Upgrade a worse sidearm | off | — | Add a better candidate and drop the worst sidearm |
+| Respect Simple Sidearms | on | — | Typed hand/backup slots, SS mode, forced states, and SS hand baseline |
+| Manage backup weapons | off | — | Keep one opposite-type weapon in the bag via `EquipSecondary` |
+| Upgrade a worse backup | on | — | Replace the worst same-type backup when a better valid one exists; never cross-type |
 | Upgrade threshold | 10% | 0–50% | Required improvement to swap |
 | Ranged preference | ×1.00 | 0.5–2.0 | Global scoring bias |
 | Melee preference | ×1.00 | 0.5–2.0 | Global scoring bias |
@@ -272,7 +287,8 @@ All settings are under **Options → Mod settings → Armory**. The page scrolls
 | Rescan interval | 120 ticks | 30–600 | Snapshot rebuild interval |
 | Log snapshot summary on map load | off | — | Writes a one-time diagnostic to `Player.log` |
 
-Internal: `settingsVersion` (currently 1) drives the age migration.
+Internal: `settingsVersion` (currently 2) drives the age and typed-slot
+migrations.
 
 ---
 
@@ -356,14 +372,18 @@ Manual equivalent:
 
 ## Known limitations
 
-- **Sidearm upgrades are best-effort.** Armory adds the better sidearm first,
-  then drops the old one; if SS's slot limits leave no room, it skips the
-  upgrade. It does not compute exact mass/weight budgets itself; SS's
-  `CanPickupSidearmInstance` is checked per candidate. Remembered weapons the
-  pawn no longer carries are not used as sidearm candidates.
+- **Backups are one per pawn and same-type upgrades only.** Armory does not add a
+  second backup and does not drop a hand-type extra to make room for a missing
+  backup, so a bag already full of extras can block the first backup. It does
+  not compute exact mass/weight budgets itself; SS's `CanPickupSidearmInstance`
+  is checked per candidate. Remembered weapons the pawn no longer carries are not
+  used as candidates.
+- **Drop-first upgrades have a brief gap.** At SS's slot cap Armory drops the old
+  backup before queueing the new one, and restores the old weapon if SS still
+  rejects the replacement. The dropped weapon is on the ground in the meantime.
 - **Container scanning** is limited to loose/spawned weapons plus ordinary
   shelves/stockpiles. Weapons inside transport pods or pawn inventory are not
-  offered as primary candidates; pod occupants are still listed as unavailable
+  offered as hand candidates; pod occupants are still listed as unavailable
   pawns.
 - **Combat Extended** ammo state is not scored beyond its stat effects.
 - **Other mods' forced weapons** are not read. Simple Sidearms forced states are;
@@ -389,19 +409,21 @@ Manual equivalent:
    - forced states and primary modes respected;
    - carried-primary baseline and SS job guard prevent most swap loops;
    - SS state and carried sidearms surfaced in pawn detail.
-2. **Milestone 4 - Sidearm ranking and assignment** - done in 0.4.0; sidearm upgrades and sidearm visibility in 0.5.0.
-   - add and upgrade sidearms via `EquipSecondary`;
+2. **Milestone 4 — Sidearm ranking and assignment** — done in 0.4.0;
+   sidearm visibility in 0.5.0; replaced by the typed hand/backup model in 0.6.0.
+   - one hand slot (SS mode type) and one opposite-type backup;
+   - same-type-only upgrades, add-first or drop-first depending on SS slots;
+   - mirrored for ranged and melee pawns;
    - SS slot/mass/selection checks on every candidate;
-   - type-diversity preference, desired count, claims/cooldown/log;
-   - sidearm candidates shown in pawn detail.
+   - hand and backup shown separately, never in one cross-type ranking.
 3. **Milestone 5 — Polish**
    - exotic container scanning;
    - auto-haul dropped weapons;
    - raid arming;
    - localization;
    - Workshop prep.
-4. **Later** — deliberate variation (short/long mix, roles) instead of one top
-   pick per pawn.
+4. **Later** — deliberate variation (short/long mix, multiple backups) instead of
+   one best-in-type per slot.
 
 ---
 

@@ -330,27 +330,42 @@ public void UnsetForcedWeapon(bool drafted);
 
 - `CanPickupSidearmInstance(ThingWithComps weapon, Pawn pawn, out string reason)`
   (Auto Arm also probes `canCarrySidearmInstance` and `CanPickupSidearm`);
-- `canUseSidearmInstance`;
-- `isValidSidearm`.
+- `canUseSidearmInstance(ThingWithComps weapon, Pawn pawn, out string reason)` —
+  biocoding, bonds, ideology role; no slot/mass;
+- `isValidSidearm(ThingDefStuffDefPair weapon, out string reason)` — per-type
+  mass, selection, pacifist-tool rules; no slot count or free carrying capacity.
+
+Armory uses the three together: `CanPickupSidearmInstance` for readiness,
+`isValidSidearm` + `canUseSidearmInstance` to prove that a weapon would be legal
+after dropping an old backup. Do not drop for a weapon those two reject.
 
 `PeteTimesSix.SimpleSidearms.Utilities.WeaponAssingment` (spelling is
 intentional) handles assignment internally. Public drop:
 `DropSidearm(Pawn pawn, ThingWithComps weapon, bool intentionalDrop,
 bool unmemorise)`; with `unmemorise: true` SS's `JobGiver_RetrieveWeapon` will
-not immediately pick the dropped weapon back up. Armory uses this for sidearm
+not immediately pick the dropped weapon back up. Armory uses this for backup
 upgrades.
 
 **Basic preset mass caps:** `InferredValues.maxCapacity` is 35, so Basic's
 `LimitModeSingleMelee_RelativeMass = 1.9 / 35` is a **1.9 kg** cap and
 `LimitModeSingleRanged_RelativeMass = 2.7 / 35` is **2.7 kg**. A Monosword or
 Zeushammer (both 2 kg) therefore fails as a melee sidearm; a gladius (0.85 kg)
-passes. This is an SS rule, not an Armory score.
+passes. This is an SS rule, not an Armory score. Slot counts include the equipped
+weapon (`GetCarriedWeapons()` defaults to `includeEquipped: true`), so a ranged
+pawn with a hand weapon + one backup is 2 of the usual 3 total slots.
+
+**Hand vs sidearm:** only one weapon is equipped (`equipment.Primary`); the rest
+are inventory sidearms. Equipping a loose weapon uses vanilla `Equip`, which is
+not subject to the sidearm limits above. That is why a 2 kg Monosword can be a
+melee hand weapon but not a Basic-preset melee sidearm, and why the typed
+hand/backup model exists.
 
 `GettersFilters.findBestRangedWeapon(Pawn, LocalTargetInfo?, bool, bool, bool,
 bool)` returns a `(ThingWithComps, float dps, float averageSpeed)` tuple;
-`findBestMeleeWeapon(Pawn, out ThingWithComps, bool, bool, Pawn)` returns bool.
-These are the QuickSwitch choices and apply SS's manual-use/dangerous/EMP
-filters. Armory uses them for the carried-primary baseline.
+`findBestMeleeWeapon(Pawn, out ThingWithComps, bool includeEquipped, bool
+includeRangedWithBash, Pawn target)` returns bool. These are the QuickSwitch
+choices. Armory passes SS's `SkipDangerousWeapons` and `includeRangedWithBash:
+false` so its hand baseline matches SS's idle choice.
 
 ### Jobs and think tree
 
@@ -443,46 +458,52 @@ no compile-time reference, no hard dependency, safe in Core-only games.
 What was deliberately **not** done: using SS's `CanPickupSidearmInstance` for
 primaries (it governs sidearm slots, not primaries), and assigning sidearms.
 
-### M4 — sidearm ranking and assignment (implemented in 0.4.0)
+### M4 — typed hand/backup slots (0.4.0, revised in 0.6.0)
 
-1. Candidate set: loose weapons, excluding the current primary. Hard equip
-   failures are dropped; soft blockers remain visible.
-2. Every candidate is validated with `CanPickupSidearmInstance`, which covers
-   SS slots, mass, selection lists, stash space, pacifist tools, bonds,
-   biocoding, and role restrictions.
-3. Score uses the same power × fit model. A sidearm of the opposite type from
-   the primary is flagged (`IsRangedWeapon` comparison; a gun with a stock bash
-   is still ranged). When the setting is on, the planner picks the best ready
-   diverse candidate first, then the best ready same-type candidate.
-4. A pawn needs a current or queued primary, and when SS has a preferred primary
-   type the primary must match it. Otherwise SS may promote the sidearm to
-   primary, which Armory would interpret as a manual change.
-5. UI: current sidearms with scores, `carried / desired`, ranked sidearm
-   candidates with `ready`/`SS: ...` statuses and an `opposite type` tag;
-   settings for enable, desired count (0–4), diversity, and upgrades. The
-   Weapons tab marks `Sidearm`/`Sidearm blocked` and per-colonist
-   `sidearm ready`, so primary-only blockers are not mistaken for unusability.
-6. Assignment uses `DefDatabase<JobDef>.GetNamedSilentFail("EquipSecondary")`
-   and the normal `TryTakeOrderedJob(..., true)` path, with shared claims,
-   per-pawn cooldown, and `Queued sidearm` logging.
-7. Upgrades (0.5.0): when at the desired count, choose a candidate that beats
-   the worst same-type sidearm (or worst any-type if none) by the threshold.
-   Queue the new sidearm first, then call
-   `WeaponAssingment.DropSidearm(pawn, old, intentionalDrop: true,
-   unmemorise: true)` so SS does not retrieve it. Skip if SS leaves no room for
-   an extra sidearm.
-8. Forced/unarmed/prefer-unarmed SS states suppress sidearm jobs regardless of
-   the respect setting. Persona weapons and `destroyOnDrop` items are never
-   dropped.
-9. Verified in the isolated SS game: one opposite-type sidearm queued for a
-   melee-primary pawn with no promotion event; a ranged-role/melee-primary case
-   correctly skipped sidearms. The 0.5.0 upgrade path was not runtime-tested
-   because the user's game was running; it compiles clean and the reflection
-   signature matches the decompiled 1.6 method.
+The 0.4.0–0.5.1 implementation treated the bag as a single sidearm pool with a
+"diverse" preference and a total desired count. On a live save that produced a
+melee weapon as every ranged pawn's top wish, and the upgrade logic compared
+weapons across types. 0.6.0 replaces it with typed slots.
 
-Known gaps: exact free-slot display for slot-based limits and mass budgets;
-upgrades require room for one extra sidearm; remembered-but-absent weapons are
-not candidates.
+1. **Model**: SS has one equipped hand and a bag. Its primary mode chooses the
+   hand type; sidearm limits apply only to bag additions. A pawn therefore has a
+   **hand slot** (SS mode type) and one **backup slot** (the opposite type).
+   Ranged pawns get a melee backup; melee pawns get a ranged backup.
+2. **Hand candidates**: loose weapons of the role type only. The baseline is
+   SS's own QuickSwitch choice (`findBestRangedWeapon` / `findBestMeleeWeapon`,
+   with SS's `SkipDangerousWeapons`; melee passes `includeRangedWithBash: false`
+   to match SS's idle choice), plus the current weapon when it matches the role.
+   Hand upgrades use the vanilla `Equip` job.
+3. **Backup candidates**: loose weapons of the opposite type, validated with
+   `CanPickupSidearmInstance`, which covers SS slots, mass, selection lists, stash
+   space, pacifist tools, bonds, biocoding, and role restrictions. Hard failures
+   are dropped; soft blockers remain visible.
+4. **Pacing and safety**: a pawn must be holding the role type (SS may still be
+   switching), and must have a hand weapon. Forced/unarmed/prefer-unarmed SS
+   states suppress backup jobs. Same claims, per-pawn cooldown, and manual-change
+   protection as hand upgrades.
+5. **Upgrades**: same type only. Replace the worst carried backup when a better
+   valid one exists. Never drop the last weapon of a type and never drop one type
+   to add the other. With a free SS slot, queue `EquipSecondary` first and then
+   `DropSidearm(old, true, true)`. At the slot/free-space cap, pre-check
+   `isValidSidearm` + `canUseSidearmInstance`, drop the old backup, re-check
+   `CanPickupSidearmInstance`, queue the new weapon, and requeue the old one if SS
+   still refuses.
+6. **UI**: separate Hand/Backup rankings; no cross-type score comparison. Pawns
+   list shows Hand/Backup/Status. Weapons status is `Hand`, `Backup`,
+   `Hand blocked`, `Backup blocked`, `No user`. Demand has a `For` column.
+7. **Settings**: `manageSidearms` now means one opposite-type backup;
+   `replaceWorseSidearms` defaults on; `desiredSidearms` and
+   `preferSidearmDiversity` are gone; `settingsVersion` 2 migrates old saves.
+8. **Verified**: 0.4.0's isolated test confirmed `EquipSecondary` job queueing
+   with no promotion event. The 0.6.0 typed model, drop-first path, and the new
+   `isValidSidearm` / `canUseSidearmInstance` reflection were not runtime-tested
+   because the user's game was running. Build is clean; reflection signatures
+   match the decompiled 1.6 methods.
+
+Known gaps: no second backup; a bag full of extras can block the first backup
+(Armory will not drop a hand-type extra to make room); exact free-slot/mass
+display; remembered-but-absent weapons are not candidates.
 
 ### Open questions
 

@@ -33,24 +33,31 @@ namespace Armory
         }
     }
 
-    /// <summary>A weapon already in the pawn's inventory, with its sidearm score.</summary>
+    /// <summary>A weapon already in the pawn's inventory, with its backup-slot score.</summary>
     public sealed class CarriedSidearm
     {
         public ThingWithComps Thing;
         public float Score;
     }
 
-    /// <summary>One sidearm evaluated for one pawn. Kept separate from primary candidates.</summary>
+    /// <summary>
+    /// One weapon evaluated for the pawn's backup slot (the opposite type from the hand
+    /// weapon). Kept separate from hand candidates so ranged and melee are never ranked
+    /// against each other.
+    /// </summary>
     public sealed class SidearmCandidate
     {
         public WeaponInfo Weapon;
         public float Score;
 
-        /// <summary>Null when the pawn could pick this up as a sidearm right now.</summary>
+        /// <summary>Null when the pawn could pick this up as a backup right now.</summary>
         public string Blocker;
 
-        /// <summary>True when this sidearm is the opposite type from the pawn's primary role.</summary>
-        public bool Diverse;
+        /// <summary>
+        /// True when the only reason this is not ready is Simple Sidearms' slot or
+        /// free-space cap, so dropping the worst carried backup could make room.
+        /// </summary>
+        public bool UpgradeAfterDrop;
 
         public bool Ready
         {
@@ -64,6 +71,16 @@ namespace Armory
         public Pawn Pawn;
         public ThingWithComps Current;
         public float CurrentScore;
+
+        /// <summary>
+        /// True when the pawn's hand slot is ranged, false when melee, null when no typed
+        /// slot model applies (Simple Sidearms absent). Derived from SS's primary mode, then
+        /// the current weapon, then skill.
+        /// </summary>
+        public bool? RoleIsRanged;
+
+        /// <summary>Human-readable source of <see cref="RoleIsRanged"/>.</summary>
+        public string RoleSource;
 
         /// <summary>Null when the pawn is on the map; otherwise why they are unavailable.</summary>
         public string UnavailableReason;
@@ -79,14 +96,19 @@ namespace Armory
         public SimpleSidearmsAdapter.PawnState SidearmState;
 
         /// <summary>
-        /// Best weapon the pawn already carries in Simple Sidearms' preferred primary role.
-        /// Used as the upgrade baseline so Armory does not queue a downgrade SS would undo.
+        /// Best weapon the pawn already carries for Simple Sidearms' hand role.
+        /// Used as the hand upgrade baseline so Armory does not queue a downgrade SS would undo.
         /// </summary>
         public ThingWithComps BestCarriedPrimary;
 
         public float BestCarriedPrimaryScore;
 
-        /// <summary>Loose weapons evaluated as Simple Sidearms sidearms, best first.</summary>
+        /// <summary>Best opposite-type weapon already in the pawn's inventory (backup baseline).</summary>
+        public ThingWithComps BestCarriedBackup;
+
+        public float BestCarriedBackupScore;
+
+        /// <summary>Loose weapons evaluated for the backup slot, best first.</summary>
         public readonly List<SidearmCandidate> SidearmCandidates = new List<SidearmCandidate>();
 
         public bool Available
@@ -94,10 +116,39 @@ namespace Armory
             get { return string.IsNullOrEmpty(UnavailableReason); }
         }
 
-        /// <summary>Weapons this pawn could use in principle, best first. May still be blocked.</summary>
+        public bool HasRole
+        {
+            get { return RoleIsRanged.HasValue; }
+        }
+
+        /// <summary>True when the weapon belongs in this pawn's hand slot.</summary>
+        public bool IsHandType(ThingDef def)
+        {
+            if (def == null)
+            {
+                return false;
+            }
+            if (!RoleIsRanged.HasValue)
+            {
+                return true;
+            }
+            return RoleIsRanged.Value ? def.IsRangedWeapon : def.IsMeleeWeapon;
+        }
+
+        /// <summary>True when the weapon belongs in this pawn's opposite-type backup slot.</summary>
+        public bool IsBackupType(ThingDef def)
+        {
+            if (def == null || !RoleIsRanged.HasValue)
+            {
+                return false;
+            }
+            return RoleIsRanged.Value ? def.IsMeleeWeapon : def.IsRangedWeapon;
+        }
+
+        /// <summary>Weapons this pawn could use in the hand slot, best first. May still be blocked.</summary>
         public readonly List<Candidate> Ranked = new List<Candidate>();
 
-        /// <summary>Weapons this pawn can never use (biocoded elsewhere, role, bonded).</summary>
+        /// <summary>Hand-slot weapons this pawn can never use (biocoded elsewhere, role, bonded).</summary>
         public readonly List<Candidate> Incompatible = new List<Candidate>();
 
         public Candidate TopOverall
@@ -136,30 +187,58 @@ namespace Armory
             {
                 return 0f;
             }
-            if (CurrentScore <= 0.01f)
+            float baseline = HandBaselineScore;
+            if (baseline <= 0.01f)
             {
                 return 1f;
             }
-            return candidate.Score / CurrentScore - 1f;
+            return candidate.Score / baseline - 1f;
+        }
+
+        /// <summary>
+        /// Score the hand slot must beat. If the equipped weapon is the other type (SS has
+        /// not switched yet, or the pawn is waiting), its score is not comparable to hand
+        /// candidates and is excluded; the best carried hand weapon is the baseline instead.
+        /// </summary>
+        public float HandBaselineScore
+        {
+            get
+            {
+                if (!RoleIsRanged.HasValue)
+                {
+                    return CurrentScore;
+                }
+                bool currentIsHand = Current != null && IsHandType(Current.def);
+                float baseline = BestCarriedPrimaryScore;
+                if (currentIsHand && CurrentScore > baseline)
+                {
+                    baseline = CurrentScore;
+                }
+                return baseline;
+            }
         }
     }
 
-    /// <summary>A weapon on the map, plus the pawn that would benefit most from it.</summary>
+    /// <summary>A weapon on the map, plus the pawns that would use it in each slot.</summary>
     public sealed class WeaponAnalysis
     {
         public WeaponInfo Weapon;
-        public PawnAnalysis BestPawn;
-        public float BestScore;
-        public PawnAnalysis BestAnyPawn;
-        public float BestAnyScore;
 
-        /// <summary>Best pawn that can pick this up as a sidearm right now.</summary>
-        public PawnAnalysis BestSidearmPawn;
-        public float BestSidearmScore;
+        /// <summary>Best pawn that can use it in the hand slot right now.</summary>
+        public PawnAnalysis BestHandPawn;
+        public float BestHandScore;
 
-        /// <summary>Best pawn that could carry it as a sidearm but is blocked.</summary>
-        public PawnAnalysis BestAnySidearmPawn;
-        public float BestAnySidearmScore;
+        /// <summary>Best pawn that could use it in the hand slot but is blocked.</summary>
+        public PawnAnalysis BestAnyHandPawn;
+        public float BestAnyHandScore;
+
+        /// <summary>Best pawn that can carry it in the backup slot right now.</summary>
+        public PawnAnalysis BestBackupPawn;
+        public float BestBackupScore;
+
+        /// <summary>Best pawn that could carry it in the backup slot but is blocked.</summary>
+        public PawnAnalysis BestAnyBackupPawn;
+        public float BestAnyBackupScore;
 
         public string Status;
         public readonly List<Candidate> PawnCandidates = new List<Candidate>();
@@ -170,14 +249,45 @@ namespace Armory
     {
         public ThingDef Def;
         public string Label;
-        public int Wanted;
-        public int Blocked;
+        public int WantedHand;
+        public int WantedBackup;
+        public int BlockedHand;
+        public int BlockedBackup;
         public int Stock;
         public int Forbidden;
+
+        public int Wanted
+        {
+            get { return WantedHand + WantedBackup; }
+        }
+
+        public int Blocked
+        {
+            get { return BlockedHand + BlockedBackup; }
+        }
 
         public int Shortage
         {
             get { return System.Math.Max(0, Wanted - Stock); }
+        }
+
+        /// <summary>"hand", "backup", "both", or "-" for display.</summary>
+        public string Uses
+        {
+            get
+            {
+                bool hand = WantedHand > 0 || BlockedHand > 0;
+                bool backup = WantedBackup > 0 || BlockedBackup > 0;
+                if (hand && backup)
+                {
+                    return "both";
+                }
+                if (hand)
+                {
+                    return "hand";
+                }
+                return backup ? "backup" : "-";
+            }
         }
     }
 

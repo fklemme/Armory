@@ -89,8 +89,12 @@ namespace Armory
                 PawnAnalysis pawn = snapshot.Pawns[i];
                 Candidate top = pawn.TopOverall;
                 Candidate ready = pawn.TopReady;
-                Log.Message(string.Format("[Armory]   {0}: {1} -> best {2} ({3:0}) [{4}]; ready {5}; ranked {6}, incompatible {7}",
+                Log.Message(string.Format(
+                    "[Armory]   {0}: role {1}; {2} -> best hand {3} ({4:0}) [{5}]; ready {6}; hand ranked {7}, incompatible {8}",
                     pawn.Pawn.LabelShort,
+                    pawn.HasRole
+                        ? ((pawn.RoleIsRanged.Value ? "ranged" : "melee") + " (" + pawn.RoleSource + ")")
+                        : "none",
                     pawn.Current == null ? "unarmed" : pawn.Current.LabelCap,
                     top == null ? "none" : top.Weapon.Label,
                     top == null ? 0f : top.Score,
@@ -101,7 +105,7 @@ namespace Armory
                 for (int j = 0; j < pawn.Ranked.Count && j < 4; j++)
                 {
                     Candidate candidate = pawn.Ranked[j];
-                    Log.Message(string.Format("[Armory]     {0}: score {1:0}, {2}",
+                    Log.Message(string.Format("[Armory]     hand {0}: score {1:0}, {2}",
                         candidate.Weapon.Label,
                         candidate.Score,
                         candidate.Ready ? "ready" : candidate.Blocker));
@@ -109,34 +113,24 @@ namespace Armory
                 if (pawn.SidearmState != null)
                 {
                     Log.Message("[Armory]     SS: " + pawn.SidearmState.Summary() +
-                                "; sidearms: " + pawn.SidearmText +
-                                (pawn.BestCarriedPrimary == null
-                                    ? string.Empty
-                                    : string.Format("; best carried {0} ({1:0})",
-                                        pawn.BestCarriedPrimary.LabelCap,
-                                        pawn.BestCarriedPrimaryScore)));
+                                "; carried weapons: " + pawn.SidearmText);
                 }
-                if (pawn.SidearmCandidates.Count > 0)
+                if (pawn.HasRole)
                 {
-                    string readyText = string.Empty;
-                    int readyCount = 0;
-                    for (int j = 0; j < pawn.SidearmCandidates.Count && readyCount < 3; j++)
+                    Log.Message(string.Format(
+                        "[Armory]     backup ({0}): carried {1}; best carried {2}; candidates {3}",
+                        pawn.RoleIsRanged.Value ? "melee" : "ranged",
+                        pawn.BestCarriedBackup == null ? "none" : pawn.BestCarriedBackup.LabelCap,
+                        pawn.BestCarriedBackupScore,
+                        pawn.SidearmCandidates.Count));
+                    for (int j = 0; j < pawn.SidearmCandidates.Count && j < 3; j++)
                     {
                         SidearmCandidate sidearm = pawn.SidearmCandidates[j];
-                        if (!sidearm.Ready)
-                        {
-                            continue;
-                        }
-                        if (readyCount > 0)
-                        {
-                            readyText += ", ";
-                        }
-                        readyText += string.Format("{0} ({1:0}{2})", sidearm.Weapon.Label, sidearm.Score,
-                            sidearm.Diverse ? ", opposite" : string.Empty);
-                        readyCount++;
+                        Log.Message(string.Format("[Armory]       backup {0}: score {1:0}, {2}",
+                            sidearm.Weapon.Label,
+                            sidearm.Score,
+                            sidearm.Ready ? "ready" : sidearm.Blocker));
                     }
-                    Log.Message("[Armory]     sidearm candidates: " + pawn.SidearmCandidates.Count +
-                                "; ready: " + (readyCount == 0 ? "none" : readyText));
                 }
             }
         }

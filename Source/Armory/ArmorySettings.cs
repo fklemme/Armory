@@ -22,11 +22,9 @@ namespace Armory
         public bool respectManualEquip = true;
         public bool respectSimpleSidearms = true;
         public bool manageSidearms;
-        public int desiredSidearms = 1;
-        public bool preferSidearmDiversity = true;
-        public bool replaceWorseSidearms;
+        public bool replaceWorseSidearms = true;
         public int manualCooldownTicks = 15000;
-        public int settingsVersion = 1;
+        public int settingsVersion = 2;
 
         private Vector2 scrollPosition;
         private float contentHeight = 1200f;
@@ -51,9 +49,7 @@ namespace Armory
             Scribe_Values.Look(ref respectManualEquip, "respectManualEquip", true);
             Scribe_Values.Look(ref respectSimpleSidearms, "respectSimpleSidearms", true);
             Scribe_Values.Look(ref manageSidearms, "manageSidearms", false);
-            Scribe_Values.Look(ref desiredSidearms, "desiredSidearms", 1);
-            Scribe_Values.Look(ref preferSidearmDiversity, "preferSidearmDiversity", true);
-            Scribe_Values.Look(ref replaceWorseSidearms, "replaceWorseSidearms", false);
+            Scribe_Values.Look(ref replaceWorseSidearms, "replaceWorseSidearms", true);
             Scribe_Values.Look(ref manualCooldownTicks, "manualCooldownTicks", 15000);
             Scribe_Values.Look(ref settingsVersion, "settingsVersion", 0);
 
@@ -66,6 +62,14 @@ namespace Armory
                     minimumAge = 3;
                 }
                 settingsVersion = 1;
+            }
+
+            if (Scribe.mode == LoadSaveMode.PostLoadInit && settingsVersion < 2)
+            {
+                // 0.6.0 replaces "total desired sidearms" with one hand + one opposite-type
+                // backup, and makes per-type upgrades part of the default behaviour.
+                replaceWorseSidearms = true;
+                settingsVersion = 2;
             }
         }
 
@@ -120,22 +124,20 @@ namespace Armory
             listing.GapLine();
             if (ArmoryMod.SimpleSidearmsLoaded)
             {
-                listing.CheckboxLabeled("Respect Simple Sidearms primary mode and forced weapons",
+                listing.CheckboxLabeled("Respect Simple Sidearms hand role and forced weapons",
                     ref respectSimpleSidearms);
                 listing.Label(respectSimpleSidearms
-                    ? "Armory leaves forced primaries alone and will not equip a primary type that Simple Sidearms would switch away from."
-                    : "Armory may override Simple Sidearms' primary type and forced states. Expect the two mods to fight over primaries.");
+                    ? "Armory follows the pawn's SS hand type, leaves forced weapons alone, and will not equip the other type while the pawn carries the role type. Backups are managed separately."
+                    : "Armory ignores SS's hand type and forced states. Expect the two mods to fight over the hand weapon.");
                 listing.Label("Simple Sidearms' primary mode is per pawn. Changing SS's default only affects newly generated pawns; use the SS gizmo on an existing colonist to switch that pawn to melee or by-skill.");
 
-                listing.CheckboxLabeled("Manage sidearms (add loose weapons to inventory)", ref manageSidearms);
+                listing.CheckboxLabeled("Manage backup weapons (one opposite-type weapon)", ref manageSidearms);
                 if (manageSidearms)
                 {
-                    listing.Label(string.Format("Desired sidearms per colonist: {0}", desiredSidearms));
-                    desiredSidearms = Mathf.RoundToInt(listing.Slider(desiredSidearms, 0f, 4f));
-                    listing.CheckboxLabeled("Prefer a different type than the primary", ref preferSidearmDiversity);
-                    listing.CheckboxLabeled("Upgrade a worse sidearm when a better one is available",
+                    listing.Label("Armory keeps one hand weapon (the pawn's Simple Sidearms type) and one opposite-type backup. Ranged pawns get a melee backup; melee pawns get a ranged backup.");
+                    listing.CheckboxLabeled("Upgrade a backup when a better valid one is available",
                         ref replaceWorseSidearms);
-                    listing.Label("Armory only adds or upgrades sidearms; it never removes one without adding a better one. Dropped sidearms stay on the ground. Simple Sidearms slot, mass, and selection rules are checked for every candidate.");
+                    listing.Label("Upgrades replace only the worst carried weapon of the same type, never the only weapon of a type and never across types. If Simple Sidearms has a free slot, the new weapon is picked up first and the old one dropped after. If slots are full, the old one is dropped first and restored if the new one cannot be added. Dropped weapons stay on the ground.");
                 }
             }
             else

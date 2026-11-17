@@ -25,7 +25,6 @@ namespace Armory
         private static readonly Dictionary<int, int> lastKnownWeapon = new Dictionary<int, int>();
         private static readonly Dictionary<int, int> lastIssuedWeapon = new Dictionary<int, int>();
         private static readonly Dictionary<int, int> manualUntil = new Dictionary<int, int>();
-        private static readonly List<SidearmCandidate> sidearmOrder = new List<SidearmCandidate>();
         private static int lastPruneTick = -1;
         private static JobDef equipSecondaryDef;
         private static bool equipSecondaryResolved;
@@ -38,7 +37,6 @@ namespace Armory
             lastKnownWeapon.Clear();
             lastIssuedWeapon.Clear();
             manualUntil.Clear();
-            sidearmOrder.Clear();
             lastPruneTick = -1;
             equipSecondaryDef = null;
             equipSecondaryResolved = false;
@@ -98,8 +96,7 @@ namespace Armory
                     continue;
                 }
 
-                float currentScore = analysis.CurrentScore;
-                float baselineScore = Mathf.Max(currentScore, analysis.BestCarriedPrimaryScore);
+                float baselineScore = analysis.HandBaselineScore;
                 float minimumScore = baselineScore > 0.01f
                     ? baselineScore * (1f + settings.upgradeThreshold)
                     : 0.01f;
@@ -167,7 +164,8 @@ namespace Armory
                             ? "unarmed"
                             : analysis.Current.LabelCap;
                         if (analysis.BestCarriedPrimary != null &&
-                            analysis.BestCarriedPrimaryScore > currentScore)
+                            analysis.BestCarriedPrimary != analysis.Current &&
+                            analysis.BestCarriedPrimaryScore >= analysis.HandBaselineScore)
                         {
                             baselineLabel = analysis.BestCarriedPrimary.LabelCap + " (carried)";
                         }
@@ -186,16 +184,16 @@ namespace Armory
                 }
             }
 
-            if (settings.manageSidearms && settings.desiredSidearms > 0 &&
-                SimpleSidearmsAdapter.CanCheckSidearms)
+            if (settings.manageSidearms && SimpleSidearmsAdapter.CanCheckSidearms)
             {
                 RunSidearms(map, snapshot, settings, now, queuedPrimaryRanged);
             }
         }
 
         /// <summary>
-        /// Adds sidearms for pawns below the desired count. Add-only: Armory never removes or
-        /// replaces a sidearm. Simple Sidearms' own slot/mass/selection check is authoritative.
+        /// Maintains the opposite-type backup slot. A ranged pawn gets one melee backup and
+        /// a melee pawn gets one ranged backup. An upgrade replaces only the worst carried
+        /// weapon of that same type; Armory never drops one type to add the other.
         /// </summary>
         private static void RunSidearms(Map map, ArmorySnapshot snapshot, ArmorySettings settings, int now,
             Dictionary<int, bool> queuedPrimaryRanged)
@@ -211,18 +209,12 @@ namespace Armory
                 PawnAnalysis analysis = snapshot.Pawns[i];
                 Pawn pawn = analysis.Pawn;
 
-                if (!CanManage(pawn, map, settings))
+                if (!CanManage(pawn, map, settings) || !analysis.HasRole ||
+                    analysis.SidearmState == null)
                 {
                     continue;
                 }
-                if (analysis.SidearmState != null && analysis.SidearmState.AutomationVeto)
-                {
-                    continue;
-                }
-
-                bool atDesired = analysis.Sidearms.Count >= settings.desiredSidearms;
-                if (atDesired &&
-                    (!settings.replaceWorseSidearms || !SimpleSidearmsAdapter.CanDropSidearms))
+                if (settings.respectSimpleSidearms && analysis.SidearmState.AutomationVeto)
                 {
                     continue;
                 }
@@ -231,66 +223,59 @@ namespace Armory
                     continue;
                 }
 
-                bool? primaryIsRanged = ResolvePrimaryType(analysis, queuedPrimaryRanged);
-                if (!primaryIsRanged.HasValue)
+                bool roleRanged = analysis.RoleIsRanged.Value;
+                if (analysis.Current == null && !queuedPrimaryRanged.ContainsKey(pawn.thingIDNumber))
                 {
+                    // Backups complement a hand weapon; do not use them to arm an unarmed pawn.
                     continue;
                 }
-                bool hasPrimary = analysis.Current != null ||
-                                  queuedPrimaryRanged.ContainsKey(pawn.thingIDNumber);
-                if (!hasPrimary)
+                // Wait until SS has actually switched the pawn to the role type. Adding the
+                // other type while the wrong one is equipped invites SS to promote it.
+                if (analysis.Current != null && analysis.Current.def != null)
                 {
-                    // Sidearms complement a primary; do not use them to arm an unarmed pawn.
-                    continue;
+                    bool currentRanged = analysis.Current.def.IsRangedWeapon;
+                    if (currentRanged != roleRanged)
+                    {
+                        continue;
+                    }
                 }
-                // Adding a sidearm of SS's preferred type while the primary is the other
-                // type invites SS to promote it, which looks like a manual change. Wait
-                // until the primary matches the SS role.
-                if (SimpleSidearmsAdapter.RespectEnabled && analysis.SidearmState != null &&
-                    analysis.SidearmState.PreferredPrimaryIsRanged.HasValue &&
-                    primaryIsRanged.Value != analysis.SidearmState.PreferredPrimaryIsRanged.Value)
+
+                int backupCount = 0;
+                CarriedSidearm worst = null;
+                for (int j = 0; j < analysis.CarriedSidearms.Count; j++)
+                {
+                    CarriedSidearm carried = analysis.CarriedSidearms[j];
+                    if (!analysis.IsBackupType(carried.Thing.def))
+                    {
+                        continue;
+                    }
+                    backupCount++;
+                    if (!IsDroppableBackup(carried.Thing))
+                    {
+                        continue;
+                    }
+                    if (worst == null || carried.Score < worst.Score)
+                    {
+                        worst = carried;
+                    }
+                }
+
+                if (backupCount > 0 && (!settings.replaceWorseSidearms ||
+                                        !SimpleSidearmsAdapter.CanDropSidearms || worst == null))
                 {
                     continue;
                 }
 
-                sidearmOrder.Clear();
+                float minimumScore = worst == null
+                    ? 0f
+                    : Mathf.Max(worst.Score, 0.01f) * (1f + settings.upgradeThreshold);
+
                 for (int c = 0; c < analysis.SidearmCandidates.Count; c++)
                 {
-                    sidearmOrder.Add(analysis.SidearmCandidates[c]);
-                }
-                sidearmOrder.Sort((a, b) =>
-                {
-                    if (settings.preferSidearmDiversity)
+                    SidearmCandidate chosen = analysis.SidearmCandidates[c];
+                    if (chosen.Score <= minimumScore)
                     {
-                        bool aDiverse = IsDiverse(a.Weapon.Thing.def, primaryIsRanged);
-                        bool bDiverse = IsDiverse(b.Weapon.Thing.def, primaryIsRanged);
-                        if (aDiverse != bDiverse)
-                        {
-                            return aDiverse ? -1 : 1;
-                        }
-                    }
-                    return b.Score.CompareTo(a.Score);
-                });
-
-                for (int c = 0; c < sidearmOrder.Count; c++)
-                {
-                    SidearmCandidate chosen = sidearmOrder[c];
-                    if (!chosen.Ready)
-                    {
-                        continue;
-                    }
-                    CarriedSidearm replace = atDesired
-                        ? FindWorstSidearm(analysis, analysis.SidearmState,
-                            chosen.Weapon.Thing.def.IsRangedWeapon)
-                        : null;
-                    if (atDesired && replace == null)
-                    {
-                        continue;
-                    }
-                    if (replace != null &&
-                        chosen.Score <= Mathf.Max(replace.Score, 0.01f) * (1f + settings.upgradeThreshold))
-                    {
-                        continue;
+                        break; // sorted by score
                     }
 
                     ThingWithComps weapon = chosen.Weapon.Thing;
@@ -301,17 +286,66 @@ namespace Armory
 
                     Claim claim;
                     if (claims.TryGetValue(weapon.thingIDNumber, out claim) &&
-                        claim.PawnId != pawn.thingIDNumber &&
-                        claim.ExpiresTick > now)
+                        claim.PawnId != pawn.thingIDNumber && claim.ExpiresTick > now)
                     {
                         continue;
                     }
 
-                    string reason;
-                    bool hard;
-                    if (!Eligibility.CheckSidearm(pawn, weapon, true, out reason, out hard))
+                    string worldReason;
+                    if (!Eligibility.CheckSidearmWorld(pawn, weapon, true, out worldReason))
                     {
                         continue;
+                    }
+
+                    string rulesReason;
+                    bool hard;
+                    bool rulesOk = Eligibility.CheckSidearmRules(pawn, weapon, out rulesReason, out hard);
+                    if (!rulesOk && worst == null)
+                    {
+                        continue;
+                    }
+
+                    bool dropFirst = false;
+                    if (!rulesOk)
+                    {
+                        // At SS's slot or free-space cap, dropping the old backup is the only
+                        // way to fit a better one. Verify the weapon itself is legal first so
+                        // the pawn is not left without a backup for a weapon SS rejects anyway.
+                        if (!SimpleSidearmsAdapter.CanCheckSidearmType ||
+                            !SimpleSidearmsAdapter.CanCheckSidearmUse)
+                        {
+                            continue;
+                        }
+                        string typeReason;
+                        string useReason;
+                        if (!SimpleSidearmsAdapter.IsValidSidearmType(weapon, out typeReason) ||
+                            !SimpleSidearmsAdapter.CanUseSidearm(pawn, weapon, out useReason))
+                        {
+                            continue;
+                        }
+                        dropFirst = true;
+                    }
+
+                    float gain = worst == null
+                        ? 0f
+                        : (chosen.Score / Mathf.Max(worst.Score, 0.01f) - 1f) * 100f;
+
+                    if (dropFirst)
+                    {
+                        if (!DropBackup(pawn, worst, now))
+                        {
+                            continue;
+                        }
+
+                        string postReason;
+                        bool postHard;
+                        if (!Eligibility.CheckSidearmRules(pawn, weapon, out postReason, out postHard))
+                        {
+                            RestoreBackup(pawn, worst, jobDef, now);
+                            ArmoryGameComponent.Record(now, pawn, weapon, "Backup upgrade skipped",
+                                "SS still refuses after dropping " + worst.Thing.LabelCap + ": " + postReason);
+                            break;
+                        }
                     }
 
                     Job job = JobMaker.MakeJob(jobDef, weapon);
@@ -321,6 +355,10 @@ namespace Armory
                         {
                             Log.Warning("[Armory] " + pawn.LabelShort +
                                         " rejected an EquipSecondary job for " + weapon.LabelCap);
+                        }
+                        if (dropFirst)
+                        {
+                            RestoreBackup(pawn, worst, jobDef, now);
                         }
                         continue;
                     }
@@ -332,115 +370,91 @@ namespace Armory
                         ExpiresTick = now + 900
                     };
 
+                    string slot = roleRanged ? "melee" : "ranged";
                     string detail;
-                    if (replace != null)
+                    if (worst == null)
                     {
-                        bool dropped = false;
-                        if (pawn.inventory != null && pawn.inventory.innerContainer != null &&
-                            pawn.inventory.innerContainer.Contains(replace.Thing))
-                        {
-                            dropped = SimpleSidearmsAdapter.DropSidearm(pawn, replace.Thing, true, true);
-                        }
-                        detail = string.Format("replacing {0} (+{1}%)",
-                            replace.Thing.LabelCap,
-                            Mathf.RoundToInt((chosen.Score / Mathf.Max(replace.Score, 0.01f) - 1f) * 100f));
-                        if (dropped)
-                        {
-                            ArmoryGameComponent.Record(now, pawn, replace.Thing, "Dropped sidearm",
-                                "replaced by " + weapon.LabelCap);
-                        }
-                        else
-                        {
-                            detail += "; old sidearm was not dropped";
-                        }
+                        detail = "first " + slot + " backup";
                     }
                     else
                     {
-                        detail = string.Format("{0}/{1} sidearms; {2}",
-                            analysis.Sidearms.Count + 1,
-                            settings.desiredSidearms,
-                            IsDiverse(weapon.def, primaryIsRanged) ? "opposite type" : "same type");
+                        detail = string.Format("replacing {0} (+{1}%){2}",
+                            worst.Thing.LabelCap,
+                            Mathf.RoundToInt(gain),
+                            dropFirst ? ", old one dropped first" : string.Empty);
                     }
-                    ArmoryGameComponent.Record(now, pawn, weapon, "Queued sidearm", detail);
+                    ArmoryGameComponent.Record(now, pawn, weapon, "Queued backup", detail);
 
                     if (settings.debugLogging)
                     {
-                        Log.Message(string.Format("[Armory] queued sidearm {0} for {1} ({2})",
+                        Log.Message(string.Format("[Armory] queued backup {0} for {1} ({2})",
                             weapon.LabelCap, pawn.LabelShort, detail));
+                    }
+
+                    if (!dropFirst && worst != null)
+                    {
+                        if (DropBackup(pawn, worst, now))
+                        {
+                            ArmoryGameComponent.Record(now, pawn, worst.Thing, "Dropped backup",
+                                "replaced by " + weapon.LabelCap);
+                        }
                     }
                     break;
                 }
             }
         }
 
-        private static bool IsDiverse(ThingDef def, bool? primaryIsRanged)
+        private static bool IsDroppableBackup(ThingWithComps thing)
         {
-            return def != null && primaryIsRanged.HasValue &&
-                   def.IsRangedWeapon != primaryIsRanged.Value;
+            return thing != null && !thing.Destroyed && thing.def != null &&
+                   (thing.def.IsRangedWeapon || thing.def.IsMeleeWeapon) &&
+                   !thing.def.destroyOnDrop && thing.GetComp<CompBladelinkWeapon>() == null;
         }
 
-        private static CarriedSidearm FindWorstSidearm(PawnAnalysis analysis,
-            SimpleSidearmsAdapter.PawnState state, bool preferRanged)
+        private static bool DropBackup(Pawn pawn, CarriedSidearm backup, int now)
         {
-            CarriedSidearm worstSameType = null;
-            CarriedSidearm worstAny = null;
-            for (int i = 0; i < analysis.CarriedSidearms.Count; i++)
+            if (backup == null || backup.Thing == null)
             {
-                CarriedSidearm carried = analysis.CarriedSidearms[i];
-                ThingWithComps thing = carried.Thing;
-                if (thing == null || thing.Destroyed || thing.def == null)
-                {
-                    continue;
-                }
-                if (thing.def.destroyOnDrop || thing.GetComp<CompBladelinkWeapon>() != null)
-                {
-                    continue;
-                }
-                if (!thing.def.IsRangedWeapon && !thing.def.IsMeleeWeapon)
-                {
-                    continue;
-                }
-                if (state != null && state.PreferredPairDef != null &&
-                    thing.def == state.PreferredPairDef && thing.Stuff == state.PreferredPairStuff)
-                {
-                    continue;
-                }
-
-                if (worstAny == null || carried.Score < worstAny.Score)
-                {
-                    worstAny = carried;
-                }
-                if (thing.def.IsRangedWeapon == preferRanged &&
-                    (worstSameType == null || carried.Score < worstSameType.Score))
-                {
-                    worstSameType = carried;
-                }
+                return false;
             }
-            return worstSameType ?? worstAny;
+            if (pawn.inventory == null || pawn.inventory.innerContainer == null ||
+                !pawn.inventory.innerContainer.Contains(backup.Thing))
+            {
+                return false;
+            }
+            bool dropped = SimpleSidearmsAdapter.DropSidearm(pawn, backup.Thing, true, true);
+            if (!dropped)
+            {
+                ArmoryGameComponent.Record(now, pawn, backup.Thing, "Backup drop failed",
+                    "Simple Sidearms drop was unavailable");
+            }
+            return dropped;
         }
 
-        private static bool? ResolvePrimaryType(PawnAnalysis analysis, Dictionary<int, bool> queued)
+        private static void RestoreBackup(Pawn pawn, CarriedSidearm backup, JobDef jobDef, int now)
         {
-            bool queuedRanged;
-            if (analysis.Pawn != null &&
-                queued.TryGetValue(analysis.Pawn.thingIDNumber, out queuedRanged))
+            if (backup == null || backup.Thing == null || backup.Thing.Destroyed ||
+                !backup.Thing.Spawned)
             {
-                return queuedRanged;
+                return;
             }
-            if (analysis.Current != null && analysis.Current.def != null)
+            Job job = JobMaker.MakeJob(jobDef, backup.Thing);
+            if (pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc, true))
             {
-                if (analysis.Current.def.IsRangedWeapon)
+                lastSidearm[pawn.thingIDNumber] = now;
+                claims[backup.Thing.thingIDNumber] = new Claim
                 {
-                    return true;
-                }
-                if (analysis.Current.def.IsMeleeWeapon)
-                {
-                    return false;
-                }
+                    PawnId = pawn.thingIDNumber,
+                    ExpiresTick = now + 900
+                };
+                ArmoryGameComponent.Record(now, pawn, backup.Thing, "Restored backup",
+                    "upgrade could not be completed");
             }
-            return analysis.SidearmState == null
-                ? (bool?)null
-                : analysis.SidearmState.PreferredPrimaryIsRanged;
+            else
+            {
+                Log.Warning("[Armory] " + pawn.LabelShort + " could not restore dropped backup " +
+                            backup.Thing.LabelCap);
+            }
         }
 
         private static JobDef GetEquipSecondaryJobDef()

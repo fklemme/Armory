@@ -23,6 +23,8 @@ namespace Armory.Compatibility
         private const string WeaponAssignmentTypeName = "PeteTimesSix.SimpleSidearms.Utilities.WeaponAssingment";
         private const string GettersFiltersTypeName = "PeteTimesSix.SimpleSidearms.Utilities.GettersFilters";
         private const string ExtensionsTypeName = "PeteTimesSix.SimpleSidearms.Extensions";
+        private const string PairTypeName = "SimpleSidearms.rimworld.ThingDefStuffDefPair";
+        private const string SimpleSidearmsTypeName = "PeteTimesSix.SimpleSidearms.SimpleSidearms";
 
         /// <summary>SS state that matters for primary coexistence. Null when SS has no memory comp for the pawn.</summary>
         public sealed class PawnState
@@ -89,11 +91,16 @@ namespace Armory.Compatibility
 
         private static MethodInfo getMemoryMethod;
         private static MethodInfo canPickupSidearmMethod;
+        private static MethodInfo canUseSidearmMethod;
         private static MethodInfo dropSidearmMethod;
         private static MethodInfo findBestRangedMethod;
         private static MethodInfo findBestMeleeMethod;
+        private static MethodInfo isValidSidearmMethod;
+        private static ConstructorInfo pairConstructor;
         private static FieldInfo tupleItem1Field;
         private static MethodInfo skillPreferenceMethod;
+        private static PropertyInfo settingsProperty;
+        private static FieldInfo skipDangerousField;
 
         private static PropertyInfo forcedUnarmedProperty;
         private static PropertyInfo forcedWeaponProperty;
@@ -133,6 +140,36 @@ namespace Armory.Compatibility
             {
                 EnsureInitialized();
                 return active && dropSidearmMethod != null;
+            }
+        }
+
+        /// <summary>True when SS's single-weapon sidearm rule resolved.</summary>
+        public static bool CanCheckSidearmType
+        {
+            get
+            {
+                EnsureInitialized();
+                return active && isValidSidearmMethod != null;
+            }
+        }
+
+        /// <summary>True when SS's per-instance sidearm usability rule resolved.</summary>
+        public static bool CanCheckSidearmUse
+        {
+            get
+            {
+                EnsureInitialized();
+                return active && canUseSidearmMethod != null;
+            }
+        }
+
+        /// <summary>True after the SS carried-primary reflection call failed once.</summary>
+        public static bool PreferredPrimaryCheckFailed
+        {
+            get
+            {
+                EnsureInitialized();
+                return preferredPrimaryCheckFailed;
             }
         }
 
@@ -352,6 +389,65 @@ namespace Armory.Compatibility
         }
 
         /// <summary>
+        /// SS's per-instance usability rule (biocoding, bonds, ideology role), without the
+        /// slot/mass limits. Used to rule out drop-first upgrades that would still be denied.
+        /// Returns true when the check is unavailable.
+        /// </summary>
+        public static bool CanUseSidearm(Pawn pawn, ThingWithComps weapon, out string reason)
+        {
+            reason = null;
+            EnsureInitialized();
+            if (!active || canUseSidearmMethod == null || pawn == null || weapon == null)
+            {
+                return true;
+            }
+            try
+            {
+                object[] arguments = { weapon, pawn, null };
+                bool result = (bool)canUseSidearmMethod.Invoke(null, arguments);
+                reason = arguments[2] as string;
+                return result;
+            }
+            catch (Exception exception)
+            {
+                Log.Warning("[Armory] Simple Sidearms sidearm usability check failed: " +
+                            exception.GetType().Name + ": " + exception.Message);
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Simple Sidearms' single-weapon sidearm rule: per-type mass, selection, and
+        /// pacifist-tool limits, without the current slot count or free carrying capacity.
+        /// Used to decide whether dropping an existing backup can make room for this weapon.
+        /// Returns true when the check is unavailable.
+        /// </summary>
+        public static bool IsValidSidearmType(ThingWithComps weapon, out string reason)
+        {
+            reason = null;
+            EnsureInitialized();
+            if (!active || isValidSidearmMethod == null || pairConstructor == null ||
+                weapon == null || weapon.def == null)
+            {
+                return true;
+            }
+            try
+            {
+                object pair = pairConstructor.Invoke(new object[] { weapon.def, weapon.Stuff });
+                object[] arguments = { pair, null };
+                bool result = (bool)isValidSidearmMethod.Invoke(null, arguments);
+                reason = arguments[1] as string;
+                return result;
+            }
+            catch (Exception exception)
+            {
+                Log.Warning("[Armory] Simple Sidearms sidearm-type check failed: " +
+                            exception.GetType().Name + ": " + exception.Message);
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Uses Simple Sidearms' own sidearm drop so the weapon is dropped and forgotten. Returns
         /// false when the method is unavailable or fails; callers should then leave the sidearm
         /// alone rather than risk SS retrieving it again.
@@ -396,7 +492,7 @@ namespace Armory.Compatibility
                         return null;
                     }
                     object result = findBestRangedMethod.Invoke(null,
-                        new object[] { pawn, null, true, true, true, true });
+                        new object[] { pawn, null, true, ShouldSkipDangerous(), true, true });
                     return tupleItem1Field.GetValue(result) as ThingWithComps;
                 }
 
@@ -404,7 +500,8 @@ namespace Armory.Compatibility
                 {
                     return null;
                 }
-                object[] arguments = { pawn, null, true, true, null };
+                // SS's idle melee choice passes includeRangedWithBash: false.
+                object[] arguments = { pawn, null, true, false, null };
                 bool found = (bool)findBestMeleeMethod.Invoke(null, arguments);
                 return found ? arguments[1] as ThingWithComps : null;
             }
@@ -480,6 +577,27 @@ namespace Armory.Compatibility
             {
                 Log.Warning("[Armory] Simple Sidearms skill preference check failed: " + exception.Message);
                 return -1;
+            }
+        }
+
+        /// <summary>
+        /// SS's own "skip dangerous weapons" setting. The idle QuickSwitch uses it for
+        /// player-controlled colonists, so Armory's hand baseline must use the same rule.
+        /// </summary>
+        private static bool ShouldSkipDangerous()
+        {
+            if (settingsProperty == null || skipDangerousField == null)
+            {
+                return true;
+            }
+            try
+            {
+                object settings = settingsProperty.GetValue(null, null);
+                return settings == null || (bool)skipDangerousField.GetValue(settings);
+            }
+            catch
+            {
+                return true;
             }
         }
 
@@ -624,6 +742,27 @@ namespace Armory.Compatibility
                         null,
                         new[] { typeof(ThingWithComps), typeof(Pawn), typeof(string).MakeByRefType() },
                         null);
+                    canUseSidearmMethod = statCalculatorType.GetMethod(
+                        "canUseSidearmInstance",
+                        BindingFlags.Public | BindingFlags.Static,
+                        null,
+                        new[] { typeof(ThingWithComps), typeof(Pawn), typeof(string).MakeByRefType() },
+                        null);
+                }
+
+                Type sidearmPairType = FindType(PairTypeName);
+                if (sidearmPairType != null)
+                {
+                    pairConstructor = sidearmPairType.GetConstructor(new[] { typeof(ThingDef), typeof(ThingDef) });
+                    if (statCalculatorType != null && pairConstructor != null)
+                    {
+                        isValidSidearmMethod = statCalculatorType.GetMethod(
+                            "isValidSidearm",
+                            BindingFlags.Public | BindingFlags.Static,
+                            null,
+                            new[] { sidearmPairType, typeof(string).MakeByRefType() },
+                            null);
+                    }
                 }
 
                 Type weaponAssignmentType = FindType(WeaponAssignmentTypeName);
@@ -675,6 +814,19 @@ namespace Armory.Compatibility
                         null,
                         new[] { typeof(Pawn) },
                         null);
+                }
+
+                Type modType = FindType(SimpleSidearmsTypeName);
+                if (modType != null)
+                {
+                    settingsProperty = modType.GetProperty("Settings",
+                        BindingFlags.Public | BindingFlags.Static);
+                    if (settingsProperty != null)
+                    {
+                        skipDangerousField = settingsProperty.PropertyType.GetField(
+                            "SkipDangerousWeapons",
+                            BindingFlags.Public | BindingFlags.Instance);
+                    }
                 }
 
                 bool usable = getMemoryMethod != null && forcedUnarmedProperty != null &&

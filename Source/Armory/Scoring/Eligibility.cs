@@ -53,6 +53,24 @@ namespace Armory
             reason = null;
             hard = false;
 
+            if (!CheckSidearmRules(pawn, weapon, out reason, out hard))
+            {
+                return false;
+            }
+
+            return CheckWorld(pawn, weapon, deep, out reason);
+        }
+
+        /// <summary>
+        /// Equippability plus Simple Sidearms' allowance check. Excludes reachability and
+        /// reservations, so the planner can tell "SS has no room right now" apart from
+        /// "the pawn cannot walk to it".
+        /// </summary>
+        public static bool CheckSidearmRules(Pawn pawn, ThingWithComps weapon, out string reason, out bool hard)
+        {
+            reason = null;
+            hard = false;
+
             if (!CheckEquippable(pawn, weapon, out reason, out hard))
             {
                 return false;
@@ -65,6 +83,12 @@ namespace Armory
                 return false;
             }
 
+            return true;
+        }
+
+        /// <summary>World-only sidearm gate: forbidden, allowed area, reachability, reservation.</summary>
+        public static bool CheckSidearmWorld(Pawn pawn, ThingWithComps weapon, bool deep, out string reason)
+        {
             return CheckWorld(pawn, weapon, deep, out reason);
         }
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using Armory.Compatibility;
 using RimWorld;
 using Verse;
 
@@ -79,6 +80,10 @@ namespace Armory
             }
             Log.Message(string.Format("[Armory] {0}: {1} colonists, {2} loose weapons, {3} demand rows",
                 source, snapshot.Pawns.Count, snapshot.Weapons.Count, snapshot.Demand.Count));
+            Log.Message("[Armory]   Simple Sidearms integration: " +
+                        (SimpleSidearmsAdapter.Active ? "active" : "inactive") +
+                        ", respect setting: " +
+                        (SimpleSidearmsAdapter.RespectEnabled ? "on" : "off"));
             for (int i = 0; i < snapshot.Pawns.Count && i < 5; i++)
             {
                 PawnAnalysis pawn = snapshot.Pawns[i];
@@ -100,6 +105,16 @@ namespace Armory
                         candidate.Weapon.Label,
                         candidate.Score,
                         candidate.Ready ? "ready" : candidate.Blocker));
+                }
+                if (pawn.SidearmState != null)
+                {
+                    Log.Message("[Armory]     SS: " + pawn.SidearmState.Summary() +
+                                "; sidearms: " + pawn.SidearmText +
+                                (pawn.BestCarriedPrimary == null
+                                    ? string.Empty
+                                    : string.Format("; best carried {0} ({1:0})",
+                                        pawn.BestCarriedPrimary.LabelCap,
+                                        pawn.BestCarriedPrimaryScore)));
                 }
             }
         }

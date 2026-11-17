@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Armory.Compatibility;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -73,6 +74,12 @@ namespace Armory
                 {
                     continue;
                 }
+                if (settings.respectSimpleSidearms && analysis.SidearmState != null &&
+                    analysis.SidearmState.AutomationVeto)
+                {
+                    // Simple Sidearms forced weapon/unarmed: that is the player's decision.
+                    continue;
+                }
                 if (settings.respectManualEquip && IsManualOverride(pawn, settings, now))
                 {
                     continue;
@@ -83,8 +90,9 @@ namespace Armory
                 }
 
                 float currentScore = analysis.CurrentScore;
-                float minimumScore = currentScore > 0.01f
-                    ? currentScore * (1f + settings.upgradeThreshold)
+                float baselineScore = Mathf.Max(currentScore, analysis.BestCarriedPrimaryScore);
+                float minimumScore = baselineScore > 0.01f
+                    ? baselineScore * (1f + settings.upgradeThreshold)
                     : 0.01f;
 
                 for (int c = 0; c < analysis.Ranked.Count; c++)
@@ -138,11 +146,25 @@ namespace Armory
                         ExpiresTick = now + 900
                     };
 
-                    string detail = currentScore <= 0.01f
-                        ? "unarmed"
-                        : string.Format("+{0}% over {1}",
-                            Mathf.RoundToInt((candidate.Score / currentScore - 1f) * 100f),
-                            analysis.Current == null ? "unarmed" : analysis.Current.LabelCap);
+                    string detail;
+                    if (baselineScore <= 0.01f)
+                    {
+                        detail = "unarmed";
+                    }
+                    else
+                    {
+                        string baselineLabel = analysis.Current == null
+                            ? "unarmed"
+                            : analysis.Current.LabelCap;
+                        if (analysis.BestCarriedPrimary != null &&
+                            analysis.BestCarriedPrimaryScore > currentScore)
+                        {
+                            baselineLabel = analysis.BestCarriedPrimary.LabelCap + " (carried)";
+                        }
+                        detail = string.Format("+{0}% over {1}",
+                            Mathf.RoundToInt((candidate.Score / baselineScore - 1f) * 100f),
+                            baselineLabel);
+                    }
                     ArmoryGameComponent.Record(now, pawn, weapon, "Queued", detail);
 
                     if (settings.debugLogging)
@@ -190,6 +212,10 @@ namespace Armory
                 return false;
             }
             if (pawn.jobs.curJob != null && pawn.jobs.curJob.def == JobDefOf.Equip)
+            {
+                return false;
+            }
+            if (SimpleSidearmsAdapter.IsSidearmJobRunning(pawn))
             {
                 return false;
             }

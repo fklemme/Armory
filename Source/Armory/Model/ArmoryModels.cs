@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Armory.Compatibility;
 using Verse;
 
 namespace Armory
@@ -41,6 +42,22 @@ namespace Armory
 
         /// <summary>Null when the pawn is on the map; otherwise why they are unavailable.</summary>
         public string UnavailableReason;
+
+        /// <summary>Weapons carried in the pawn's inventory (Simple Sidearms sidearms and other carried weapons).</summary>
+        public readonly List<ThingWithComps> Sidearms = new List<ThingWithComps>();
+
+        public string SidearmText;
+
+        /// <summary>Simple Sidearms primary/forced state. Null when SS is absent or has no memory comp.</summary>
+        public SimpleSidearmsAdapter.PawnState SidearmState;
+
+        /// <summary>
+        /// Best weapon the pawn already carries in Simple Sidearms' preferred primary role.
+        /// Used as the upgrade baseline so Armory does not queue a downgrade SS would undo.
+        /// </summary>
+        public ThingWithComps BestCarriedPrimary;
+
+        public float BestCarriedPrimaryScore;
 
         public bool Available
         {

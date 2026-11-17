@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.2.3** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.3.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -20,12 +20,12 @@ Four tabs: **Pawns**, **Weapons**, **Demand**, **Log**.
 | Author | Kruecke |
 | packageId | `kruecke.armory` |
 | Game version | 1.6.4871 |
-| Dependencies | None (Harmony not used yet) |
+| Dependencies | None. Simple Sidearms is optional and read by reflection |
 | Build target | `net472` |
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–2 complete; 3 (Simple Sidearms) next |
+| Current milestone | 0–3 complete; 4 (sidearm assignment) next |
 
 ---
 
@@ -171,6 +171,34 @@ Off by default. When enabled:
 
 Every queued job goes to the **Log** tab.
 
+### Simple Sidearms coexistence
+
+Simple Sidearms is detected by packageId and read **entirely through
+reflection**, so Armory still loads in a Core-only game and does not break when
+Simple Sidearms changes.
+
+When **Respect Simple Sidearms** is on (default):
+
+- a forced primary or forced unarmed state — normal and drafted variants — is a
+  soft blocker; Armory shows the reason and leaves that pawn's primary alone;
+- a carried "default ranged", "preferred melee", or "prefer unarmed" SS setting
+  is respected too: the relevant pair is the only allowed primary, or automation
+  stays out;
+- Armory follows the pawn's primary mode: `Ranged`, `Melee`, or `By skill`
+  resolved with Simple Sidearms' own skill rule. It will not equip a weapon of
+  the other type **when the pawn already carries a weapon of the preferred
+  type**, because Simple Sidearms would immediately switch back;
+- the best carried weapon for the SS primary role is the upgrade baseline, so a
+  loose weapon must beat it before Armory queues a job;
+- pawns currently running `EquipSecondary` / `ReequipSecondary` /
+  `ReequipSecondaryCombat` are skipped;
+- carried sidearms are listed in the pawn detail (from inventory), with the SS
+  primary mode and any forced state.
+
+Armory does **not** assign sidearms yet. That is milestone 4. Turning the
+setting off lets Armory override SS primary modes and forced states; the two
+mods may then fight over primaries.
+
 ---
 
 ## Settings reference
@@ -187,6 +215,7 @@ All settings are under **Options → Mod settings → Armory**. The page scrolls
 | Equip drafted colonists | off | — | Queues jobs for drafted pawns |
 | Respect manual weapon changes | on | — | Pause after a player/other-mod change |
 | Manual-change pause | 15000 ticks (~250 s) | 2500–30000 | Length of that pause |
+| Respect Simple Sidearms | on | — | Follow SS primary mode, forced weapons, and carried-primary baseline |
 | Upgrade threshold | 10% | 0–50% | Required improvement to swap |
 | Ranged preference | ×1.00 | 0.5–2.0 | Global scoring bias |
 | Melee preference | ×1.00 | 0.5–2.0 | Global scoring bias |
@@ -216,6 +245,8 @@ Armory/
     ArmoryPlanner.cs               opt-in equip jobs, claims, cooldowns
     ArmoryGameComponent.cs         session decision log (GameComponent)
     DebugActions_Armory.cs         log snapshot / unforbid / run planner
+    WeaponFilter.cs                single definition of a real weapon
+    Compatibility/SimpleSidearmsAdapter.cs  reflection-only SS state and rules
     Model/ArmoryModels.cs          snapshot/candidate/pawn/weapon models
     Scoring/WeaponPower.cs         pawn-independent power + situational penalty
     Scoring/PawnFit.cs             pawn fit + optional ledger
@@ -232,7 +263,7 @@ Armory/
 ## Diagnostics
 
 - Enable **Log snapshot summary on map load** to get a one-time summary in
-  `Player.log`.
+  `Player.log`, including Simple Sidearms mode/sidearm state per colonist.
 - Dev mode actions:
   - **Armory → Log weapon snapshot**
   - **Armory → Unforbid loose weapons**
@@ -250,9 +281,21 @@ Armory/
 
 If the target folder has no `Config/ModsConfig.xml`, the script creates one with
 Core + Armory. Pass `-IncludeSimpleSidearms` to create a config with Harmony and
-Simple Sidearms for milestone-3 testing. Your real mod list and settings are
-never touched. The script waits for an `[Armory]` log line, prints Armory lines,
-and closes the game.
+Simple Sidearms. Your real mod list and settings are never touched. The script
+waits for an `[Armory]` log line, prints Armory lines, and closes the game.
+
+To enable automation and diagnostics in the isolated game, write
+`Config/Mod_Armory_ArmoryMod.xml` in that folder:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<SettingsBlock>
+  <ModSettings Class="Armory.ArmorySettings">
+    <autoEquipEnabled>True</autoEquipEnabled>
+    <debugLogging>True</debugLogging>
+  </ModSettings>
+</SettingsBlock>
+```
 
 Manual equivalent:
 
@@ -265,14 +308,16 @@ Manual equivalent:
 
 ## Known limitations
 
-- **Simple Sidearms is not integrated yet.** Sidearm-capable weapons are ranked
-  as primaries.
+- **Simple Sidearms sidearms are not assigned yet.** Armory reads SS state and
+  respects it for primaries, and lists carried sidearms, but does not choose or
+  equip sidearms (milestone 4).
 - **Container scanning** is limited to loose/spawned weapons plus ordinary
   shelves/stockpiles. Weapons inside transport pods or pawn inventory are not
-  offered as candidates; pod occupants are still listed as unavailable pawns.
+  offered as primary candidates; pod occupants are still listed as unavailable
+  pawns.
 - **Combat Extended** ammo state is not scored beyond its stat effects.
-- **Forced weapons** are not read from other mods. Manual changes are detected
-  heuristically and pause automation.
+- **Other mods' forced weapons** are not read. Simple Sidearms forced states are;
+  manual changes are detected heuristically and pause automation.
 - **No auto-unforbid**, by design.
 - **Dropped weapons** stay on the ground; no auto-haul yet.
 - **No raid behaviour** yet (e.g., arm everyone when a raid starts).
@@ -289,14 +334,16 @@ Manual equivalent:
 
 ## Roadmap
 
-1. **Milestone 3 — Simple Sidearms primary coexistence**
+1. **Milestone 3 — Simple Sidearms primary coexistence** — done in 0.3.0.
    - reflection adapter, no hard reference;
-   - respect SS slot/type rules so primary swaps do not loop;
-   - surface SS blockers in statuses.
+   - forced states and primary modes respected;
+   - carried-primary baseline and SS job guard prevent most swap loops;
+   - SS state and carried sidearms surfaced in pawn detail.
 2. **Milestone 4 — Sidearm ranking and assignment**
    - rank sidearms separately from primaries;
    - show current/free sidearm slots;
-   - `EquipSecondary` job support.
+   - `EquipSecondary` job support, using `CanPickupSidearmInstance`;
+   - respect SS slot, mass, and selection limits.
 3. **Milestone 5 — Polish**
    - exotic container scanning;
    - auto-haul dropped weapons;

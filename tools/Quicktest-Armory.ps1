@@ -58,11 +58,9 @@ if (-not (Test-Path $modsConfig)) {
     New-Item -ItemType Directory -Force -Path (Split-Path $modsConfig) | Out-Null
 
     $active = @()
-    if ($IncludeSimpleSidearms) {
-        $active += "brrainz.harmony"
-    }
     $active += "ludeon.rimworld"
     if ($IncludeSimpleSidearms) {
+        $active += "brrainz.harmony"
         $active += "PeteTimesSix.SimpleSidearms"
     }
     $active += "kruecke.armory"

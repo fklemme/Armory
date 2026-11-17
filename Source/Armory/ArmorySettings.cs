@@ -20,6 +20,7 @@ namespace Armory
         public int minimumAge = 3;
         public bool equipDrafted;
         public bool respectManualEquip = true;
+        public bool respectSimpleSidearms = true;
         public int manualCooldownTicks = 15000;
         public int settingsVersion = 1;
 
@@ -44,6 +45,7 @@ namespace Armory
             Scribe_Values.Look(ref minimumAge, "minimumAge", 3);
             Scribe_Values.Look(ref equipDrafted, "equipDrafted", false);
             Scribe_Values.Look(ref respectManualEquip, "respectManualEquip", true);
+            Scribe_Values.Look(ref respectSimpleSidearms, "respectSimpleSidearms", true);
             Scribe_Values.Look(ref manualCooldownTicks, "manualCooldownTicks", 15000);
             Scribe_Values.Look(ref settingsVersion, "settingsVersion", 0);
 
@@ -98,6 +100,22 @@ namespace Armory
                 }
 
                 listing.Label("Only ready weapons are used. Armory never unforbids automatically.");
+            }
+
+            listing.GapLine();
+            listing.Label("Simple Sidearms");
+            listing.GapLine();
+            if (ArmoryMod.SimpleSidearmsLoaded)
+            {
+                listing.CheckboxLabeled("Respect Simple Sidearms primary mode and forced weapons",
+                    ref respectSimpleSidearms);
+                listing.Label(respectSimpleSidearms
+                    ? "Armory leaves forced primaries alone and will not equip a primary type that Simple Sidearms would switch away from. Sidearm assignment is not managed yet."
+                    : "Armory may override Simple Sidearms' primary type and forced states. Expect the two mods to fight over primaries.");
+            }
+            else
+            {
+                listing.Label("Simple Sidearms is not loaded. Primary coexistence settings are inactive.");
             }
 
             listing.GapLine();

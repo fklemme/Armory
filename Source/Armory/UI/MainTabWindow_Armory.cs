@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Armory.Compatibility;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -270,11 +271,23 @@ namespace Armory
             Candidate top = pawn.TopOverall;
             DrawCell(best, top == null ? "none" : top.Weapon.Label,
                 TextAnchor.MiddleLeft, GameFont.Small, rowColor);
-            DrawCell(status, top == null ? "" : top.Ready ? "ready" : top.Blocker,
-                TextAnchor.MiddleLeft, GameFont.Small, !pawn.Available
-                    ? rowColor
-                    : top == null || top.Ready ? new Color(0.7f, 0.9f, 0.7f) : new Color(1f, 0.78f, 0.4f));
-            DrawCell(delta, top == null ? "" : FormatPct(pawn.TopDeltaPct), TextAnchor.MiddleRight,
+
+            string statusText = top == null ? "" : top.Ready ? "ready" : top.Blocker;
+            Color statusColor = !pawn.Available
+                ? rowColor
+                : top == null || top.Ready ? new Color(0.7f, 0.9f, 0.7f) : new Color(1f, 0.78f, 0.4f);
+            if (pawn.Available && pawn.SidearmState != null && pawn.SidearmState.AutomationVeto &&
+                SimpleSidearmsAdapter.RespectEnabled)
+            {
+                statusText = pawn.SidearmState.VetoReason;
+                statusColor = new Color(1f, 0.78f, 0.4f);
+            }
+            DrawCell(status, statusText, TextAnchor.MiddleLeft, GameFont.Small, statusColor);
+            float deltaBase = Mathf.Max(pawn.CurrentScore, pawn.BestCarriedPrimaryScore);
+            string deltaText = top == null
+                ? ""
+                : deltaBase > 0.01f ? FormatPct(top.Score / deltaBase - 1f) : "+100%";
+            DrawCell(delta, deltaText, TextAnchor.MiddleRight,
                 GameFont.Small, pawn.Available && (top == null || top.Ready) ? Color.white : rowColor);
         }
 
@@ -291,6 +304,35 @@ namespace Armory
                     pawn.CurrentScore));
             y += 22f;
 
+            if (pawn.Sidearms.Count > 0)
+            {
+                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
+                    "Sidearms: " + pawn.SidearmText, new Color(0.75f, 0.82f, 0.92f));
+                y += 22f;
+            }
+
+            if (pawn.SidearmState != null)
+            {
+                bool veto = pawn.SidearmState.AutomationVeto && SimpleSidearmsAdapter.RespectEnabled;
+                string text = "Simple Sidearms: " + pawn.SidearmState.Summary();
+                if (veto)
+                {
+                    text += "  -  automation stays out";
+                }
+                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f), text,
+                    veto ? new Color(1f, 0.8f, 0.42f) : new Color(0.72f, 0.82f, 0.92f));
+                y += 22f;
+
+                if (pawn.BestCarriedPrimary != null && pawn.BestCarriedPrimary != pawn.Current)
+                {
+                    DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
+                        string.Format("Best carried for the SS primary role: {0}    score {1:0}",
+                            pawn.BestCarriedPrimary.LabelCap, pawn.BestCarriedPrimaryScore),
+                        new Color(0.72f, 0.82f, 0.92f));
+                    y += 22f;
+                }
+            }
+
             if (!pawn.Available)
             {
                 DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
@@ -302,6 +344,9 @@ namespace Armory
             Candidate bestReady = pawn.TopReady;
             Candidate bestAny = pawn.TopOverall;
             float threshold = ArmoryMod.Settings == null ? 0.10f : ArmoryMod.Settings.upgradeThreshold;
+            float baselineScore = Mathf.Max(pawn.CurrentScore, pawn.BestCarriedPrimaryScore);
+            bool carriedIsBaseline = pawn.BestCarriedPrimary != null &&
+                                     pawn.BestCarriedPrimaryScore > pawn.CurrentScore;
 
             if (bestReady != null)
             {
@@ -311,11 +356,16 @@ namespace Armory
                     new Color(0.75f, 0.92f, 0.75f));
                 y += 22f;
 
-                if (pawn.TopReadyDeltaPct < threshold)
+                bool belowThreshold = baselineScore > 0.01f &&
+                                      bestReady.Score <= baselineScore * (1f + threshold);
+                if (belowThreshold)
                 {
+                    string baselineLabel = carriedIsBaseline
+                        ? pawn.BestCarriedPrimary.LabelCap + " (carried Simple Sidearms primary)"
+                        : "current weapon";
                     DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
-                        string.Format("Would keep current: improvement is below the {0}% threshold.",
-                            Mathf.RoundToInt(threshold * 100f)),
+                        string.Format("Would keep {0}: improvement is below the {1}% threshold.",
+                            baselineLabel, Mathf.RoundToInt(threshold * 100f)),
                         new Color(1f, 0.85f, 0.5f));
                     y += 22f;
                 }
@@ -479,7 +529,12 @@ namespace Armory
                 TextAnchor.MiddleLeft, GameFont.Tiny);
             cursor += 18f;
             DrawCell(new Rect(38f, cursor, Mathf.Max(40f, width - 46f), 18f),
-                pawn.DeltaPct(candidate) >= 0f ? "Better than the current weapon." : "Worse than the current weapon.",
+                pawn.BestCarriedPrimaryScore > pawn.CurrentScore &&
+                candidate.Score <= pawn.BestCarriedPrimaryScore
+                    ? "Below the best carried Simple Sidearms primary; Armory will not queue it."
+                    : pawn.DeltaPct(candidate) >= 0f
+                        ? "Better than the current weapon."
+                        : "Worse than the current weapon.",
                 TextAnchor.MiddleLeft, GameFont.Tiny);
             cursor += 22f;
             GUI.color = Color.white;

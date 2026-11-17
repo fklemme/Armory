@@ -340,18 +340,38 @@ intentional) handles assignment internally.
 
 JobDefs in `Defs/JobDefs/Jobs_Misc.xml`:
 
-- `EquipSecondary` → `SimpleSidearms.rimworld.JobDriver_EquipSidearm`;
-- `EquipSecondaryCombat` → `JobDriver_EquipSidearmCombat`.
+- `EquipSecondary` → `SimpleSidearms.rimworld.JobDriver_EquipSidearm`
+  (walks to the weapon, moves it into `pawn.inventory`, memorizes it);
+- `ReequipSecondary` → `JobDriver_ReequipSidearm`;
+- `ReequipSecondaryCombat` → `JobDriver_ReequipSidearmCombat`.
 
-Think tree `WeaponRetrieval`:
+Think tree patches (`Patches/thinkTreePatches.xml`):
 
-```xml
-<insertTag>Humanlike_PreMain</insertTag>
-<insertPriority>100</insertPriority>
-<thinkRoot Class="SimpleSidearms.rimworld.JobGiver_RetrieveWeapon" />
-```
+- `JobGiver_QuicklySwitchWeapons` is inserted before `JobGiver_Work`
+  (`emergency=true`) inside `ThinkNode_ConditionalColonist`. Its
+  `TryGiveJobStatic` calls
+  `WeaponAssingment.equipBestWeaponFromInventoryByPreference(pawn, Calm)`.
+  This runs continuously for colonists and enforces the pawn's primary mode
+  among **carried** weapons. It never looks at loose ground weapons.
+- `JobGiver_RetrieveWeapon` is inserted before the `ChangingApparel` tagger.
+  It re-retrieves **remembered** weapons that are missing, from the map.
 
-Also `JobGiver_QuicklySwitchWeapons` inserted in `Humanlike`.
+Consequences for Armory:
+
+- After Armory equips a loose weapon, the old primary drops to the ground and
+  the new one is memorized by SS's `JobDriver_Equip` transpiler.
+- SS's QuickSwitch only compares carried weapons, so it can switch back to a
+  carried sidearm if the new primary is the wrong type or scores lower by SS's
+  own DPS metric. This is the main source of primary fights.
+- `equipBestWeaponFromInventoryByPreference` precedence:
+  drafted unarmed / forced drafted weapon → forced unarmed → forced weapon →
+  ranged primary (default ranged, else best carried ranged) → preferred melee →
+  best carried melee.
+- Forced drafted states are cleared on undraft (`InformOfUndraft`).
+
+`primaryWeaponMode` enum: `Ranged=0`, `Melee=1`, `BySkill=2`, `ByGenerated=3`.
+`BySkill` is resolved with `Extensions.getSkillWeaponPreference`: higher passion
+wins, then higher level, ties → ranged.
 
 ### Storage
 
@@ -378,36 +398,45 @@ no compile-time reference, no hard dependency, safe in Core-only games.
 
 ## Integration plan (Armory milestones 3–4)
 
-### M3 — primary coexistence
+### M3 — primary coexistence (implemented in 0.3.0)
 
-1. Detect SS by packageId `PeteTimesSix.SimpleSidearms` and/or type presence.
-2. Build a `SimpleSidearmsAdapter` with cached reflection handles.
-3. Read `CompSidearmMemory` for each pawn:
-   - `ForcedUnarmed`, `ForcedWeapon`, `ForcedWeaponWhileDrafted`;
-   - `primaryWeaponMode`, `RememberedWeapons`.
-4. Treat SS forced states as **hard blockers** for that pawn/weapon and surface
-   them in status text.
-5. Before issuing a primary `Equip` for an SS-managed pawn, consult
-   `CanPickupSidearmInstance` / type rules to avoid cross-type swap loops.
-6. Do not fight SS's own `JobGiver_RetrieveWeapon`.
-7. Test matrix: SS absent, SS present, SS forced primary, SS forced unarmed,
-   SS slot limit reached, drafted.
+1. Detect SS by packageId `PeteTimesSix.SimpleSidearms`; resolve types by name
+   with graceful failure.
+2. `SimpleSidearmsAdapter` reads `CompSidearmMemory` for each pawn:
+   `ForcedUnarmed`, `ForcedWeapon`, drafted variants, `primaryWeaponMode`.
+3. Forced states follow SS's precedence and become **soft blockers plus an
+   automation veto**. The player can clear them; Armory never does.
+4. Per-pawn preferences are read too: a carried `DefaultRangedWeapon` /
+   `PreferredMeleeWeapon` for the active role locks the allowed pair;
+   `PreferredUnarmed` is a veto.
+5. Primary mode produces a preferred type (`Ranged`, `Melee`, or `BySkill`
+   resolved with SS's own rule). Armory blocks the other type only when the pawn
+   already carries a weapon of the preferred type, i.e. when SS would switch
+   back.
+6. The best carried weapon of the preferred type is scored with Armory's model
+   and used as the upgrade baseline.
+7. Pawns running `EquipSecondary`, `ReequipSecondary`, or
+   `ReequipSecondaryCombat` are skipped.
+8. Verified: SS absent (inactive, no change), SS present (all three pawns read a
+   mode, jobs queue), no exceptions. Forced and preference states still need a
+   live-save check.
+
+What was deliberately **not** done: using SS's `CanPickupSidearmInstance` for
+primaries (it governs sidearm slots, not primaries), and assigning sidearms.
 
 ### M4 — sidearm ranking and assignment
 
-1. Candidate set:
-   - loose weapons (primary candidates);
-   - weapons in `pawn.inventory` and remembered sidearms.
-2. Rank sidearms separately using the same power/fit model, with SS slot rules.
-3. UI:
-   - show current sidearms and free slots;
-   - sidearm ranked list and statuses;
-   - settings: enable sidearm management, desired sidearm count.
-4. Assignment:
-   - `JobDefs "EquipSecondary"` for adding a sidearm;
-   - respect `primaryWeaponMode`, forced weapons, and SS slot limits;
-   - avoid duplicate/looping assignments.
-5. Test with SS's own auto-pickup behavior enabled and disabled.
+1. Candidate set: loose weapons, excluding the primary and already-carried
+   weapons. Validate every candidate with `CanPickupSidearmInstance`.
+2. Rank with the same power/fit model, but prefer a sidearm type different from
+   the primary, then score.
+3. UI: current sidearms, free slots, ranked sidearm list, statuses; settings for
+   enable + desired count.
+4. Assignment: `JobDef "EquipSecondary"` (resolved via `DefDatabase`, no hard
+   reference), same claims/cooldown/manual protections, sidearm-specific log.
+5. Respect SS slot/mass/selection limits through
+   `CanPickupSidearmInstance`, and never remove/replace in the first version.
+6. Test with SS auto-pickup on/off and watch for add/drop oscillation.
 
 ### Open questions
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Armory.Compatibility;
 using RimWorld;
 using Verse;
 
@@ -107,17 +108,7 @@ namespace Armory
         /// </summary>
         private static bool IsRealWeapon(ThingWithComps weapon)
         {
-            if (weapon == null || !weapon.Spawned || weapon.def == null)
-            {
-                return false;
-            }
-            ThingDef def = weapon.def;
-            if (def.category != ThingCategory.Item || def.IsStuff || def.IsDrug || def.IsIngestible ||
-                def.IsMedicine || def.IsApparel || def.IsShell)
-            {
-                return false;
-            }
-            return def.IsRangedWeapon || def.IsMeleeWeapon || def.Verbs != null && def.Verbs.Count > 0;
+            return weapon != null && weapon.Spawned && WeaponFilter.IsWeaponDef(weapon.def);
         }
 
         private static string DescribeUnavailable(Pawn pawn, Map map)
@@ -226,11 +217,28 @@ namespace Armory
             };
 
             PawnFitContext context = PawnFitContext.Create(pawn);
+            CollectSidearms(analysis);
 
             if (analysis.Current != null)
             {
                 analysis.CurrentScore = WeaponPower.Get(analysis.Current, powerCache) *
                                         PawnFit.Compute(context, analysis.Current);
+            }
+
+            // Simple Sidearms has an explicit primary role. If the pawn already carries a
+            // weapon for that role, Armory must beat it before queueing a loose weapon,
+            // otherwise SS will simply switch back and the job is wasted.
+            analysis.SidearmState = SimpleSidearmsAdapter.GetState(pawn);
+            if (analysis.SidearmState != null &&
+                analysis.SidearmState.PreferredPrimaryIsRanged.HasValue &&
+                SimpleSidearmsAdapter.RespectEnabled)
+            {
+                bool ranged = analysis.SidearmState.PreferredPrimaryIsRanged.Value;
+                ConsiderCarried(analysis, context, analysis.Current, ranged, powerCache);
+                for (int i = 0; i < analysis.Sidearms.Count; i++)
+                {
+                    ConsiderCarried(analysis, context, analysis.Sidearms[i], ranged, powerCache);
+                }
             }
 
             for (int i = 0; i < weapons.Count; i++)
@@ -279,6 +287,44 @@ namespace Armory
             analysis.Ranked.Sort((a, b) => b.Score.CompareTo(a.Score));
             analysis.Incompatible.Sort((a, b) => b.Score.CompareTo(a.Score));
             return analysis;
+        }
+
+        private static void CollectSidearms(PawnAnalysis analysis)
+        {
+            Pawn pawn = analysis.Pawn;
+            if (pawn == null || pawn.inventory == null || pawn.inventory.innerContainer == null)
+            {
+                analysis.SidearmText = "none";
+                return;
+            }
+
+            List<string> labels = new List<string>();
+            for (int i = 0; i < pawn.inventory.innerContainer.Count; i++)
+            {
+                ThingWithComps weapon = pawn.inventory.innerContainer[i] as ThingWithComps;
+                if (weapon == null || !WeaponFilter.IsWeaponDef(weapon.def))
+                {
+                    continue;
+                }
+                analysis.Sidearms.Add(weapon);
+                labels.Add(weapon.LabelCap);
+            }
+            analysis.SidearmText = labels.Count == 0 ? "none" : string.Join(", ", labels);
+        }
+
+        private static void ConsiderCarried(PawnAnalysis analysis, PawnFitContext context,
+            ThingWithComps weapon, bool preferredRanged, Dictionary<int, float> powerCache)
+        {
+            if (weapon == null || !SimpleSidearmsAdapter.MatchesPrimaryType(weapon.def, preferredRanged))
+            {
+                return;
+            }
+            float score = WeaponPower.Get(weapon, powerCache) * PawnFit.Compute(context, weapon);
+            if (score > analysis.BestCarriedPrimaryScore)
+            {
+                analysis.BestCarriedPrimaryScore = score;
+                analysis.BestCarriedPrimary = weapon;
+            }
         }
 
         private static void BuildDemand(ArmorySnapshot snapshot)

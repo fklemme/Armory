@@ -1,3 +1,4 @@
+using Armory.Compatibility;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -37,6 +38,15 @@ namespace Armory
             {
                 reason = string.IsNullOrEmpty(equipReason) ? "Cannot equip" : equipReason;
                 hard = true;
+                return false;
+            }
+
+            // Simple Sidearms has the final say on this pawn's primary type and forced states.
+            // These are player intents, not permanent restrictions, so they stay soft blockers.
+            string sidearmReason;
+            if (SimpleSidearmsAdapter.TryGetPrimaryBlocker(pawn, weapon, out sidearmReason))
+            {
+                reason = sidearmReason;
                 return false;
             }
 

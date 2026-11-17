@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Armory.Compatibility;
 using Verse;
 
 namespace Armory
@@ -39,6 +40,12 @@ namespace Armory
                        Settings.autoEquipEnabled &&
                        (!CompetitorLoaded || Settings.overrideCompetitor);
             }
+        }
+
+        /// <summary>True when Simple Sidearms is installed and its memory API resolved.</summary>
+        public static bool SimpleSidearmsLoaded
+        {
+            get { return SimpleSidearmsAdapter.Active; }
         }
 
         /// <summary>

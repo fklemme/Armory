@@ -424,27 +424,42 @@ no compile-time reference, no hard dependency, safe in Core-only games.
 What was deliberately **not** done: using SS's `CanPickupSidearmInstance` for
 primaries (it governs sidearm slots, not primaries), and assigning sidearms.
 
-### M4 — sidearm ranking and assignment
+### M4 — sidearm ranking and assignment (implemented in 0.4.0)
 
-1. Candidate set: loose weapons, excluding the primary and already-carried
-   weapons. Validate every candidate with `CanPickupSidearmInstance`.
-2. Rank with the same power/fit model, but prefer a sidearm type different from
-   the primary, then score.
-3. UI: current sidearms, free slots, ranked sidearm list, statuses; settings for
-   enable + desired count.
-4. Assignment: `JobDef "EquipSecondary"` (resolved via `DefDatabase`, no hard
-   reference), same claims/cooldown/manual protections, sidearm-specific log.
-5. Respect SS slot/mass/selection limits through
-   `CanPickupSidearmInstance`, and never remove/replace in the first version.
-6. Test with SS auto-pickup on/off and watch for add/drop oscillation.
+1. Candidate set: loose weapons, excluding the current primary. Hard equip
+   failures are dropped; soft blockers remain visible.
+2. Every candidate is validated with `CanPickupSidearmInstance`, which covers
+   SS slots, mass, selection lists, stash space, pacifist tools, bonds,
+   biocoding, and role restrictions.
+3. Score uses the same power × fit model. A sidearm of the opposite type from
+   the primary is flagged (`IsRangedWeapon` comparison; a gun with a stock bash
+   is still ranged). When the setting is on, the planner picks the best ready
+   diverse candidate first, then the best ready same-type candidate.
+4. A pawn needs a current or queued primary, and when SS has a preferred primary
+   type the primary must match it. Otherwise SS may promote the sidearm to
+   primary, which Armory would interpret as a manual change.
+5. UI: current sidearms, `carried / desired`, ranked sidearm candidates with
+   `ready`/`SS: ...` statuses and an `opposite type` tag; settings for enable,
+   desired count (0–4), and diversity.
+6. Assignment uses `DefDatabase<JobDef>.GetNamedSilentFail("EquipSecondary")`
+   and the normal `TryTakeOrderedJob(..., true)` path, with shared claims,
+   per-pawn cooldown, and `Queued sidearm` logging.
+7. Add-only: no removal, replacement, or unforbidding. Forced/unarmed/prefer-
+   unarmed SS states suppress sidearm jobs regardless of the respect setting.
+8. Verified in the isolated SS game: one opposite-type sidearm queued for a
+   melee-primary pawn with no promotion event; a ranged-role/melee-primary case
+   correctly skipped sidearms. Live-save validation is pending.
+
+Known gaps: exact free-slot display for slot-based limits and mass budgets,
+replacement policy, remembered-but-absent weapons.
 
 ### Open questions
 
 - Should Armory manage sidearms only for its own primary choices, or all pawns?
-- How many sidearms per pawn: SS setting, per-pawn, or global?
-- Should sidearm ranking value **type diversity** (e.g. ranged primary + melee
-  sidearm) rather than raw score?
-- How to present SS forced states without adding too much UI?
+  (Current: all free colonists that pass the normal automation checks.)
+- Should Armory ever remove or replace a sidearm? (Current: no.)
+- Is the sidearm list in the pawn detail enough, or is a dedicated view wanted?
+- Raid arming: automatic or explicit button?
 - CE ammo compatibility for sidearms.
 
 ---

@@ -286,7 +286,71 @@ namespace Armory
 
             analysis.Ranked.Sort((a, b) => b.Score.CompareTo(a.Score));
             analysis.Incompatible.Sort((a, b) => b.Score.CompareTo(a.Score));
+            BuildSidearmCandidates(analysis, context, weapons, powerCache);
             return analysis;
+        }
+
+        private static void BuildSidearmCandidates(PawnAnalysis analysis, PawnFitContext context,
+            List<WeaponInfo> weapons, Dictionary<int, float> powerCache)
+        {
+            if (!SimpleSidearmsAdapter.CanCheckSidearms || analysis.Pawn == null)
+            {
+                return;
+            }
+
+            bool? primaryIsRanged = null;
+            if (analysis.Current != null && analysis.Current.def != null)
+            {
+                if (analysis.Current.def.IsRangedWeapon)
+                {
+                    primaryIsRanged = true;
+                }
+                else if (analysis.Current.def.IsMeleeWeapon)
+                {
+                    primaryIsRanged = false;
+                }
+            }
+            if (!primaryIsRanged.HasValue && analysis.SidearmState != null)
+            {
+                primaryIsRanged = analysis.SidearmState.PreferredPrimaryIsRanged;
+            }
+
+            for (int i = 0; i < weapons.Count; i++)
+            {
+                WeaponInfo info = weapons[i];
+                if (info.Thing == analysis.Current)
+                {
+                    continue;
+                }
+
+                string reason;
+                bool hard;
+                if (analysis.Available)
+                {
+                    Eligibility.CheckSidearm(analysis.Pawn, info.Thing, false, out reason, out hard);
+                }
+                else
+                {
+                    reason = analysis.UnavailableReason;
+                    hard = false;
+                }
+                if (hard)
+                {
+                    continue;
+                }
+
+                bool diverse = primaryIsRanged.HasValue &&
+                               info.Thing.def.IsRangedWeapon != primaryIsRanged.Value;
+                analysis.SidearmCandidates.Add(new SidearmCandidate
+                {
+                    Weapon = info,
+                    Score = info.Power * PawnFit.Compute(context, info.Thing),
+                    Blocker = reason,
+                    Diverse = diverse
+                });
+            }
+
+            analysis.SidearmCandidates.Sort((a, b) => b.Score.CompareTo(a.Score));
         }
 
         private static void CollectSidearms(PawnAnalysis analysis)

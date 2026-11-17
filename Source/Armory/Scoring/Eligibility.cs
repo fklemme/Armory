@@ -26,6 +26,53 @@ namespace Armory
             reason = null;
             hard = false;
 
+            if (!CheckEquippable(pawn, weapon, out reason, out hard))
+            {
+                return false;
+            }
+
+            // Simple Sidearms has the final say on this pawn's primary type and forced states.
+            // These are player intents, not permanent restrictions, so they stay soft blockers.
+            string sidearmReason;
+            if (SimpleSidearmsAdapter.TryGetPrimaryBlocker(pawn, weapon, out sidearmReason))
+            {
+                reason = sidearmReason;
+                return false;
+            }
+
+            return CheckWorld(pawn, weapon, deep, out reason);
+        }
+
+        /// <summary>
+        /// Sidearm variant: Simple Sidearms' slot/mass/selection rules are checked, but its
+        /// primary-mode and forced-primary blockers do not apply. Hard failures (biocoded,
+        /// bonded elsewhere, role) mean the weapon is not a sidearm candidate at all.
+        /// </summary>
+        public static bool CheckSidearm(Pawn pawn, ThingWithComps weapon, bool deep, out string reason, out bool hard)
+        {
+            reason = null;
+            hard = false;
+
+            if (!CheckEquippable(pawn, weapon, out reason, out hard))
+            {
+                return false;
+            }
+
+            string sidearmReason;
+            if (!SimpleSidearmsAdapter.CanPickupSidearm(pawn, weapon, out sidearmReason))
+            {
+                reason = string.IsNullOrEmpty(sidearmReason) ? "SS: cannot carry sidearm" : sidearmReason;
+                return false;
+            }
+
+            return CheckWorld(pawn, weapon, deep, out reason);
+        }
+
+        private static bool CheckEquippable(Pawn pawn, ThingWithComps weapon, out string reason, out bool hard)
+        {
+            reason = null;
+            hard = false;
+
             if (weapon == null || weapon.Destroyed || weapon.def == null)
             {
                 reason = "Destroyed";
@@ -41,14 +88,12 @@ namespace Armory
                 return false;
             }
 
-            // Simple Sidearms has the final say on this pawn's primary type and forced states.
-            // These are player intents, not permanent restrictions, so they stay soft blockers.
-            string sidearmReason;
-            if (SimpleSidearmsAdapter.TryGetPrimaryBlocker(pawn, weapon, out sidearmReason))
-            {
-                reason = sidearmReason;
-                return false;
-            }
+            return true;
+        }
+
+        private static bool CheckWorld(Pawn pawn, ThingWithComps weapon, bool deep, out string reason)
+        {
+            reason = null;
 
             if (ForbidUtility.IsForbidden(weapon, pawn))
             {

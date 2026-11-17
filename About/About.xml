@@ -6,12 +6,12 @@
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
-  <modVersion>0.3.0</modVersion>
+  <modVersion>0.4.0</modVersion>
   <description>Shows, for every colonist, which weapons they would prefer and why they are not carrying them.
 
 Armory ranks every weapon on the map for every colonist, then shows the blockers: forbidden or outside the allowed area, unreachable, reserved, biocoded to someone else, role restrictions, and ideoligion dislike. A demand view turns unmet wishes into a shopping list.
 
 Automatic equipping is opt-in. When enabled it queues Equip jobs for the best ready weapon, claims each weapon for one pawn, respects a swap cooldown, never unforbids or breaks persona bonds, and pauses for pawns whose weapon was changed manually. The Log tab explains every queued job.
 
-Simple Sidearms is supported through reflection: Armory respects forced primaries and unarmed states, follows the pawn's ranged/melee primary mode, and shows carried sidearms. Sidearm assignment itself is not managed yet.</description>
+Simple Sidearms is supported through reflection: Armory respects forced primaries and unarmed states, follows the pawn's ranged/melee primary mode, and shows carried sidearms. Sidearm assignment is optional and off by default; when enabled it only adds sidearms and checks every candidate against Simple Sidearms' own slot, mass, and selection limits.</description>
 </ModMetaData>

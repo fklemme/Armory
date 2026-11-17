@@ -21,19 +21,27 @@ namespace Armory
 
         private static readonly Dictionary<int, Claim> claims = new Dictionary<int, Claim>();
         private static readonly Dictionary<int, int> lastSwap = new Dictionary<int, int>();
+        private static readonly Dictionary<int, int> lastSidearm = new Dictionary<int, int>();
         private static readonly Dictionary<int, int> lastKnownWeapon = new Dictionary<int, int>();
         private static readonly Dictionary<int, int> lastIssuedWeapon = new Dictionary<int, int>();
         private static readonly Dictionary<int, int> manualUntil = new Dictionary<int, int>();
+        private static readonly List<SidearmCandidate> sidearmOrder = new List<SidearmCandidate>();
         private static int lastPruneTick = -1;
+        private static JobDef equipSecondaryDef;
+        private static bool equipSecondaryResolved;
 
         public static void Reset()
         {
             claims.Clear();
             lastSwap.Clear();
+            lastSidearm.Clear();
             lastKnownWeapon.Clear();
             lastIssuedWeapon.Clear();
             manualUntil.Clear();
+            sidearmOrder.Clear();
             lastPruneTick = -1;
+            equipSecondaryDef = null;
+            equipSecondaryResolved = false;
         }
 
         public static void Run(Map map)
@@ -64,6 +72,7 @@ namespace Armory
 
             List<PawnAnalysis> order = new List<PawnAnalysis>(snapshot.Pawns);
             order.Sort((a, b) => b.TopReadyDeltaPct.CompareTo(a.TopReadyDeltaPct));
+            Dictionary<int, bool> queuedPrimaryRanged = new Dictionary<int, bool>();
 
             for (int i = 0; i < order.Count; i++)
             {
@@ -140,6 +149,7 @@ namespace Armory
 
                     lastSwap[pawn.thingIDNumber] = now;
                     lastIssuedWeapon[pawn.thingIDNumber] = weapon.thingIDNumber;
+                    queuedPrimaryRanged[pawn.thingIDNumber] = weapon.def.IsRangedWeapon;
                     claims[weapon.thingIDNumber] = new Claim
                     {
                         PawnId = pawn.thingIDNumber,
@@ -175,6 +185,196 @@ namespace Armory
                     break;
                 }
             }
+
+            if (settings.manageSidearms && settings.desiredSidearms > 0 &&
+                SimpleSidearmsAdapter.CanCheckSidearms)
+            {
+                RunSidearms(map, snapshot, settings, now, queuedPrimaryRanged);
+            }
+        }
+
+        /// <summary>
+        /// Adds sidearms for pawns below the desired count. Add-only: Armory never removes or
+        /// replaces a sidearm. Simple Sidearms' own slot/mass/selection check is authoritative.
+        /// </summary>
+        private static void RunSidearms(Map map, ArmorySnapshot snapshot, ArmorySettings settings, int now,
+            Dictionary<int, bool> queuedPrimaryRanged)
+        {
+            JobDef jobDef = GetEquipSecondaryJobDef();
+            if (jobDef == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < snapshot.Pawns.Count; i++)
+            {
+                PawnAnalysis analysis = snapshot.Pawns[i];
+                Pawn pawn = analysis.Pawn;
+
+                if (!CanManage(pawn, map, settings))
+                {
+                    continue;
+                }
+                if (analysis.SidearmState != null && analysis.SidearmState.AutomationVeto)
+                {
+                    continue;
+                }
+                if (analysis.Sidearms.Count >= settings.desiredSidearms)
+                {
+                    continue;
+                }
+                if (now - LastSidearm(pawn, now) < settings.swapCooldownTicks)
+                {
+                    continue;
+                }
+
+                bool? primaryIsRanged = ResolvePrimaryType(analysis, queuedPrimaryRanged);
+                if (!primaryIsRanged.HasValue)
+                {
+                    continue;
+                }
+                bool hasPrimary = analysis.Current != null ||
+                                  queuedPrimaryRanged.ContainsKey(pawn.thingIDNumber);
+                if (!hasPrimary)
+                {
+                    // Sidearms complement a primary; do not use them to arm an unarmed pawn.
+                    continue;
+                }
+                // Adding a sidearm of SS's preferred type while the primary is the other
+                // type invites SS to promote it, which looks like a manual change. Wait
+                // until the primary matches the SS role.
+                if (SimpleSidearmsAdapter.RespectEnabled && analysis.SidearmState != null &&
+                    analysis.SidearmState.PreferredPrimaryIsRanged.HasValue &&
+                    primaryIsRanged.Value != analysis.SidearmState.PreferredPrimaryIsRanged.Value)
+                {
+                    continue;
+                }
+
+                sidearmOrder.Clear();
+                for (int c = 0; c < analysis.SidearmCandidates.Count; c++)
+                {
+                    sidearmOrder.Add(analysis.SidearmCandidates[c]);
+                }
+                sidearmOrder.Sort((a, b) =>
+                {
+                    if (settings.preferSidearmDiversity)
+                    {
+                        bool aDiverse = IsDiverse(a.Weapon.Thing.def, primaryIsRanged);
+                        bool bDiverse = IsDiverse(b.Weapon.Thing.def, primaryIsRanged);
+                        if (aDiverse != bDiverse)
+                        {
+                            return aDiverse ? -1 : 1;
+                        }
+                    }
+                    return b.Score.CompareTo(a.Score);
+                });
+
+                for (int c = 0; c < sidearmOrder.Count; c++)
+                {
+                    SidearmCandidate chosen = sidearmOrder[c];
+                    if (!chosen.Ready)
+                    {
+                        continue;
+                    }
+
+                    ThingWithComps weapon = chosen.Weapon.Thing;
+                    if (weapon == null || !weapon.Spawned || weapon.Map != map)
+                    {
+                        continue;
+                    }
+
+                    Claim claim;
+                    if (claims.TryGetValue(weapon.thingIDNumber, out claim) &&
+                        claim.PawnId != pawn.thingIDNumber &&
+                        claim.ExpiresTick > now)
+                    {
+                        continue;
+                    }
+
+                    string reason;
+                    bool hard;
+                    if (!Eligibility.CheckSidearm(pawn, weapon, true, out reason, out hard))
+                    {
+                        continue;
+                    }
+
+                    Job job = JobMaker.MakeJob(jobDef, weapon);
+                    if (!pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc, true))
+                    {
+                        if (settings.debugLogging)
+                        {
+                            Log.Warning("[Armory] " + pawn.LabelShort +
+                                        " rejected an EquipSecondary job for " + weapon.LabelCap);
+                        }
+                        continue;
+                    }
+
+                    lastSidearm[pawn.thingIDNumber] = now;
+                    claims[weapon.thingIDNumber] = new Claim
+                    {
+                        PawnId = pawn.thingIDNumber,
+                        ExpiresTick = now + 900
+                    };
+
+                    string detail = string.Format("{0}/{1} sidearms; {2}",
+                        analysis.Sidearms.Count + 1,
+                        settings.desiredSidearms,
+                        IsDiverse(weapon.def, primaryIsRanged) ? "opposite type" : "same type");
+                    ArmoryGameComponent.Record(now, pawn, weapon, "Queued sidearm", detail);
+
+                    if (settings.debugLogging)
+                    {
+                        Log.Message(string.Format("[Armory] queued sidearm {0} for {1} ({2})",
+                            weapon.LabelCap, pawn.LabelShort, detail));
+                    }
+                    break;
+                }
+            }
+        }
+
+        private static bool IsDiverse(ThingDef def, bool? primaryIsRanged)
+        {
+            return def != null && primaryIsRanged.HasValue &&
+                   def.IsRangedWeapon != primaryIsRanged.Value;
+        }
+
+        private static bool? ResolvePrimaryType(PawnAnalysis analysis, Dictionary<int, bool> queued)
+        {
+            bool queuedRanged;
+            if (analysis.Pawn != null &&
+                queued.TryGetValue(analysis.Pawn.thingIDNumber, out queuedRanged))
+            {
+                return queuedRanged;
+            }
+            if (analysis.Current != null && analysis.Current.def != null)
+            {
+                if (analysis.Current.def.IsRangedWeapon)
+                {
+                    return true;
+                }
+                if (analysis.Current.def.IsMeleeWeapon)
+                {
+                    return false;
+                }
+            }
+            return analysis.SidearmState == null
+                ? (bool?)null
+                : analysis.SidearmState.PreferredPrimaryIsRanged;
+        }
+
+        private static JobDef GetEquipSecondaryJobDef()
+        {
+            if (equipSecondaryResolved)
+            {
+                return equipSecondaryDef;
+            }
+            equipSecondaryResolved = true;
+            equipSecondaryDef = DefDatabase<JobDef>.GetNamedSilentFail("EquipSecondary");
+            if (equipSecondaryDef == null && ArmoryMod.Settings != null && ArmoryMod.Settings.debugLogging)
+            {
+                Log.Warning("[Armory] Simple Sidearms EquipSecondary job def not found; sidearm management disabled.");
+            }
+            return equipSecondaryDef;
         }
 
         private static bool CanManage(Pawn pawn, Map map, ArmorySettings settings)
@@ -278,6 +478,16 @@ namespace Armory
             return now < tick ? -999999 : tick;
         }
 
+        private static int LastSidearm(Pawn pawn, int now)
+        {
+            int tick;
+            if (!lastSidearm.TryGetValue(pawn.thingIDNumber, out tick))
+            {
+                return -999999;
+            }
+            return now < tick ? -999999 : tick;
+        }
+
         private static void Prune(int now)
         {
             if (lastPruneTick >= 0 && now - lastPruneTick < 2000)
@@ -310,6 +520,19 @@ namespace Armory
             for (int i = 0; i < remove.Count; i++)
             {
                 lastSwap.Remove(remove[i]);
+            }
+
+            remove.Clear();
+            foreach (KeyValuePair<int, int> pair in lastSidearm)
+            {
+                if (now < pair.Value || now - pair.Value > 30000)
+                {
+                    remove.Add(pair.Key);
+                }
+            }
+            for (int i = 0; i < remove.Count; i++)
+            {
+                lastSidearm.Remove(remove[i]);
             }
 
             remove.Clear();

@@ -116,6 +116,28 @@ namespace Armory
                                         pawn.BestCarriedPrimary.LabelCap,
                                         pawn.BestCarriedPrimaryScore)));
                 }
+                if (pawn.SidearmCandidates.Count > 0)
+                {
+                    string readyText = string.Empty;
+                    int readyCount = 0;
+                    for (int j = 0; j < pawn.SidearmCandidates.Count && readyCount < 3; j++)
+                    {
+                        SidearmCandidate sidearm = pawn.SidearmCandidates[j];
+                        if (!sidearm.Ready)
+                        {
+                            continue;
+                        }
+                        if (readyCount > 0)
+                        {
+                            readyText += ", ";
+                        }
+                        readyText += string.Format("{0} ({1:0}{2})", sidearm.Weapon.Label, sidearm.Score,
+                            sidearm.Diverse ? ", opposite" : string.Empty);
+                        readyCount++;
+                    }
+                    Log.Message("[Armory]     sidearm candidates: " + pawn.SidearmCandidates.Count +
+                                "; ready: " + (readyCount == 0 ? "none" : readyText));
+                }
             }
         }
     }

@@ -109,6 +109,16 @@ namespace Armory.Compatibility
             }
         }
 
+        /// <summary>True when SS's sidearm allowance method resolved, so sidearm jobs can be validated.</summary>
+        public static bool CanCheckSidearms
+        {
+            get
+            {
+                EnsureInitialized();
+                return active && canPickupSidearmMethod != null;
+            }
+        }
+
         /// <summary>Player setting; defaults to on so Armory never silently fights Simple Sidearms.</summary>
         public static bool RespectEnabled
         {

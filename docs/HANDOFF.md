@@ -1,24 +1,28 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.3.0**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.4.0**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository initialized on `main`; 0.2.3 is the first commit.
+Git repository on `main`; 0.2.3, 0.3.0, and 0.4.0 are committed.
 
 ---
 
 ## Where we are
 
-Milestones 0–3 are implemented:
+Milestones 0–4 are implemented:
 
 - **0** — mod skeleton, `MainButtonDef`, tab, settings, build/junction.
 - **1** — ranking, blockers, Pawns/Weapons/Demand tabs, factor ledger.
 - **2** — opt-in planner (claims, cooldown, threshold, manual protection),
   session decision log, Log tab.
 - **3** — Simple Sidearms primary coexistence via a reflection adapter:
-  forced states, primary mode, carried-primary baseline, SS job guard,
-  sidearm display.
+  forced states, preferences, primary mode, carried-primary baseline, SS job
+  guard, sidearm display.
+- **4** — optional add-only sidearm assignment via `EquipSecondary`, with SS
+  limit checks, type-diversity preference, desired count, claims/cooldown, and
+  a sidearm candidate list.
 
-**Next:** milestone 4, sidearm ranking/assignment (`EquipSecondary`).
+**Next:** milestone 5, polish (container scanning, auto-haul, raid arming,
+automation-skip reasons, localization, Workshop prep).
 
 The user was last testing 0.2.2 and reported:
 
@@ -30,8 +34,8 @@ The user was last testing 0.2.2 and reported:
 
 0.2.3 fixed all five (map-wide pod lookup, scrollbar-aware headers, weapon
 column gaps, drug/ingestible filter), but the user has not confirmed them on the
-live save yet. 0.3.0 adds Simple Sidearms coexistence on top; both should be
-confirmed in one pass.
+live save yet. 0.3.0/0.4.0 add Simple Sidearms support on top; all of it should
+be confirmed in one pass.
 
 ---
 
@@ -75,6 +79,25 @@ Results (0.3.0):
 - Forced-weapon / forced-unarmed states were not exercised at runtime; they are
   read from the same properties and need a live-save check.
 
+Sidearm assignment test (0.4.0):
+
+- Test-only fourth weapon spawned and forbidden check bypassed (both reverted
+  before commit).
+- Primary jobs queued first; on a later planner pass Armory queued
+  `sidearm Steel knife for Keller (1/1 sidearms; opposite type)`.
+- No exceptions from `EquipSecondary`, SS's job driver, or Armory.
+- SS slot/mass checks were exercised through `CanPickupSidearmInstance`.
+- A later run exposed a real edge case: a ranged-role pawn got a melee primary
+  because the ranged weapons were claimed, then Armory added a ranged sidearm;
+  SS promoted it and Armory logged a manual change. Fixed by requiring the
+  primary to match SS's preferred type before adding sidearms, and by not
+  arming unarmed pawns with sidearms. Re-run is stable (no manual-change
+  pause).
+- Final run: two sidearms queued (an opposite-type knife for a ranged pawn, and
+  a same-type revolver when melee stock was exhausted); candidate fallback
+  across claimed weapons worked; no manual-change pause.
+- Exact free-slot display and mass-budget UI still need a live-save check.
+
 ### User save
 
 - 12 colonists, 40 weapons.
@@ -82,7 +105,7 @@ Results (0.3.0):
 - Pacifist child/pawn skipped as intended.
 - Auto Arm is installed; banner/guard behavior works.
 - Pod pawns listed but still `Not on the map` in 0.2.2.
-- Simple Sidearms is installed; 0.3.0 has not been run on this save yet.
+- Simple Sidearms is installed; 0.3.0/0.4.0 have not been run on this save yet.
 
 ---
 
@@ -124,8 +147,46 @@ Behaviour changes:
 8. **Diagnostics**: map-load snapshot logs SS integration state and per-pawn SS
    mode/sidearms.
 
-Not done (milestone 4): choosing/equipping sidearms, SS slot/weight limits in
-the UI, `EquipSecondary` jobs.
+Not done in M3 (now in M4): choosing/equipping sidearms and SS limit handling.
+
+---
+
+## Milestone 4 (0.4.0) — sidearm assignment
+
+Add-only and off by default.
+
+Behaviour:
+
+1. **Candidate set**: loose map weapons, excluding the current primary. Each is
+   scored with the normal power × fit model and validated with
+   `SimpleSidearmsAdapter.CanPickupSidearm` (which wraps SS's
+   `CanPickupSidearmInstance`: slots, mass, selection, pacifist tools, bonds,
+   biocoding, role). Hard equip failures are dropped; soft blockers remain
+   visible in the UI.
+2. **Diversity**: if the primary role is known (current primary type, else SS's
+   preferred primary type), a sidearm of the opposite type is flagged. When
+   `preferSidearmDiversity` is on, the planner picks the best ready diverse
+   candidate first, then falls back to the best ready same-type candidate.
+3. **Count and pacing**: `desiredSidearms` (0–4, default 1) is compared with
+   the inventory weapon count. Additions use the same per-pawn swap cooldown,
+   weapon claims, manual-change protection, and skip conditions as primaries.
+   A pawn needs a current/queued primary, and when SS has a preferred primary
+   type the primary must match it. Otherwise SS may promote the sidearm and
+   Armory sees a manual change.
+4. **Job**: `DefDatabase<JobDef>.GetNamedSilentFail("EquipSecondary")`, then
+   `JobMaker.MakeJob(def, weapon)` + `TryTakeOrderedJob(..., true)`. If the def
+   is absent, sidearm management disables itself with one warning.
+5. **Safety**: sidearm jobs are suppressed for any SS forced/unarmed/prefer-
+   unarmed state, regardless of the respect setting. Armory never removes or
+   replaces a sidearm, and never unforbids one.
+6. **UI**: pawn detail has a sidearm candidate section (ready/blocker, score,
+   type, `opposite type` tag) and a `carried / desired` line. Settings expose
+   manage, desired count, and diversity.
+7. **Log**: sidearm jobs use action `Queued sidearm` with `1/1 sidearms;
+   opposite type`.
+
+Known gaps: no exact free-slot display for mass-based SS limits (per-candidate
+checks only), no removal/replacement, no remembered-weapon candidates.
 
 ---
 
@@ -230,19 +291,47 @@ These are easy to break; keep them in mind.
 23. **Do not call SS methods that mutate state.** The adapter only reads
     properties/fields and calls `GetMemoryCompForPawn`,
     `getSkillWeaponPreference`, and `CanPickupSidearmInstance`.
+24. **Sidearm pass runs after the primary pass.** `CanManage` still rejects
+    pawns whose current job is `Equip`, so sidearms are normally added on the
+    next planner pass. That is intentional; do not remove the guard to force
+    same-tick sidearms.
+25. **`EquipSecondary` is resolved through `DefDatabase<JobDef>`**, never
+    referenced by type. If SS is absent, the def is missing, or
+    `CanPickupSidearmInstance` did not resolve (`CanCheckSidearms` false),
+    sidearm management disables itself.
+26. **Sidearms use `Eligibility.CheckSidearm`**, not `Check`: SS primary-mode/
+    forced-state blockers must not leak into sidearm candidates, but SS's own
+    sidearm limits must.
+27. **Sidearm count uses inventory weapons** from the snapshot. A stale
+    snapshot is harmless because `lastSidearm` enforces the swap cooldown before
+    another addition.
+28. **Sidearms are add-only.** No removal/replacement, no unforbid, no use of
+    remembered-but-absent weapons.
+29. **Sidearms require a primary that matches SS's role.** If SS prefers ranged
+    and the current/queued primary is melee, skip sidearms: adding a ranged
+    sidearm makes SS promote it, which Armory then reports as a manual change.
+    Also skip sidearms for unarmed pawns; they need a primary first.
+30. **Sidearm diversity uses `IsRangedWeapon`**, not SS's broader
+    "melee-capable" rule, so a gun with a stock bash is still a ranged sidearm
+    for display and ordering.
 
 ---
 
-## Pending verification (0.3.0)
+## Pending verification (0.4.0)
 
 Ask the user to confirm on the live save:
 
 - Simple Sidearms is detected (pawn detail shows `Simple Sidearms: primary ...`);
-- forced primaries / forced unarmed in SS are shown and Armory leaves those
-  pawns alone;
+- forced primaries / forced unarmed / prefer unarmed in SS are shown and Armory
+  leaves those pawns alone;
 - pawns with a ranged SS primary do not get melee upgrades while carrying a
   ranged sidearm (and vice versa);
-- carried sidearms are listed correctly;
+- carried sidearms are listed correctly and the sidearm candidate section shows
+  SS blockers (`SS: ...`);
+- with **Manage sidearms** enabled, `Queued sidearm` jobs appear in the Log and
+  the pawn ends up with the desired count, preferring the opposite type;
+- SS slot/mass/selection limits are respected (candidates are blocked, not
+  forced);
 - no repeated weapon swapping against SS over a few minutes;
 - 0.2.3 items: pod label, age 3, header alignment, weapon column gaps, no beer.
 
@@ -252,84 +341,49 @@ SS memory API does not match.
 
 ---
 
-## Milestone 4 plan — sidearm ranking and assignment
+## Milestone 5 plan — polish and packaging
 
-Reference: `docs/RESEARCH.md` → Simple Sidearms; implementation of M3 in
-`Compatibility/SimpleSidearmsAdapter.cs`.
+Milestone 4 shipped in 0.4.0; its implementation notes are above. Next work is
+polish, not new core behaviour.
 
-Goal: when sidearm management is enabled, choose which loose weapons go into
-which colonists' inventory via `EquipSecondary`, without violating SS limits or
-fighting its own assignment logic.
+1. **Sidearm refinements**
+   - show exact free capacity when SS uses `Slots`;
+   - show a mass/weight estimate when SS uses weight limits;
+   - optional replacement of a strictly worse same-type sidearm (default off);
+   - include remembered-but-absent SS weapons as candidates when they exist on
+     the map.
+2. **Automation transparency**
+   - add an `AutomationNote` per pawn (pacifist, drafted, bonded, under age,
+     competitor guard, SS forced state, SS job running, cooldown, below
+     threshold) and show it in the pawn detail;
+   - optionally log one skip reason per pawn per session to the Log tab.
+3. **Container scanning**
+   - include weapons in transport pods and other player containers as
+     candidates, with the container as the reachability target;
+   - keep pawn inventory out of primary candidates (those are sidearms).
+4. **Dropped weapons**
+   - optional auto-haul of dropped weapons to a stockpile, or a one-click
+     "haul dropped weapons" action. Do not expand this into general hauling.
+5. **Raid behaviour**
+   - an explicit button/setting to arm everyone from ready stock when a raid
+     starts; respect SS forced states/manual protection and never unforbid.
+6. **UI polish**
+   - finish minor alignment; review the 1280×720 layout on smaller screens;
+   - consider a sidearm column/count marker in the Pawns list.
+7. **Localization and packaging**
+   - move English literals to keys;
+   - `LoadFolders.xml` for future versions;
+   - Workshop metadata/preview and a release checklist.
+8. **1.7 / Waylith**
+   - re-verify SS and vanilla APIs; net10.0/Harmony 3 split.
 
-### 1. SS limit data to read (reflection)
+**Open design questions**
 
-On `PeteTimesSix.SimpleSidearms.SimpleSidearms.Settings`:
-
-- `SeparateModes` (bool);
-- single-sidearm mode: `LimitModeSingle`, `LimitModeSingle_AbsoluteMass`,
-  `LimitModeSingle_RelativeMass`, `LimitModeSingle_Selection`;
-- amount mode: `LimitModeAmount`, `LimitModeAmount_AbsoluteMass`,
-  `LimitModeAmount_RelativeMass`, `LimitModeAmount_Slots`;
-- per-type variants for melee and ranged when `SeparateModes` is true
-  (`LimitModeAmountMelee*`, `LimitModeAmountRanged*`, and the single-type modes).
-
-Do not reimplement the checks: `StatCalculator.CanPickupSidearmInstance(weapon,
-pawn, out reason)` already covers mass, stash space, selection lists, slot
-counts, pacifist tools, biocoding, role restrictions, and bonds. Use it for
-every sidearm candidate.
-
-### 2. Candidate set and ranking
-
-- Loose map weapons that are not the pawn's primary candidate (same scoring).
-- Exclude the current primary and anything already carried.
-- Require `CanPickupSidearmInstance` to pass.
-- Rank by `WeaponPower.Get * PawnFit.Compute`, with two policy filters:
-  - **type diversity first**: if the pawn's primary is ranged, prefer a melee
-    sidearm (and vice versa); raw score is only a tie-breaker;
-  - **do not duplicate** a def/stuff the pawn already carries.
-- Slots: derive free capacity from SS settings + carried weapons. If the limit
-  mode is `Slots`, the difference is exact. For mass modes, use SS's own check
-  per candidate and stop at the desired count.
-
-### 3. Planner
-
-- New setting `manageSidearms` (off by default) and `desiredSidearms` (global,
-  default 1, range 0–4).
-- Issue `JobMaker.MakeJob(JobDefOf "EquipSecondary", weapon)`; resolve the
-  `JobDef` through `DefDatabase<JobDef>.GetNamed("EquipSecondary", false)` so
-  there is still no hard reference.
-- Use the same claims/cooldown/manual-change protection as primaries.
-- Log `Queued sidearm` with the reason (type diversity, upgrade, empty slot).
-- Skip pawns with a forced unarmed state or a forced weapon that is not already
-  the current primary (SS owns that decision).
-- Never issue a sidearm job while an SS job is running.
-
-### 4. UI
-
-- Pawn detail: sidearm slots (`2/3 used`), ranked sidearm list with
-  `ready` / `SS: <reason>` statuses, and the current sidearms.
-- Maybe a small `S` marker in the Pawns list for pawns with free sidearm slots.
-- Settings: enable/disable, desired count, "prefer a different type than the
-  primary" (default on).
-- Log: sidearm actions must be distinguishable from primary equips.
-
-### 5. Tests
-
-- Isolated folder `armorytest-ss` already exists (Core + Harmony + SS + Armory).
-- Matrix: SS absent (settings hidden), SS present, forced unarmed, forced
-  primary, slot limit 1/2, mass limit, drafted, primary already the same type,
-  sidearm job already running, SS auto-pickup on/off.
-- Watch for oscillation: Armory adds a sidearm, SS drops it, Armory re-adds.
-  The manual-change/cooldown guard applies, but sidearm-specific last-known
-  tracking may be needed.
-
-**Open design questions for the user**
-
-- Sidearms for all colonists or only Armory-managed ones?
-- Sidearm count: SS setting only, per-pawn, or a global desired count?
-- Should type diversity beat raw score? (Plan: yes, by default.)
-- Should Armory ever remove/replace a sidearm, or only add? (Plan: only add in
-  the first version.)
+- Sidearms for all free colonists (current) or only pawns Armory gave a primary?
+- Should Armory ever remove/replace a sidearm? (Current: no.)
+- Should raid arming be automatic or a button?
+- Is the sidearm candidate list in the pawn detail enough, or is a dedicated
+  tab/section wanted?
 
 ---
 
@@ -354,10 +408,11 @@ every sidearm candidate.
 - **Manager-agnostic**: Armory should not depend on Auto Arm's or Equipment
   Manager's internals. Operationally, only one auto-equipper should act, hence
   the competitor guard and override.
-- **Simple Sidearms**: primary coexistence shipped in 0.3.0; sidearm assignment is
-  next. Sidearms should not be bolted on before the primary flow is solid.
-  Simple Sidearms' own QuickSwitch think node enforces its primary preference
-  among carried weapons, so Armory must not queue a primary SS would undo.
+- **Simple Sidearms**: primary coexistence shipped in 0.3.0; add-only sidearm
+  assignment shipped in 0.4.0. Removal/replacement is deliberately out of scope
+  for now. Simple Sidearms' own QuickSwitch think node enforces its primary
+  preference among carried weapons, so Armory must not queue a primary SS would
+  undo.
 - **No auto-unforbid**: forbidden weapons stay visible and explained, but the
   player decides when to allow them.
 - **Explainability matters**: the user's original pain was not knowing why a
@@ -398,6 +453,7 @@ every sidearm candidate.
 | 0.2.2 | Age default 3 + migration, pod holder chain, tab 1280×720, proportional columns |
 | 0.2.3 | Map-wide pod lookup fallback, header/row width fix, weapon column gaps, beer/drug filter |
 | 0.3.0 | Simple Sidearms coexistence: reflection adapter, forced states, primary mode, carried baseline, SS job guard, sidearm display |
+| 0.4.0 | Add-only sidearm assignment via `EquipSecondary`, SS limit checks, type diversity, desired count, sidearm candidate UI |
 
 ---
 

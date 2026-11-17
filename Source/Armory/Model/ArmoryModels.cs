@@ -33,6 +33,24 @@ namespace Armory
         }
     }
 
+    /// <summary>One sidearm evaluated for one pawn. Kept separate from primary candidates.</summary>
+    public sealed class SidearmCandidate
+    {
+        public WeaponInfo Weapon;
+        public float Score;
+
+        /// <summary>Null when the pawn could pick this up as a sidearm right now.</summary>
+        public string Blocker;
+
+        /// <summary>True when this sidearm is the opposite type from the pawn's primary role.</summary>
+        public bool Diverse;
+
+        public bool Ready
+        {
+            get { return string.IsNullOrEmpty(Blocker); }
+        }
+    }
+
     /// <summary>All weapon evaluations for one pawn.</summary>
     public sealed class PawnAnalysis
     {
@@ -58,6 +76,9 @@ namespace Armory
         public ThingWithComps BestCarriedPrimary;
 
         public float BestCarriedPrimaryScore;
+
+        /// <summary>Loose weapons evaluated as Simple Sidearms sidearms, best first.</summary>
+        public readonly List<SidearmCandidate> SidearmCandidates = new List<SidearmCandidate>();
 
         public bool Available
         {

@@ -21,6 +21,9 @@ namespace Armory
         public bool equipDrafted;
         public bool respectManualEquip = true;
         public bool respectSimpleSidearms = true;
+        public bool manageSidearms;
+        public int desiredSidearms = 1;
+        public bool preferSidearmDiversity = true;
         public int manualCooldownTicks = 15000;
         public int settingsVersion = 1;
 
@@ -46,6 +49,9 @@ namespace Armory
             Scribe_Values.Look(ref equipDrafted, "equipDrafted", false);
             Scribe_Values.Look(ref respectManualEquip, "respectManualEquip", true);
             Scribe_Values.Look(ref respectSimpleSidearms, "respectSimpleSidearms", true);
+            Scribe_Values.Look(ref manageSidearms, "manageSidearms", false);
+            Scribe_Values.Look(ref desiredSidearms, "desiredSidearms", 1);
+            Scribe_Values.Look(ref preferSidearmDiversity, "preferSidearmDiversity", true);
             Scribe_Values.Look(ref manualCooldownTicks, "manualCooldownTicks", 15000);
             Scribe_Values.Look(ref settingsVersion, "settingsVersion", 0);
 
@@ -110,12 +116,21 @@ namespace Armory
                 listing.CheckboxLabeled("Respect Simple Sidearms primary mode and forced weapons",
                     ref respectSimpleSidearms);
                 listing.Label(respectSimpleSidearms
-                    ? "Armory leaves forced primaries alone and will not equip a primary type that Simple Sidearms would switch away from. Sidearm assignment is not managed yet."
+                    ? "Armory leaves forced primaries alone and will not equip a primary type that Simple Sidearms would switch away from."
                     : "Armory may override Simple Sidearms' primary type and forced states. Expect the two mods to fight over primaries.");
+
+                listing.CheckboxLabeled("Manage sidearms (add loose weapons to inventory)", ref manageSidearms);
+                if (manageSidearms)
+                {
+                    listing.Label(string.Format("Desired sidearms per colonist: {0}", desiredSidearms));
+                    desiredSidearms = Mathf.RoundToInt(listing.Slider(desiredSidearms, 0f, 4f));
+                    listing.CheckboxLabeled("Prefer a different type than the primary", ref preferSidearmDiversity);
+                    listing.Label("Armory only adds sidearms; it never removes or replaces one. Simple Sidearms slot, mass, and selection rules are checked for every candidate.");
+                }
             }
             else
             {
-                listing.Label("Simple Sidearms is not loaded. Primary coexistence settings are inactive.");
+                listing.Label("Simple Sidearms is not loaded. Primary coexistence and sidearm management are inactive.");
             }
 
             listing.GapLine();

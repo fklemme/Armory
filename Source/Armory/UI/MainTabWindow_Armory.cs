@@ -29,10 +29,12 @@ namespace Armory
         private bool refreshRequested;
 
         private readonly List<Candidate> visibleRanked = new List<Candidate>();
+        private readonly List<SidearmCandidate> sidearmScratch = new List<SidearmCandidate>();
         private readonly List<PawnAnalysis> pawnScratch = new List<PawnAnalysis>();
 
         private const float RowHeight = 26f;
         private const float HeaderHeight = 22f;
+        private const int SidearmDisplayLimit = 12;
 
         public override Vector2 RequestedTabSize
         {
@@ -493,7 +495,110 @@ namespace Armory
                 }
             }
 
+            if (SimpleSidearmsAdapter.Active && pawn.SidearmCandidates.Count > 0)
+            {
+                cursor += 8f;
+                SectionHeader(ref cursor, width, "Sidearm candidates (Simple Sidearms)");
+
+                ArmorySettings settings = ArmoryMod.Settings;
+                bool diversity = settings == null || settings.preferSidearmDiversity;
+                int desired = settings == null ? 1 : settings.desiredSidearms;
+
+                string waitReason = SidearmWaitReason(pawn);
+                if (waitReason != null)
+                {
+                    DrawCell(new Rect(4f, cursor, width - 8f, 18f), waitReason,
+                        TextAnchor.MiddleLeft, GameFont.Tiny, new Color(1f, 0.82f, 0.45f));
+                    cursor += 18f;
+                }
+
+                DrawCell(new Rect(4f, cursor, width - 8f, 18f),
+                    string.Format("{0} carried / {1} desired. Armory only adds sidearms; it never removes or replaces one.",
+                        pawn.Sidearms.Count, desired),
+                    TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.72f, 0.72f, 0.72f));
+                cursor += 18f;
+
+                sidearmScratch.Clear();
+                for (int i = 0; i < pawn.SidearmCandidates.Count; i++)
+                {
+                    sidearmScratch.Add(pawn.SidearmCandidates[i]);
+                }
+                sidearmScratch.Sort((a, b) =>
+                {
+                    if (diversity && a.Diverse != b.Diverse)
+                    {
+                        return a.Diverse ? -1 : 1;
+                    }
+                    return b.Score.CompareTo(a.Score);
+                });
+
+                int sidearmLimit = Mathf.Min(sidearmScratch.Count, SidearmDisplayLimit);
+                for (int i = 0; i < sidearmLimit; i++)
+                {
+                    SidearmCandidate candidate = sidearmScratch[i];
+                    string label = candidate.Weapon.Label;
+                    if (candidate.Diverse)
+                    {
+                        label += "  (opposite type)";
+                    }
+                    DrawCell(new Rect(32f, cursor, Mathf.Max(40f, width - 300f), 22f),
+                        label, TextAnchor.MiddleLeft);
+                    DrawCell(new Rect(width - 246f, cursor, 120f, 22f),
+                        candidate.Ready ? "ready" : candidate.Blocker, TextAnchor.MiddleRight,
+                        GameFont.Small, candidate.Ready
+                            ? new Color(0.7f, 0.9f, 0.7f)
+                            : new Color(1f, 0.8f, 0.42f));
+                    DrawCell(new Rect(width - 122f, cursor, 48f, 22f), candidate.Score.ToString("0"),
+                        TextAnchor.MiddleRight);
+                    DrawCell(new Rect(width - 70f, cursor, 66f, 22f),
+                        candidate.Weapon.IsRanged ? "ranged" : "melee", TextAnchor.MiddleRight);
+                    cursor += 22f;
+                }
+
+                if (sidearmScratch.Count > sidearmLimit)
+                {
+                    DrawCell(new Rect(32f, cursor, width - 32f, 18f),
+                        string.Format("... {0} more", sidearmScratch.Count - sidearmLimit),
+                        TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.65f, 0.65f, 0.65f));
+                    cursor += 18f;
+                }
+            }
+
             Widgets.EndScrollView();
+        }
+
+        private static string SidearmWaitReason(PawnAnalysis pawn)
+        {
+            if (pawn.Current == null)
+            {
+                return "No primary yet; sidearms wait until the pawn has one.";
+            }
+            if (!SimpleSidearmsAdapter.RespectEnabled || pawn.SidearmState == null ||
+                !pawn.SidearmState.PreferredPrimaryIsRanged.HasValue ||
+                pawn.Current.def == null)
+            {
+                return null;
+            }
+
+            bool? currentIsRanged = null;
+            if (pawn.Current.def.IsRangedWeapon)
+            {
+                currentIsRanged = true;
+            }
+            else if (pawn.Current.def.IsMeleeWeapon)
+            {
+                currentIsRanged = false;
+            }
+
+            if (!currentIsRanged.HasValue ||
+                currentIsRanged.Value == pawn.SidearmState.PreferredPrimaryIsRanged.Value)
+            {
+                return null;
+            }
+
+            return pawn.SidearmState.PreferredPrimaryIsRanged.Value
+                ? "Waiting for a ranged primary before adding sidearms."
+                : "Waiting for a melee primary before adding sidearms.";
         }
 
         private float PawnDetailHeight(PawnAnalysis pawn, int limit, bool showBlocked)
@@ -510,6 +615,19 @@ namespace Armory
             if (pawn.Incompatible.Count > 0)
             {
                 height += 34f + Mathf.Min(pawn.Incompatible.Count, 40) * 22f;
+            }
+            if (SimpleSidearmsAdapter.Active && pawn.SidearmCandidates.Count > 0)
+            {
+                int sidearmCount = Mathf.Min(pawn.SidearmCandidates.Count, SidearmDisplayLimit);
+                height += 8f + 26f + 18f + sidearmCount * 22f;
+                if (SidearmWaitReason(pawn) != null)
+                {
+                    height += 18f;
+                }
+                if (pawn.SidearmCandidates.Count > sidearmCount)
+                {
+                    height += 18f;
+                }
             }
             return height + 20f;
         }

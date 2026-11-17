@@ -1,0 +1,13 @@
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.idea/
+
+# Build output (dotnet build writes these)
+Assemblies/*.dll
+Assemblies/*.pdb
+
+# Local scratch
+*.log

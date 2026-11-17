@@ -99,6 +99,12 @@ namespace Armory
                 {
                     continue;
                 }
+                if (analysis.HandLocked)
+                {
+                    // The bonded persona weapon is in hand. Do not replace it; the
+                    // separate backup pass can still maintain the off-hand weapon.
+                    continue;
+                }
 
                 float baselineScore = analysis.HandBaselineScore;
                 float minimumScore = baselineScore > 0.01f
@@ -566,9 +572,9 @@ namespace Armory
             {
                 return "Simple Sidearms sidearm job running";
             }
-            if (pawn.equipment == null || pawn.equipment.bondedWeapon != null)
+            if (pawn.equipment == null)
             {
-                return "bonded persona weapon";
+                return "no equipment tracker";
             }
             return null;
         }

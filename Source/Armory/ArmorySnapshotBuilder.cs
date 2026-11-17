@@ -261,6 +261,12 @@ namespace Armory
             }
 
             analysis.SidearmState = SimpleSidearmsAdapter.GetState(pawn);
+            if (pawn.equipment != null && pawn.equipment.bondedWeapon != null &&
+                pawn.equipment.Primary == pawn.equipment.bondedWeapon)
+            {
+                analysis.HandLocked = true;
+                analysis.HandLockReason = "bonded persona weapon in hand";
+            }
             ResolveRole(analysis, context);
             ResolveBestCarriedBackup(analysis);
 
@@ -600,18 +606,21 @@ namespace Armory
                 }
 
                 // Hand slot: the best hand candidate compared with the hand baseline.
-                Candidate handTop = pawn.TopReady;
-                bool handReady = handTop != null;
-                if (handTop == null)
+                if (!pawn.HandLocked)
                 {
-                    handTop = pawn.TopOverall;
-                }
-                if (handTop != null && handTop.Weapon.Thing != pawn.Current)
-                {
-                    float baseline = pawn.HandBaselineScore;
-                    if (handTop.Score > baseline)
+                    Candidate handTop = pawn.TopReady;
+                    bool handReady = handTop != null;
+                    if (handTop == null)
                     {
-                        AddCount(handReady ? wantedHand : blockedHand, handTop.Weapon.Thing.def);
+                        handTop = pawn.TopOverall;
+                    }
+                    if (handTop != null && handTop.Weapon.Thing != pawn.Current)
+                    {
+                        float baseline = pawn.HandBaselineScore;
+                        if (handTop.Score > baseline)
+                        {
+                            AddCount(handReady ? wantedHand : blockedHand, handTop.Weapon.Thing.def);
+                        }
                     }
                 }
 

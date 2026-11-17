@@ -94,6 +94,14 @@ namespace Armory
         /// <summary>True when the note is a permanent/hard gate (pacifist, age, downed...).</summary>
         public bool AutomationBlocked;
 
+        /// <summary>
+        /// True when the pawn's bonded persona weapon is currently equipped, so Armory
+        /// must not replace the hand weapon. Backups can still be managed.
+        /// </summary>
+        public bool HandLocked;
+
+        public string HandLockReason;
+
         /// <summary>Weapons carried in the pawn's inventory (Simple Sidearms sidearms and other carried weapons).</summary>
         public readonly List<ThingWithComps> Sidearms = new List<ThingWithComps>();
 

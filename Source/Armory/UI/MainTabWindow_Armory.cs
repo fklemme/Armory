@@ -435,6 +435,19 @@ namespace Armory
                 return "paused: " + pawn.AutomationNote;
             }
 
+            if (pawn.HandLocked)
+            {
+                if (hasBackupWish)
+                {
+                    color = new Color(0.66f, 0.84f, 0.95f);
+                    return CountBackups(pawn) == 0
+                        ? "add backup (hand locked)"
+                        : "backup upgrade (hand locked)";
+                }
+                color = new Color(1f, 0.78f, 0.4f);
+                return "hand locked: " + pawn.HandLockReason;
+            }
+
             if (!pawn.HasRole)
             {
                 if (topReady != null)
@@ -512,6 +525,22 @@ namespace Armory
                     pawn.AutomationBlocked
                         ? new Color(1f, 0.72f, 0.55f)
                         : new Color(1f, 0.82f, 0.45f));
+                y += 22f;
+            }
+
+            if (pawn.HandLocked)
+            {
+                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
+                    "Hand locked: " + pawn.HandLockReason +
+                    " (backups can still be managed; drop the persona weapon to unlock the hand).",
+                    new Color(1f, 0.82f, 0.45f));
+                y += 22f;
+            }
+            else if (pawn.Pawn.equipment != null && pawn.Pawn.equipment.bondedWeapon != null)
+            {
+                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
+                    "Bonded persona weapon not in hand: another weapon may cause a mood penalty.",
+                    new Color(1f, 0.82f, 0.45f));
                 y += 22f;
             }
 

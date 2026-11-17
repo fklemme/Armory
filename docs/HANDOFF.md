@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.6.2**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.6.3**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.6.2 are committed.
+Git repository on `main`; 0.2.3 through 0.6.3 are committed.
 
 ---
 
@@ -286,6 +286,42 @@ This is diagnostic only; the planner's behavior is unchanged. The most likely
 explanations for Trebo are the manual-change pause from the gizmo reset, being
 drafted with `Equip drafted colonists` off, or a bonded persona weapon, which
 Armory deliberately leaves alone. The new `Automation:` line names the exact one.
+
+---
+
+## 0.6.3 — narrow the bonded-persona rule
+
+The 0.6.2 diagnostic identified Trebo as `blocked: bonded persona weapon`.
+`Pawn_EquipmentTracker.bondedWeapon` is set when a persona weapon is coded to a
+pawn and persists even when the weapon is in the bag or on the ground. Armory
+was treating any non-null `bondedWeapon` as "do not manage this pawn at all," so
+after the user dropped the persona monosword Trebo stayed unarmed indefinitely.
+
+The rule is now narrower:
+
+- `GetHardBlock` no longer rejects bonded-weapon owners.
+- `PawnAnalysis.HandLocked` is true only when the bonded weapon is the **currently
+  equipped** weapon (`equipment.Primary == equipment.bondedWeapon`).
+- Hand-locked pawns skip the hand pass; the backup pass still runs. The UI shows
+  `Hand locked: bonded persona weapon in hand` and `backup ... (hand locked)`.
+- If the bonded weapon is in the bag or on the ground, the hand is not locked:
+  Armory may equip a different hand weapon. This can trigger the persona
+  weapon's "wielded another weapon" mood penalty, so the detail warns about it.
+- The backup pass never drops a persona weapon (`CompBladelinkWeapon` is excluded
+  from drop targets), so narrowing the hand rule cannot break a bond.
+
+Verified in the isolated game with a temporary scaffold (reverted and rebuilt):
+
+- Bonded weapon in inventory, pawn unarmed: `automation ok; hand locked no`, and
+  Armory queued a hand weapon.
+- Bonded weapon equipped: `automation ok; hand locked yes`, and Armory did not
+  queue a hand job for that pawn; other pawns still received jobs.
+- No exceptions, build clean.
+
+Live check: Trebo should now be armed after the persona weapon is dropped, and
+the detail should show `Bonded persona weapon is not in hand; equipping another
+weapon may cause a mood penalty.` If the persona weapon is re-equipped, the hand
+locks again and backups remain managed.
 
 ---
 
@@ -631,7 +667,7 @@ These are easy to break; keep them in mind.
 
 ---
 
-## Pending verification (0.6.2)
+## Pending verification (0.6.3)
 
 The immediate checks are:
 
@@ -641,8 +677,11 @@ The immediate checks are:
   from dropping weapons through the Simple Sidearms gizmo; wait it out or lower
   the pause in Settings.
 - If it is `drafted`, enable **Equip drafted colonists** or undraft.
-- If it is `bonded persona weapon`, Armory is deliberately leaving that pawn
-  alone; re-equip the bonded weapon manually or accept the skip.
+- A bonded persona weapon is no longer a blanket block. If it is the equipped
+  hand, the pawn shows `hand locked: bonded ...` but backups are still managed.
+  If it is in the bag or on the ground, Armory can arm the hand; the detail warns
+  about the persona mood penalty. Trebo should be armed after dropping the
+  persona weapon.
 - A ranged pawn's detail shows only ranged weapons under `Hand slot (ranged)`
   and only melee weapons under `Backup slot (melee)`. The Monosword is absent
   from the hand list and, for a Basic-preset pawn, appears under backup with
@@ -797,6 +836,7 @@ polish, not new core behaviour.
 | 0.6.0 | Typed hand/backup slots; same-type-only upgrades; mirrored ranged/melee loadouts; add-first or drop-first at SS's cap; separate Hand/Backup UI and Demand column |
 | 0.6.1 | Fix drop-first pre-check (SS `isValidSidearm` ignores RelativeWeight; pacifist tools); remember failed drop-first attempts; clearer log |
 | 0.6.2 | Show automation-skip reasons (`paused:`/`blocked:`) in Pawns and detail; demand ignores hard-blocked pawns |
+| 0.6.3 | Narrow bonded-persona rule: only lock the hand while the bonded weapon is equipped; allow hand/backup management otherwise |
 
 ---
 

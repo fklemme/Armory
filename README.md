@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.6.2** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.6.3** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -183,8 +183,11 @@ Off by default. When enabled:
 - equip jobs are queued with `requestQueueing: true`, so work is not
   interrupted;
 - manual weapon changes pause that pawn for a configurable period;
-- skips pacifists, prisoners, slaves, downed/mental pawns, under-age pawns,
-  pawns with a bonded weapon, and drafted pawns by default;
+- skips pacifists, prisoners, slaves, downed/mental pawns, under-age pawns, and
+  drafted pawns by default;
+- for a bonded persona weapon, locks the hand only while the bonded weapon is
+  equipped; if it is in the bag or on the ground, the hand can still be managed,
+  with a warning that another weapon may trigger the persona mood penalty;
 - if Auto Arm or Equipment Manager is loaded, automation stays paused unless
   `overrideCompetitor` is enabled.
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using RimWorld;
 using Verse;
 
 namespace Armory.Compatibility
@@ -101,6 +102,13 @@ namespace Armory.Compatibility
         private static MethodInfo skillPreferenceMethod;
         private static PropertyInfo settingsProperty;
         private static FieldInfo skipDangerousField;
+        private static FieldInfo separateModesField;
+        private static FieldInfo singleModeField;
+        private static FieldInfo singleMeleeModeField;
+        private static FieldInfo singleRangedModeField;
+        private static FieldInfo singleRelativeField;
+        private static FieldInfo singleMeleeRelativeField;
+        private static FieldInfo singleRangedRelativeField;
 
         private static PropertyInfo forcedUnarmedProperty;
         private static PropertyInfo forcedWeaponProperty;
@@ -160,6 +168,22 @@ namespace Armory.Compatibility
             {
                 EnsureInitialized();
                 return active && canUseSidearmMethod != null;
+            }
+        }
+
+        /// <summary>
+        /// True when SS's relative-weight limit fields resolved. SS's `isValidSidearm`
+        /// helper does not implement RelativeWeight, so Armory must check it separately.
+        /// </summary>
+        public static bool CanCheckRelativeLimits
+        {
+            get
+            {
+                EnsureInitialized();
+                return active && settingsProperty != null && separateModesField != null &&
+                       singleModeField != null && singleMeleeModeField != null &&
+                       singleRangedModeField != null && singleRelativeField != null &&
+                       singleMeleeRelativeField != null && singleRangedRelativeField != null;
             }
         }
 
@@ -414,6 +438,86 @@ namespace Armory.Compatibility
                             exception.GetType().Name + ": " + exception.Message);
                 return true;
             }
+        }
+
+        /// <summary>
+        /// Full single-weapon pre-check for a drop-first upgrade. SS's `isValidSidearm`
+        /// covers absolute-weight and selection limits but **not** RelativeWeight, so this
+        /// adds the relative mass check from `CanPickupSidearmType`. Returns true when the
+        /// check is unavailable; callers that are about to drop a weapon must also require
+        /// <see cref="CanCheckRelativeLimits"/>.
+        /// </summary>
+        public static bool IsValidSidearmForPawn(Pawn pawn, ThingWithComps weapon, out string reason)
+        {
+            reason = null;
+            if (!IsValidSidearmType(weapon, out reason))
+            {
+                return false;
+            }
+            if (pawn == null || weapon == null || !CanCheckRelativeLimits)
+            {
+                return true;
+            }
+
+            if ((pawn.CombinedDisabledWorkTags & WorkTags.Violent) != 0 &&
+                !IsTool(weapon.def))
+            {
+                reason = "Pacifist: not a tool";
+                return false;
+            }
+
+            try
+            {
+                object settings = settingsProperty.GetValue(null, null);
+                if (settings == null)
+                {
+                    return true;
+                }
+
+                bool separate = (bool)separateModesField.GetValue(settings);
+                bool melee = weapon.def.IsMeleeWeapon;
+                FieldInfo modeField = separate
+                    ? (melee ? singleMeleeModeField : singleRangedModeField)
+                    : singleModeField;
+                FieldInfo relativeField = separate
+                    ? (melee ? singleMeleeRelativeField : singleRangedRelativeField)
+                    : singleRelativeField;
+
+                int mode = Convert.ToInt32(modeField.GetValue(settings));
+                if (mode != 1) // LimitModeSingleSidearm.RelativeWeight
+                {
+                    return true;
+                }
+
+                float relative = Convert.ToSingle(relativeField.GetValue(settings));
+                float mass = weapon.GetStatValue(StatDefOf.Mass, true);
+                float capacity = MassUtility.Capacity(pawn, null);
+                if (mass >= relative * capacity)
+                {
+                    reason = "Too heavy for a sidearm" + (separate && melee ? " (melee)" : string.Empty);
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Log.Warning("[Armory] Simple Sidearms relative-sidearm check failed: " +
+                            exception.GetType().Name + ": " + exception.Message);
+                return true;
+            }
+        }
+
+        private static bool IsTool(ThingDef def)
+        {
+            if (def == null)
+            {
+                return false;
+            }
+            if (def.defName == "Gun_Fire_Ext" || def.defName == "VWE_Gun_FireExtinguisher")
+            {
+                return true;
+            }
+            return def.equippedStatOffsets != null && def.equippedStatOffsets.Count > 0;
         }
 
         /// <summary>
@@ -823,8 +927,30 @@ namespace Armory.Compatibility
                         BindingFlags.Public | BindingFlags.Static);
                     if (settingsProperty != null)
                     {
-                        skipDangerousField = settingsProperty.PropertyType.GetField(
+                        Type settingsType = settingsProperty.PropertyType;
+                        skipDangerousField = settingsType.GetField(
                             "SkipDangerousWeapons",
+                            BindingFlags.Public | BindingFlags.Instance);
+                        separateModesField = settingsType.GetField(
+                            "SeparateModes",
+                            BindingFlags.Public | BindingFlags.Instance);
+                        singleModeField = settingsType.GetField(
+                            "LimitModeSingle",
+                            BindingFlags.Public | BindingFlags.Instance);
+                        singleMeleeModeField = settingsType.GetField(
+                            "LimitModeSingleMelee",
+                            BindingFlags.Public | BindingFlags.Instance);
+                        singleRangedModeField = settingsType.GetField(
+                            "LimitModeSingleRanged",
+                            BindingFlags.Public | BindingFlags.Instance);
+                        singleRelativeField = settingsType.GetField(
+                            "LimitModeSingle_RelativeMass",
+                            BindingFlags.Public | BindingFlags.Instance);
+                        singleMeleeRelativeField = settingsType.GetField(
+                            "LimitModeSingleMelee_RelativeMass",
+                            BindingFlags.Public | BindingFlags.Instance);
+                        singleRangedRelativeField = settingsType.GetField(
+                            "LimitModeSingleRanged_RelativeMass",
                             BindingFlags.Public | BindingFlags.Instance);
                     }
                 }

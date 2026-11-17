@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.6.0**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.6.1**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.6.0 are committed.
+Git repository on `main`; 0.2.3 through 0.6.1 are committed.
 
 ---
 
@@ -182,10 +182,15 @@ SS-blocked. The agreed model:
 - The hand baseline still uses SS's QuickSwitch choice. It now reads SS's
   `SkipDangerousWeapons` setting and passes `includeRangedWithBash: false` for
   the melee call, matching SS's idle choice.
-- Drop-first is pre-checked with `StatCalculator.isValidSidearm` and
-  `canUseSidearmInstance`, so a too-heavy or role-blocked weapon never triggers a
-  drop. If SS's post-drop `CanPickupSidearmInstance` still fails, the old backup
-  is requeued and the log records `Restored backup`.
+- Drop-first is pre-checked with `StatCalculator.isValidSidearm`,
+  `canUseSidearmInstance`, and an Armory-side relative-mass check. SS's
+  `isValidSidearm` silently ignores `RelativeWeight` (it handles only
+  `AbsoluteWeight` and `Selection`), so the extra check is required; without it
+  a 2 kg Monosword passed the pre-check, was dropped in, failed SS's real
+  `CanPickupSidearmInstance`, and was restored every cooldown. The pacifist tool
+  rule is also part of the pre-check. If SS's post-drop check still fails, the
+  old backup is requeued and the failure is remembered per pawn+weapon for
+  60,000 ticks so it cannot spam drop/restore pairs.
 - `SidearmCandidate.UpgradeAfterDrop` marks candidates that are blocked only by
   SS capacity, so the UI can say `upgrade (drop first)` without guessing.
 
@@ -202,6 +207,54 @@ signatures match the decompiled 1.6 methods. The first live checks should be:
    no `Restored backup` unless SS genuinely refuses.
 5. No repeated swap loop and no `Simple Sidearms carried-primary check failed`
    warning.
+
+---
+
+## 0.6.1 — fix drop-first pre-check and log spam
+
+The user loaded 0.6.0 and saw repeated pairs of entries: `Backup upgrade
+skipped` + `Restored backup` for six pawns, every swap cooldown. Armory was
+dropping each pawn's good gladius/knife, failing to add the Monosword, and
+restoring the old backup 41 seconds later.
+
+Root cause: **`StatCalculator.isValidSidearm` does not implement
+`LimitModeSingleSidearm.RelativeWeight`.** Its switch handles only
+`AbsoluteWeight` and `Selection`, while `CanPickupSidearmType` separately checks
+the relative mass. The user's SS preset uses
+`LimitModeSingleMelee=RelativeWeight` (1.9 kg on a body-size-1 pawn). The
+drop-first pre-check therefore accepted a 2 kg Monosword, dropped the old
+backup, then SS's real `CanPickupSidearmInstance` rejected it with
+"Too heavy for a sidearm melee".
+
+Fixes:
+
+- `SimpleSidearmsAdapter.IsValidSidearmForPawn` calls `isValidSidearm`, then
+  applies the missing relative-mass check from SS's settings
+  (`SeparateModes`, `LimitModeSingle*`, `*_RelativeMass`) and
+  `MassUtility.Capacity`. It also mirrors SS's pacifist tool rule
+  (`CombinedDisabledWorkTags & Violent`, fire extinguishers/stat-offset tools).
+- Drop-first now requires `CanCheckSidearmType`, `CanCheckSidearmUse`, and
+  `CanCheckRelativeLimits`; if any API is missing, Armory refuses to drop
+  rather than guessing.
+- Failed drop-first attempts are remembered per pawn+weapon for 60,000 ticks,
+  so an unforeseen post-drop refusal cannot spam drop/restore pairs.
+- The failure is one Log entry (`Upgrade skipped`) with the SS reason first,
+  instead of two truncated entries. The Action column is wider.
+- `UpgradeAfterDrop` is false for too-heavy or pacifist-blocked candidates, so
+  the UI no longer offers `upgrade (drop first)` for a Monosword that SS will
+  reject.
+
+Verified in the isolated game with a temporary scaffold (steel knives in
+inventory + a heavy melee weapon spawned, then reverted):
+
+- `Steel longsword ... Too heavy for a melee sidearm` with **no**
+  `[drop-first]` marker.
+- The planner did not attempt the heavy weapon.
+- A valid same-type upgrade still queued (`replacing Steel knife (+40%)`).
+- Build clean, no exceptions.
+
+The live drop-first success path (a valid better backup at the slot cap) still
+needs a live-save check.
 
 ---
 
@@ -532,12 +585,22 @@ These are easy to break; keep them in mind.
 34. **Drop targets exclude** persona weapons (`CompBladelinkWeapon`) and
     `destroyOnDrop` items. The worst same-type backup is chosen; the equipped
     hand weapon is never a drop target.
-35. **Do not force-close the user's running game for quicktests.** The isolated
+35. **SS's `isValidSidearm` ignores `RelativeWeight`.** It handles only
+    `AbsoluteWeight` and `Selection`; `CanPickupSidearmType` has the relative
+    mass check. Use `SimpleSidearmsAdapter.IsValidSidearmForPawn`, which adds the
+    relative check and the pacifist tool rule. Do not drop-first on
+    `isValidSidearm` alone: a 2 kg Monosword under Basic passes it but fails the
+    real check, producing drop/restore spam.
+36. **Failed drop-first attempts are remembered** per pawn+weapon for 60,000
+    ticks (`failedDropUntil`). This is session-only; clear it by restarting or
+    letting it expire. Add-first failures are not remembered because nothing was
+    removed.
+37. **Do not force-close the user's running game for quicktests.** The isolated
     test script refuses by default; pass `-Force` only with explicit permission.
 
 ---
 
-## Pending verification (0.6.0)
+## Pending verification (0.6.1)
 
 The immediate checks are:
 
@@ -554,6 +617,8 @@ The immediate checks are:
   one dropped after. The Log shows `Queued backup` and `Dropped backup`.
 - At SS's slot cap, the Log shows `replacing X (+N%, old one dropped first)`;
   `Restored backup` only appears if SS genuinely refuses the replacement.
+- A too-heavy candidate (Monosword under Basic) shows `Too heavy...` and does
+  **not** produce drop/restore entries. The Log should stay quiet for it.
 - The old backup stays on the ground and is not immediately retrieved by SS.
 - No repeated swapping against SS over a few minutes; no
   `Simple Sidearms carried-primary check failed` warning.
@@ -691,6 +756,7 @@ polish, not new core behaviour.
 | 0.5.0 | Sidearm upgrades (replace worst same-type), Weapons tab sidearm status, per-pawn `sidearm ready`, replace setting |
 | 0.5.1 | Explicit SS role blockers + detail explanations; baseline uses SS's actual QuickSwitch choice |
 | 0.6.0 | Typed hand/backup slots; same-type-only upgrades; mirrored ranged/melee loadouts; add-first or drop-first at SS's cap; separate Hand/Backup UI and Demand column |
+| 0.6.1 | Fix drop-first pre-check (SS `isValidSidearm` ignores RelativeWeight; pacifist tools); remember failed drop-first attempts; clearer log |
 
 ---
 

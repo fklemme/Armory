@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.6.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.6.1** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -381,6 +381,8 @@ Manual equivalent:
 - **Drop-first upgrades have a brief gap.** At SS's slot cap Armory drops the old
   backup before queueing the new one, and restores the old weapon if SS still
   rejects the replacement. The dropped weapon is on the ground in the meantime.
+  Armory pre-checks SS's mass/selection/pacifist rules first and suppresses
+  retries for the same pawn+weapon for about 17 minutes after a refusal.
 - **Container scanning** is limited to loose/spawned weapons plus ordinary
   shelves/stockpiles. Weapons inside transport pods or pawn inventory are not
   offered as hand candidates; pod occupants are still listed as unavailable

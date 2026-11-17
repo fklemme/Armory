@@ -463,7 +463,8 @@ namespace Armory
                 };
                 if (!candidate.Ready && analysis.Available &&
                     SimpleSidearmsAdapter.CanCheckSidearmType &&
-                    SimpleSidearmsAdapter.CanCheckSidearmUse)
+                    SimpleSidearmsAdapter.CanCheckSidearmUse &&
+                    SimpleSidearmsAdapter.CanCheckRelativeLimits)
                 {
                     // Only promise a drop-first upgrade when the weapon is reachable and
                     // SS's remaining objection is capacity, not the weapon type itself.
@@ -476,7 +477,7 @@ namespace Armory
                         Eligibility.CheckSidearmWorld(analysis.Pawn, info.Thing, false, out worldReason) &&
                         !Eligibility.CheckSidearmRules(analysis.Pawn, info.Thing, out ruleReason, out ruleHard) &&
                         SimpleSidearmsAdapter.CanUseSidearm(analysis.Pawn, info.Thing, out useReason) &&
-                        SimpleSidearmsAdapter.IsValidSidearmType(info.Thing, out typeReason);
+                        SimpleSidearmsAdapter.IsValidSidearmForPawn(analysis.Pawn, info.Thing, out typeReason);
                 }
                 analysis.SidearmCandidates.Add(candidate);
             }

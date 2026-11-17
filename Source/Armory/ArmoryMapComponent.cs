@@ -126,10 +126,11 @@ namespace Armory
                     for (int j = 0; j < pawn.SidearmCandidates.Count && j < 3; j++)
                     {
                         SidearmCandidate sidearm = pawn.SidearmCandidates[j];
-                        Log.Message(string.Format("[Armory]       backup {0}: score {1:0}, {2}",
+                        Log.Message(string.Format("[Armory]       backup {0}: score {1:0}, {2}{3}",
                             sidearm.Weapon.Label,
                             sidearm.Score,
-                            sidearm.Ready ? "ready" : sidearm.Blocker));
+                            sidearm.Ready ? "ready" : sidearm.Blocker,
+                            sidearm.UpgradeAfterDrop ? " [drop-first]" : string.Empty));
                     }
                 }
             }

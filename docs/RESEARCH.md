@@ -334,6 +334,9 @@ public void UnsetForcedWeapon(bool drafted);
   biocoding, bonds, ideology role; no slot/mass;
 - `isValidSidearm(ThingDefStuffDefPair weapon, out string reason)` — per-type
   mass, selection, pacifist-tool rules; no slot count or free carrying capacity.
+  **It does not implement `RelativeWeight`** (only `AbsoluteWeight` and
+  `Selection`), so Armory adds the relative-mass check itself and also mirrors
+  the pacifist tool rule before any drop-first upgrade.
 
 Armory uses the three together: `CanPickupSidearmInstance` for readiness,
 `isValidSidearm` + `canUseSidearmInstance` to prove that a weapon would be legal

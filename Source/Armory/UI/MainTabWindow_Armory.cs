@@ -1270,17 +1270,17 @@ namespace Armory
             Rect scrollRect = new Rect(inner.x, headerY + HeaderHeight, inner.width,
                 Mathf.Max(40f, inner.yMax - (headerY + HeaderHeight)));
             float rowWidth = scrollRect.width - 20f;
-            float labelWidth = Mathf.Max(40f, rowWidth - 662f);
+            float labelWidth = Mathf.Max(40f, rowWidth - 702f);
             Rect header = new Rect(inner.x, headerY, rowWidth, HeaderHeight);
             Color headerColor = new Color(0.68f, 0.68f, 0.68f);
-            float headerLabelWidth = Mathf.Max(40f, header.width - 662f);
+            float headerLabelWidth = Mathf.Max(40f, header.width - 702f);
             DrawCell(new Rect(header.x, header.y, 60f, header.height), "Ago",
                 TextAnchor.MiddleRight, GameFont.Tiny, headerColor);
             DrawCell(new Rect(header.x + 72f, header.y, 120f, header.height), "Colonist",
                 TextAnchor.MiddleLeft, GameFont.Tiny, headerColor);
             DrawCell(new Rect(header.x + 196f, header.y, headerLabelWidth, header.height), "Weapon",
                 TextAnchor.MiddleLeft, GameFont.Tiny, headerColor);
-            DrawCell(new Rect(header.xMax - 466f, header.y, 80f, header.height), "Action",
+            DrawCell(new Rect(header.xMax - 502f, header.y, 120f, header.height), "Action",
                 TextAnchor.MiddleRight, GameFont.Tiny, headerColor);
             DrawCell(new Rect(header.xMax - 378f, header.y, 374f, header.height), "Detail",
                 TextAnchor.MiddleLeft, GameFont.Tiny, headerColor);
@@ -1304,7 +1304,7 @@ namespace Armory
                     TextAnchor.MiddleRight);
                 DrawCell(new Rect(72f, row.y, 120f, row.height), decision.Colonist, TextAnchor.MiddleLeft);
                 DrawCell(new Rect(196f, row.y, labelWidth, row.height), decision.Weapon, TextAnchor.MiddleLeft);
-                DrawCell(new Rect(rowWidth - 466f, row.y, 80f, row.height), decision.Action,
+                DrawCell(new Rect(rowWidth - 502f, row.y, 120f, row.height), decision.Action,
                     TextAnchor.MiddleRight, GameFont.Small, new Color(0.72f, 0.92f, 0.72f));
                 DrawCell(new Rect(rowWidth - 378f, row.y, 374f, row.height), decision.Detail,
                     TextAnchor.MiddleLeft);

@@ -13,6 +13,8 @@ namespace Armory
     /// </summary>
     public static class ArmoryPlanner
     {
+        private const int FailedDropMemoryTicks = 60000;
+
         private sealed class Claim
         {
             public int PawnId;
@@ -25,6 +27,7 @@ namespace Armory
         private static readonly Dictionary<int, int> lastKnownWeapon = new Dictionary<int, int>();
         private static readonly Dictionary<int, int> lastIssuedWeapon = new Dictionary<int, int>();
         private static readonly Dictionary<int, int> manualUntil = new Dictionary<int, int>();
+        private static readonly Dictionary<long, int> failedDropUntil = new Dictionary<long, int>();
         private static int lastPruneTick = -1;
         private static JobDef equipSecondaryDef;
         private static bool equipSecondaryResolved;
@@ -37,6 +40,7 @@ namespace Armory
             lastKnownWeapon.Clear();
             lastIssuedWeapon.Clear();
             manualUntil.Clear();
+            failedDropUntil.Clear();
             lastPruneTick = -1;
             equipSecondaryDef = null;
             equipSecondaryResolved = false;
@@ -312,13 +316,14 @@ namespace Armory
                         // way to fit a better one. Verify the weapon itself is legal first so
                         // the pawn is not left without a backup for a weapon SS rejects anyway.
                         if (!SimpleSidearmsAdapter.CanCheckSidearmType ||
-                            !SimpleSidearmsAdapter.CanCheckSidearmUse)
+                            !SimpleSidearmsAdapter.CanCheckSidearmUse ||
+                            !SimpleSidearmsAdapter.CanCheckRelativeLimits)
                         {
                             continue;
                         }
                         string typeReason;
                         string useReason;
-                        if (!SimpleSidearmsAdapter.IsValidSidearmType(weapon, out typeReason) ||
+                        if (!SimpleSidearmsAdapter.IsValidSidearmForPawn(pawn, weapon, out typeReason) ||
                             !SimpleSidearmsAdapter.CanUseSidearm(pawn, weapon, out useReason))
                         {
                             continue;
@@ -330,10 +335,22 @@ namespace Armory
                         ? 0f
                         : (chosen.Score / Mathf.Max(worst.Score, 0.01f) - 1f) * 100f;
 
+                    long dropKey = 0L;
                     if (dropFirst)
                     {
+                        dropKey = FailedDropKey(pawn, weapon);
+                        int failedUntil;
+                        if (failedDropUntil.TryGetValue(dropKey, out failedUntil) &&
+                            failedUntil > now)
+                        {
+                            // This exact drop-first upgrade already failed; do not drop the
+                            // old backup again until the memory expires or SS has room now.
+                            continue;
+                        }
+
                         if (!DropBackup(pawn, worst, now))
                         {
+                            failedDropUntil[dropKey] = now + FailedDropMemoryTicks;
                             continue;
                         }
 
@@ -341,9 +358,11 @@ namespace Armory
                         bool postHard;
                         if (!Eligibility.CheckSidearmRules(pawn, weapon, out postReason, out postHard))
                         {
-                            RestoreBackup(pawn, worst, jobDef, now);
-                            ArmoryGameComponent.Record(now, pawn, weapon, "Backup upgrade skipped",
-                                "SS still refuses after dropping " + worst.Thing.LabelCap + ": " + postReason);
+                            failedDropUntil[dropKey] = now + FailedDropMemoryTicks;
+                            RestoreBackup(pawn, worst, jobDef, now, false);
+                            ArmoryGameComponent.Record(now, pawn, weapon, "Upgrade skipped",
+                                "SS: " + postReason + "; dropped " + worst.Thing.LabelCap +
+                                " and restored it");
                             break;
                         }
                     }
@@ -358,7 +377,8 @@ namespace Armory
                         }
                         if (dropFirst)
                         {
-                            RestoreBackup(pawn, worst, jobDef, now);
+                            failedDropUntil[dropKey] = now + FailedDropMemoryTicks;
+                            RestoreBackup(pawn, worst, jobDef, now, true);
                         }
                         continue;
                     }
@@ -431,7 +451,8 @@ namespace Armory
             return dropped;
         }
 
-        private static void RestoreBackup(Pawn pawn, CarriedSidearm backup, JobDef jobDef, int now)
+        private static void RestoreBackup(Pawn pawn, CarriedSidearm backup, JobDef jobDef, int now,
+            bool record)
         {
             if (backup == null || backup.Thing == null || backup.Thing.Destroyed ||
                 !backup.Thing.Spawned)
@@ -447,14 +468,22 @@ namespace Armory
                     PawnId = pawn.thingIDNumber,
                     ExpiresTick = now + 900
                 };
-                ArmoryGameComponent.Record(now, pawn, backup.Thing, "Restored backup",
-                    "upgrade could not be completed");
+                if (record)
+                {
+                    ArmoryGameComponent.Record(now, pawn, backup.Thing, "Restored backup",
+                        "upgrade could not be completed");
+                }
             }
             else
             {
                 Log.Warning("[Armory] " + pawn.LabelShort + " could not restore dropped backup " +
                             backup.Thing.LabelCap);
             }
+        }
+
+        private static long FailedDropKey(Pawn pawn, ThingWithComps weapon)
+        {
+            return ((long)pawn.thingIDNumber << 32) ^ (uint)weapon.thingIDNumber;
         }
 
         private static JobDef GetEquipSecondaryJobDef()
@@ -641,6 +670,19 @@ namespace Armory
             for (int i = 0; i < remove.Count; i++)
             {
                 manualUntil.Remove(remove[i]);
+            }
+
+            List<long> removeLong = new List<long>();
+            foreach (KeyValuePair<long, int> pair in failedDropUntil)
+            {
+                if (pair.Value <= now || now < pair.Value - 100000)
+                {
+                    removeLong.Add(pair.Key);
+                }
+            }
+            for (int i = 0; i < removeLong.Count; i++)
+            {
+                failedDropUntil.Remove(removeLong[i]);
             }
         }
     }

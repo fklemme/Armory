@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.4.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.4.1** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -183,9 +183,9 @@ When **Respect Simple Sidearms** is on (default):
 
 - a forced primary or forced unarmed state — normal and drafted variants — is a
   soft blocker; Armory shows the reason and leaves that pawn's primary alone;
-- a carried "default ranged", "preferred melee", or "prefer unarmed" SS setting
-  is respected too: the relevant pair is the only allowed primary, or automation
-  stays out;
+- a carried "default ranged" or "preferred melee" SS setting is shown as a
+  preference and is already part of the carried-weapon upgrade baseline, but it
+  is **not** a hard block; "prefer unarmed" is an automation veto;
 - Armory follows the pawn's primary mode: `Ranged`, `Melee`, or `By skill`
   resolved with Simple Sidearms' own skill rule. It will not equip a weapon of
   the other type **when the pawn already carries a weapon of the preferred

@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.4.0**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.4.1**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3, 0.3.0, and 0.4.0 are committed.
+Git repository on `main`; 0.2.3, 0.3.0, 0.4.0, and 0.4.1 are committed.
 
 ---
 
@@ -23,6 +23,28 @@ Milestones 0–4 are implemented:
 
 **Next:** milestone 5, polish (container scanning, auto-haul, raid arming,
 automation-skip reasons, localization, Workshop prep).
+
+---
+
+## 0.4.1 hotfix — over-strict SS preference block
+
+The user loaded their 0.4.0 save and reported that auto-equip did nothing. All
+candidates showed `SS: default ranged ...` as the blocker, including weapons of
+the pawn's own preferred type. The cause was 0.4.0 treating a **carried
+`DefaultRangedWeapon` / `PreferredMeleeWeapon`** as a hard primary blocker.
+
+SS only enforces those preferences among carried weapons; Armory already
+includes the best carried weapon of the preferred type in the upgrade baseline.
+Hard-blocking therefore locked every pawn to their current/default weapon and
+stopped all upgrades. 0.4.1 removes the block. The pair remains in the pawn
+detail as an informational preference (`SS default ranged: X (carried)`), and
+`PreferredUnarmed` remains an automation veto.
+
+Lesson: never turn an SS *preference* into a hard blocker unless SS itself
+refuses the action. Forced states and unarmed are vetoes; type preferences are
+baselines.
+
+---
 
 The user was last testing 0.2.2 and reported:
 
@@ -126,10 +148,11 @@ Behaviour changes:
 1. **Forced states** (`ForcedUnarmed`, `ForcedWeapon`, drafted variants) follow
    SS's precedence: drafted unarmed → drafted forced weapon → normal forced
    unarmed → normal forced weapon. Armory marks the pawn and skips automation.
-2. **Per-pawn preferences**: a carried `DefaultRangedWeapon` or
-   `PreferredMeleeWeapon` for the active role becomes the only allowed primary
-   pair; `PreferredUnarmed` is an automation veto. These are the settings SS's
-   own QuickSwitch enforces.
+2. **Per-pawn preferences**: `PreferredUnarmed` is an automation veto. A
+   carried `DefaultRangedWeapon` / `PreferredMeleeWeapon` is shown as a
+   preference and is included in the carried-weapon baseline, but deliberately
+   is **not** a hard blocker — SS only enforces it among carried weapons, and
+   blocking on it stopped every upgrade on a live save.
 3. **Primary mode** is read per pawn. `Ranged`/`Melee` and `BySkill` (resolved
    with SS's own `getSkillWeaponPreference`) produce a preferred type. Armory
    blocks the other type only when the pawn already carries a weapon of the
@@ -276,9 +299,11 @@ These are easy to break; keep them in mind.
 18. **SS forced-state precedence:** drafted unarmed → drafted forced weapon →
     normal forced unarmed → normal forced weapon. Armory sets
     `PawnState.AutomationVeto` and the planner leaves the pawn alone.
-19. **SS per-pawn preferences:** a carried `DefaultRangedWeapon` (ranged role) or
-    `PreferredMeleeWeapon` (melee role) is the only allowed primary pair;
-    `PreferredUnarmed` is a veto. SS's QuickSwitch enforces these when carried.
+19. **SS per-pawn preferences:** `PreferredUnarmed` is a veto. A carried
+    `DefaultRangedWeapon` (ranged role) or `PreferredMeleeWeapon` (melee role)
+    is informational only and is covered by the carried-weapon baseline. Do not
+    make it a hard blocker: SS enforces it only among carried weapons, and
+    hard-blocking locked every pawn to their default on a live save.
 20. **SS primary mode:** `primaryWeaponMode` values are `Ranged=0`, `Melee=1`,
     `BySkill=2`, `ByGenerated=3`. Resolve `BySkill` with SS's own
     `getSkillWeaponPreference` (passion, then level, ties → ranged). Only block
@@ -317,9 +342,12 @@ These are easy to break; keep them in mind.
 
 ---
 
-## Pending verification (0.4.0)
+## Pending verification (0.4.1)
 
-Ask the user to confirm on the live save:
+The immediate check is the reported save: pawns with a default ranged weapon
+should now show usable ranged upgrades again (melee candidates can still be
+blocked by the SS ranged role), and the Log should fill with queued jobs or
+threshold skips. Then confirm:
 
 - Simple Sidearms is detected (pawn detail shows `Simple Sidearms: primary ...`);
 - forced primaries / forced unarmed / prefer unarmed in SS are shown and Armory
@@ -454,6 +482,7 @@ polish, not new core behaviour.
 | 0.2.3 | Map-wide pod lookup fallback, header/row width fix, weapon column gaps, beer/drug filter |
 | 0.3.0 | Simple Sidearms coexistence: reflection adapter, forced states, primary mode, carried baseline, SS job guard, sidearm display |
 | 0.4.0 | Add-only sidearm assignment via `EquipSecondary`, SS limit checks, type diversity, desired count, sidearm candidate UI |
+| 0.4.1 | Fix over-strict SS default-ranged/preferred-melee block that stopped all primary upgrades; pair is now informational |
 
 ---
 

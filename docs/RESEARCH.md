@@ -406,9 +406,10 @@ no compile-time reference, no hard dependency, safe in Core-only games.
    `ForcedUnarmed`, `ForcedWeapon`, drafted variants, `primaryWeaponMode`.
 3. Forced states follow SS's precedence and become **soft blockers plus an
    automation veto**. The player can clear them; Armory never does.
-4. Per-pawn preferences are read too: a carried `DefaultRangedWeapon` /
-   `PreferredMeleeWeapon` for the active role locks the allowed pair;
-   `PreferredUnarmed` is a veto.
+4. Per-pawn preferences are read too: `PreferredUnarmed` is a veto. A carried
+   `DefaultRangedWeapon` / `PreferredMeleeWeapon` is displayed and included in
+   the carried-weapon baseline, but is **not** a hard blocker; SS enforces it
+   only among carried weapons.
 5. Primary mode produces a preferred type (`Ranged`, `Melee`, or `BySkill`
    resolved with SS's own rule). Armory blocks the other type only when the pawn
    already carries a weapon of the preferred type, i.e. when SS would switch

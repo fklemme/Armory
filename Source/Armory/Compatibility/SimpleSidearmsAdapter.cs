@@ -178,11 +178,11 @@ namespace Armory.Compatibility
                 return true;
             }
 
-            if (state.PreferredPairDef != null && !Matches(weapon, state.PreferredPairDef, state.PreferredPairStuff))
-            {
-                reason = state.PreferredPairReason;
-                return true;
-            }
+            // DefaultRangedWeapon / PreferredMeleeWeapon are deliberately NOT hard blockers.
+            // SS only enforces them among carried weapons; Armory already includes the best
+            // carried weapon of the preferred type in its upgrade baseline, so a loose weapon
+            // must still beat it. Hard-blocking here locked every pawn to their default and
+            // stopped all upgrades.
 
             if (state.PreferredPrimaryIsRanged.HasValue && state.CarriesPreferredPrimary &&
                 !MatchesPrimaryType(weapon.def, state.PreferredPrimaryIsRanged.Value))
@@ -290,8 +290,8 @@ namespace Armory.Compatibility
                             state.PreferredPairStuff = stuff;
                             state.PreferredPairLabel = PairLabel(def, stuff);
                             state.PreferredPairReason = state.PreferredPrimaryIsRanged.Value
-                                ? "SS: default ranged " + state.PreferredPairLabel
-                                : "SS: preferred melee " + state.PreferredPairLabel;
+                                ? "SS default ranged: " + state.PreferredPairLabel + " (carried)"
+                                : "SS preferred melee: " + state.PreferredPairLabel + " (carried)";
                         }
                     }
                 }

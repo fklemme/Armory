@@ -187,7 +187,7 @@ namespace Armory.Compatibility
             if (state.PreferredPrimaryIsRanged.HasValue && state.CarriesPreferredPrimary &&
                 !MatchesPrimaryType(weapon.def, state.PreferredPrimaryIsRanged.Value))
             {
-                reason = state.PreferredPrimaryIsRanged.Value ? "SS: ranged primary" : "SS: melee primary";
+                reason = state.PreferredPrimaryIsRanged.Value ? "SS role: ranged" : "SS role: melee";
                 return true;
             }
 

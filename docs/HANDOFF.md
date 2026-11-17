@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.4.1**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.4.2**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3, 0.3.0, 0.4.0, and 0.4.1 are committed.
+Git repository on `main`; 0.2.3, 0.3.0, 0.4.0, 0.4.1, and 0.4.2 are committed.
 
 ---
 
@@ -43,6 +43,32 @@ detail as an informational preference (`SS default ranged: X (carried)`), and
 Lesson: never turn an SS *preference* into a hard blocker unless SS itself
 refuses the action. Forced states and unarmed are vetoes; type preferences are
 baselines.
+
+---
+
+## 0.4.2 — settings column fix and SS role clarity
+
+**Settings options disappearing:** `Listing_Standard` spills overflow controls
+into a second column when the content is taller than the rect it was given.
+Armory's settings page sits inside a scroll view whose height is measured from
+the previous frame, so growing the page (for example by toggling "Manage
+sidearms") could push every later control into an invisible second column and
+collapse the measured height. `listing.maxOneColumn = true` is now set before
+`Begin`. This also restores the hidden "Manage sidearms" controls.
+
+**Monosword not equipped:** expected with SS's current per-pawn role. The
+Monosword is melee; every pawn in the report has SS mode Ranged and carries a
+ranged weapon, so melee primaries are blocked by design. SS's "colonist default
+weapon mode" setting only applies to newly generated pawns; existing pawns keep
+their per-pawn `primaryWeaponMode`. To make a melee specialist, open that
+pawn's Simple Sidearms gizmo and select Melee (or By skill with a melee-
+preferring pawn). Alternatively, turn off "Respect Simple Sidearms" to let
+Armory override roles, accepting that SS may fight back.
+
+Status text now reads `SS role: ranged` / `SS role: melee` instead of
+`SS: ranged primary`, which was easy to misread as a weapon property.
+
+---
 
 ---
 
@@ -483,6 +509,7 @@ polish, not new core behaviour.
 | 0.3.0 | Simple Sidearms coexistence: reflection adapter, forced states, primary mode, carried baseline, SS job guard, sidearm display |
 | 0.4.0 | Add-only sidearm assignment via `EquipSecondary`, SS limit checks, type diversity, desired count, sidearm candidate UI |
 | 0.4.1 | Fix over-strict SS default-ranged/preferred-melee block that stopped all primary upgrades; pair is now informational |
+| 0.4.2 | Fix settings page multi-column overflow hiding later options; clarify `SS role: ranged/melee`; document per-pawn SS mode |
 
 ---
 

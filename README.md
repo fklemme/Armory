@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.4.1** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.4.2** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -216,6 +216,12 @@ default; when enabled it:
 Turning **Respect Simple Sidearms** off lets Armory override SS primary modes
 and forced states; the two mods may then fight over primaries. Sidearm jobs are
 always suppressed for forced states.
+
+SS's primary mode is **per pawn**. Changing SS's global default only affects
+newly generated pawns; existing colonists keep their own mode. Use the Simple
+Sidearms gizmo on a colonist to switch them to Melee or By skill. If every pawn
+is on Ranged, melee weapons stay blocked for them until a pawn is switched, or
+until **Respect Simple Sidearms** is turned off.
 
 ---
 

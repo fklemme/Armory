@@ -73,6 +73,11 @@ namespace Armory
             Widgets.BeginScrollView(inRect, ref scrollPosition, viewRect);
 
             Listing_Standard listing = new Listing_Standard();
+            // Without this, Listing_Standard moves overflow controls into a second column
+            // (off the right edge of the settings window) once the content grows past the
+            // measured scroll height. Toggling a setting could therefore hide everything
+            // below it.
+            listing.maxOneColumn = true;
             listing.Begin(viewRect);
 
             listing.Label("Automation");
@@ -118,6 +123,7 @@ namespace Armory
                 listing.Label(respectSimpleSidearms
                     ? "Armory leaves forced primaries alone and will not equip a primary type that Simple Sidearms would switch away from."
                     : "Armory may override Simple Sidearms' primary type and forced states. Expect the two mods to fight over primaries.");
+                listing.Label("Simple Sidearms' primary mode is per pawn. Changing SS's default only affects newly generated pawns; use the SS gizmo on an existing colonist to switch that pawn to melee or by-skill.");
 
                 listing.CheckboxLabeled("Manage sidearms (add loose weapons to inventory)", ref manageSidearms);
                 if (manageSidearms)

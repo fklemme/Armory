@@ -219,7 +219,10 @@ namespace Armory
                 {
                     continue;
                 }
-                if (analysis.Sidearms.Count >= settings.desiredSidearms)
+
+                bool atDesired = analysis.Sidearms.Count >= settings.desiredSidearms;
+                if (atDesired &&
+                    (!settings.replaceWorseSidearms || !SimpleSidearmsAdapter.CanDropSidearms))
                 {
                     continue;
                 }
@@ -276,6 +279,19 @@ namespace Armory
                     {
                         continue;
                     }
+                    CarriedSidearm replace = atDesired
+                        ? FindWorstSidearm(analysis, analysis.SidearmState,
+                            chosen.Weapon.Thing.def.IsRangedWeapon)
+                        : null;
+                    if (atDesired && replace == null)
+                    {
+                        continue;
+                    }
+                    if (replace != null &&
+                        chosen.Score <= Mathf.Max(replace.Score, 0.01f) * (1f + settings.upgradeThreshold))
+                    {
+                        continue;
+                    }
 
                     ThingWithComps weapon = chosen.Weapon.Thing;
                     if (weapon == null || !weapon.Spawned || weapon.Map != map)
@@ -316,10 +332,35 @@ namespace Armory
                         ExpiresTick = now + 900
                     };
 
-                    string detail = string.Format("{0}/{1} sidearms; {2}",
-                        analysis.Sidearms.Count + 1,
-                        settings.desiredSidearms,
-                        IsDiverse(weapon.def, primaryIsRanged) ? "opposite type" : "same type");
+                    string detail;
+                    if (replace != null)
+                    {
+                        bool dropped = false;
+                        if (pawn.inventory != null && pawn.inventory.innerContainer != null &&
+                            pawn.inventory.innerContainer.Contains(replace.Thing))
+                        {
+                            dropped = SimpleSidearmsAdapter.DropSidearm(pawn, replace.Thing, true, true);
+                        }
+                        detail = string.Format("replacing {0} (+{1}%)",
+                            replace.Thing.LabelCap,
+                            Mathf.RoundToInt((chosen.Score / Mathf.Max(replace.Score, 0.01f) - 1f) * 100f));
+                        if (dropped)
+                        {
+                            ArmoryGameComponent.Record(now, pawn, replace.Thing, "Dropped sidearm",
+                                "replaced by " + weapon.LabelCap);
+                        }
+                        else
+                        {
+                            detail += "; old sidearm was not dropped";
+                        }
+                    }
+                    else
+                    {
+                        detail = string.Format("{0}/{1} sidearms; {2}",
+                            analysis.Sidearms.Count + 1,
+                            settings.desiredSidearms,
+                            IsDiverse(weapon.def, primaryIsRanged) ? "opposite type" : "same type");
+                    }
                     ArmoryGameComponent.Record(now, pawn, weapon, "Queued sidearm", detail);
 
                     if (settings.debugLogging)
@@ -336,6 +377,46 @@ namespace Armory
         {
             return def != null && primaryIsRanged.HasValue &&
                    def.IsRangedWeapon != primaryIsRanged.Value;
+        }
+
+        private static CarriedSidearm FindWorstSidearm(PawnAnalysis analysis,
+            SimpleSidearmsAdapter.PawnState state, bool preferRanged)
+        {
+            CarriedSidearm worstSameType = null;
+            CarriedSidearm worstAny = null;
+            for (int i = 0; i < analysis.CarriedSidearms.Count; i++)
+            {
+                CarriedSidearm carried = analysis.CarriedSidearms[i];
+                ThingWithComps thing = carried.Thing;
+                if (thing == null || thing.Destroyed || thing.def == null)
+                {
+                    continue;
+                }
+                if (thing.def.destroyOnDrop || thing.GetComp<CompBladelinkWeapon>() != null)
+                {
+                    continue;
+                }
+                if (!thing.def.IsRangedWeapon && !thing.def.IsMeleeWeapon)
+                {
+                    continue;
+                }
+                if (state != null && state.PreferredPairDef != null &&
+                    thing.def == state.PreferredPairDef && thing.Stuff == state.PreferredPairStuff)
+                {
+                    continue;
+                }
+
+                if (worstAny == null || carried.Score < worstAny.Score)
+                {
+                    worstAny = carried;
+                }
+                if (thing.def.IsRangedWeapon == preferRanged &&
+                    (worstSameType == null || carried.Score < worstSameType.Score))
+                {
+                    worstSameType = carried;
+                }
+            }
+            return worstSameType ?? worstAny;
         }
 
         private static bool? ResolvePrimaryType(PawnAnalysis analysis, Dictionary<int, bool> queued)

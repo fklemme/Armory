@@ -512,9 +512,13 @@ namespace Armory
                     cursor += 18f;
                 }
 
+                bool replaceWorse = settings == null || settings.replaceWorseSidearms;
                 DrawCell(new Rect(4f, cursor, width - 8f, 18f),
-                    string.Format("{0} carried / {1} desired. Armory only adds sidearms; it never removes or replaces one.",
-                        pawn.Sidearms.Count, desired),
+                    string.Format("{0} carried / {1} desired. {2}",
+                        pawn.Sidearms.Count, desired,
+                        replaceWorse
+                            ? "Armory adds sidearms and upgrades a worse one when a better candidate is available."
+                            : "Armory only adds sidearms; it never removes or replaces one."),
                     TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.72f, 0.72f, 0.72f));
                 cursor += 18f;
 
@@ -710,13 +714,30 @@ namespace Armory
                     weaponDetailScroll = Vector2.zero;
                 }
 
-                PawnAnalysis best = row.BestPawn ?? row.BestAnyPawn;
+                PawnAnalysis best = row.BestPawn ?? row.BestSidearmPawn ?? row.BestAnyPawn ??
+                                    row.BestAnySidearmPawn;
                 WeaponColumns(rowRect, out Rect label, out Rect power, out Rect bestPawn, out Rect status);
                 DrawCell(label, row.Weapon.Label, TextAnchor.MiddleLeft);
                 DrawCell(power, row.Weapon.Power.ToString("0"), TextAnchor.MiddleRight);
                 DrawCell(bestPawn, best == null ? "-" : best.Pawn.LabelShort, TextAnchor.MiddleLeft);
-                DrawCell(status, row.Status, TextAnchor.MiddleRight, GameFont.Small,
-                    row.BestPawn != null ? new Color(0.7f, 0.9f, 0.7f) : new Color(1f, 0.78f, 0.4f));
+                Color statusColor;
+                if (row.BestPawn != null)
+                {
+                    statusColor = new Color(0.7f, 0.9f, 0.7f);
+                }
+                else if (row.BestSidearmPawn != null)
+                {
+                    statusColor = new Color(0.66f, 0.84f, 0.95f);
+                }
+                else if (row.BestAnyPawn != null || row.BestAnySidearmPawn != null)
+                {
+                    statusColor = new Color(1f, 0.78f, 0.4f);
+                }
+                else
+                {
+                    statusColor = new Color(0.62f, 0.62f, 0.62f);
+                }
+                DrawCell(status, row.Status, TextAnchor.MiddleRight, GameFont.Small, statusColor);
             }
 
             Widgets.EndScrollView();
@@ -751,11 +772,25 @@ namespace Armory
                         FormatPct(row.BestPawn.TopReadyDeltaPct)),
                     new Color(0.75f, 0.92f, 0.75f));
             }
+            else if (row.BestSidearmPawn != null)
+            {
+                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
+                    string.Format("Sidearm for {0}. Primary use is blocked; this weapon is eligible as a sidearm.",
+                        row.BestSidearmPawn.Pawn.LabelShort),
+                    new Color(0.66f, 0.84f, 0.95f));
+            }
             else if (row.BestAnyPawn != null)
             {
                 DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
-                    string.Format("Best fit: {0}, but blocked ({1})", row.BestAnyPawn.Pawn.LabelShort,
+                    string.Format("Best fit: {0}, but blocked as a primary ({1})", row.BestAnyPawn.Pawn.LabelShort,
                         ReasonFor(row.BestAnyPawn, row.Weapon)),
+                    new Color(1f, 0.8f, 0.42f));
+            }
+            else if (row.BestAnySidearmPawn != null)
+            {
+                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
+                    string.Format("Sidearm fit: {0}, but blocked ({1})", row.BestAnySidearmPawn.Pawn.LabelShort,
+                        SidearmReasonFor(row.BestAnySidearmPawn, row.Weapon)),
                     new Color(1f, 0.8f, 0.42f));
             }
             else
@@ -798,6 +833,16 @@ namespace Armory
                 bool ready = available && !holdsIt &&
                              Eligibility.Check(pawn.Pawn, row.Weapon.Thing, true, out reason, out hard);
 
+                SidearmCandidate sidearmCandidate = FindSidearmCandidate(pawn, row.Weapon);
+                bool sidearmReady = false;
+                if (available && !holdsIt && !ready && sidearmCandidate != null && sidearmCandidate.Ready)
+                {
+                    string sidearmReason;
+                    bool sidearmHard;
+                    sidearmReady = Eligibility.CheckSidearm(pawn.Pawn, row.Weapon.Thing, true,
+                        out sidearmReason, out sidearmHard);
+                }
+
                 DrawCell(new Rect(4f, cursor, Mathf.Max(40f, width - 270f), 22f),
                     pawn.Pawn.LabelShort + (holdsIt ? "  (holds it)" : string.Empty),
                     TextAnchor.MiddleLeft);
@@ -820,6 +865,11 @@ namespace Armory
                 {
                     status = "available";
                     color = new Color(0.7f, 0.9f, 0.7f);
+                }
+                else if (sidearmReady)
+                {
+                    status = "sidearm ready";
+                    color = new Color(0.66f, 0.84f, 0.95f);
                 }
                 else
                 {
@@ -863,6 +913,24 @@ namespace Armory
                 }
             }
             return null;
+        }
+
+        private static SidearmCandidate FindSidearmCandidate(PawnAnalysis pawn, WeaponInfo weapon)
+        {
+            for (int i = 0; i < pawn.SidearmCandidates.Count; i++)
+            {
+                if (pawn.SidearmCandidates[i].Weapon == weapon)
+                {
+                    return pawn.SidearmCandidates[i];
+                }
+            }
+            return null;
+        }
+
+        private static string SidearmReasonFor(PawnAnalysis pawn, WeaponInfo weapon)
+        {
+            SidearmCandidate candidate = FindSidearmCandidate(pawn, weapon);
+            return candidate == null || candidate.Ready ? "blocked" : candidate.Blocker;
         }
 
         // --------------------------------------------------------------- Demand

@@ -24,6 +24,7 @@ namespace Armory
         public bool manageSidearms;
         public int desiredSidearms = 1;
         public bool preferSidearmDiversity = true;
+        public bool replaceWorseSidearms;
         public int manualCooldownTicks = 15000;
         public int settingsVersion = 1;
 
@@ -52,6 +53,7 @@ namespace Armory
             Scribe_Values.Look(ref manageSidearms, "manageSidearms", false);
             Scribe_Values.Look(ref desiredSidearms, "desiredSidearms", 1);
             Scribe_Values.Look(ref preferSidearmDiversity, "preferSidearmDiversity", true);
+            Scribe_Values.Look(ref replaceWorseSidearms, "replaceWorseSidearms", false);
             Scribe_Values.Look(ref manualCooldownTicks, "manualCooldownTicks", 15000);
             Scribe_Values.Look(ref settingsVersion, "settingsVersion", 0);
 
@@ -131,7 +133,9 @@ namespace Armory
                     listing.Label(string.Format("Desired sidearms per colonist: {0}", desiredSidearms));
                     desiredSidearms = Mathf.RoundToInt(listing.Slider(desiredSidearms, 0f, 4f));
                     listing.CheckboxLabeled("Prefer a different type than the primary", ref preferSidearmDiversity);
-                    listing.Label("Armory only adds sidearms; it never removes or replaces one. Simple Sidearms slot, mass, and selection rules are checked for every candidate.");
+                    listing.CheckboxLabeled("Upgrade a worse sidearm when a better one is available",
+                        ref replaceWorseSidearms);
+                    listing.Label("Armory only adds or upgrades sidearms; it never removes one without adding a better one. Dropped sidearms stay on the ground. Simple Sidearms slot, mass, and selection rules are checked for every candidate.");
                 }
             }
             else

@@ -6,7 +6,7 @@
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
-  <modVersion>0.4.2</modVersion>
+  <modVersion>0.5.0</modVersion>
   <description>Shows, for every colonist, which weapons they would prefer and why they are not carrying them.
 
 Armory ranks every weapon on the map for every colonist, then shows the blockers: forbidden or outside the allowed area, unreachable, reserved, biocoded to someone else, role restrictions, and ideoligion dislike. A demand view turns unmet wishes into a shopping list.

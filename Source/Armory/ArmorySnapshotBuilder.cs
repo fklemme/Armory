@@ -83,6 +83,23 @@ namespace Armory
                         row.BestPawn = analysis;
                     }
                 }
+
+                for (int i = 0; i < analysis.SidearmCandidates.Count; i++)
+                {
+                    SidearmCandidate sidearm = analysis.SidearmCandidates[i];
+                    WeaponAnalysis row = rows[sidearm.Weapon];
+
+                    if (sidearm.Score > row.BestAnySidearmScore)
+                    {
+                        row.BestAnySidearmScore = sidearm.Score;
+                        row.BestAnySidearmPawn = analysis;
+                    }
+                    if (sidearm.Ready && sidearm.Score > row.BestSidearmScore)
+                    {
+                        row.BestSidearmScore = sidearm.Score;
+                        row.BestSidearmPawn = analysis;
+                    }
+                }
             }
 
             snapshot.Pawns.Sort((a, b) =>
@@ -92,9 +109,22 @@ namespace Armory
             {
                 WeaponAnalysis row = rows[snapshot.Weapons[i]];
                 row.PawnCandidates.Sort((a, b) => b.Score.CompareTo(a.Score));
-                row.Status = row.BestPawn != null
-                    ? "Wanted"
-                    : row.BestAnyPawn != null ? "Only blocked" : "No user";
+                if (row.BestPawn != null)
+                {
+                    row.Status = "Wanted";
+                }
+                else if (row.BestSidearmPawn != null)
+                {
+                    row.Status = "Sidearm";
+                }
+                else if (row.BestAnyPawn != null)
+                {
+                    row.Status = "Only blocked";
+                }
+                else
+                {
+                    row.Status = row.BestAnySidearmPawn != null ? "Sidearm blocked" : "No user";
+                }
                 snapshot.WeaponRows.Add(row);
             }
 
@@ -217,7 +247,7 @@ namespace Armory
             };
 
             PawnFitContext context = PawnFitContext.Create(pawn);
-            CollectSidearms(analysis);
+            CollectSidearms(analysis, context, powerCache);
 
             if (analysis.Current != null)
             {
@@ -353,7 +383,8 @@ namespace Armory
             analysis.SidearmCandidates.Sort((a, b) => b.Score.CompareTo(a.Score));
         }
 
-        private static void CollectSidearms(PawnAnalysis analysis)
+        private static void CollectSidearms(PawnAnalysis analysis, PawnFitContext context,
+            Dictionary<int, float> powerCache)
         {
             Pawn pawn = analysis.Pawn;
             if (pawn == null || pawn.inventory == null || pawn.inventory.innerContainer == null)
@@ -370,8 +401,20 @@ namespace Armory
                 {
                     continue;
                 }
+                if (!weapon.def.IsRangedWeapon && !weapon.def.IsMeleeWeapon)
+                {
+                    // Keep the sidearm count to combat weapons; tools should not satisfy
+                    // the desired sidearm count or appear as replacement targets.
+                    continue;
+                }
+                float score = WeaponPower.Get(weapon, powerCache) * PawnFit.Compute(context, weapon);
                 analysis.Sidearms.Add(weapon);
-                labels.Add(weapon.LabelCap);
+                analysis.CarriedSidearms.Add(new CarriedSidearm
+                {
+                    Thing = weapon,
+                    Score = score
+                });
+                labels.Add(string.Format("{0} ({1:0})", weapon.LabelCap, score));
             }
             analysis.SidearmText = labels.Count == 0 ? "none" : string.Join(", ", labels);
         }

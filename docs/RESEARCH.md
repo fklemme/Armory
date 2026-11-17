@@ -334,7 +334,17 @@ public void UnsetForcedWeapon(bool drafted);
 - `isValidSidearm`.
 
 `PeteTimesSix.SimpleSidearms.Utilities.WeaponAssingment` (spelling is
-intentional) handles assignment internally.
+intentional) handles assignment internally. Public drop:
+`DropSidearm(Pawn pawn, ThingWithComps weapon, bool intentionalDrop,
+bool unmemorise)`; with `unmemorise: true` SS's `JobGiver_RetrieveWeapon` will
+not immediately pick the dropped weapon back up. Armory uses this for sidearm
+upgrades.
+
+**Basic preset mass caps:** `InferredValues.maxCapacity` is 35, so Basic's
+`LimitModeSingleMelee_RelativeMass = 1.9 / 35` is a **1.9 kg** cap and
+`LimitModeSingleRanged_RelativeMass = 2.7 / 35` is **2.7 kg**. A Monosword or
+Zeushammer (both 2 kg) therefore fails as a melee sidearm; a gladius (0.85 kg)
+passes. This is an SS rule, not an Armory score.
 
 ### Jobs and think tree
 
@@ -439,20 +449,32 @@ primaries (it governs sidearm slots, not primaries), and assigning sidearms.
 4. A pawn needs a current or queued primary, and when SS has a preferred primary
    type the primary must match it. Otherwise SS may promote the sidearm to
    primary, which Armory would interpret as a manual change.
-5. UI: current sidearms, `carried / desired`, ranked sidearm candidates with
-   `ready`/`SS: ...` statuses and an `opposite type` tag; settings for enable,
-   desired count (0–4), and diversity.
+5. UI: current sidearms with scores, `carried / desired`, ranked sidearm
+   candidates with `ready`/`SS: ...` statuses and an `opposite type` tag;
+   settings for enable, desired count (0–4), diversity, and upgrades. The
+   Weapons tab marks `Sidearm`/`Sidearm blocked` and per-colonist
+   `sidearm ready`, so primary-only blockers are not mistaken for unusability.
 6. Assignment uses `DefDatabase<JobDef>.GetNamedSilentFail("EquipSecondary")`
    and the normal `TryTakeOrderedJob(..., true)` path, with shared claims,
    per-pawn cooldown, and `Queued sidearm` logging.
-7. Add-only: no removal, replacement, or unforbidding. Forced/unarmed/prefer-
-   unarmed SS states suppress sidearm jobs regardless of the respect setting.
-8. Verified in the isolated SS game: one opposite-type sidearm queued for a
+7. Upgrades (0.5.0): when at the desired count, choose a candidate that beats
+   the worst same-type sidearm (or worst any-type if none) by the threshold.
+   Queue the new sidearm first, then call
+   `WeaponAssingment.DropSidearm(pawn, old, intentionalDrop: true,
+   unmemorise: true)` so SS does not retrieve it. Skip if SS leaves no room for
+   an extra sidearm.
+8. Forced/unarmed/prefer-unarmed SS states suppress sidearm jobs regardless of
+   the respect setting. Persona weapons and `destroyOnDrop` items are never
+   dropped.
+9. Verified in the isolated SS game: one opposite-type sidearm queued for a
    melee-primary pawn with no promotion event; a ranged-role/melee-primary case
-   correctly skipped sidearms. Live-save validation is pending.
+   correctly skipped sidearms. The 0.5.0 upgrade path was not runtime-tested
+   because the user's game was running; it compiles clean and the reflection
+   signature matches the decompiled 1.6 method.
 
-Known gaps: exact free-slot display for slot-based limits and mass budgets,
-replacement policy, remembered-but-absent weapons.
+Known gaps: exact free-slot display for slot-based limits and mass budgets;
+upgrades require room for one extra sidearm; remembered-but-absent weapons are
+not candidates.
 
 ### Open questions
 

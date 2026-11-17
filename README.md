@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.4.2** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.5.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -47,8 +47,13 @@ Every loose weapon on the map with:
 
 - power;
 - best-fit colonist;
-- status (`Wanted`, `Only blocked`, `No user`);
-- a colonist-by-fit detail view with deep checks (reachability, reservations).
+- status (`Wanted`, `Sidearm`, `Only blocked`, `Sidearm blocked`, `No user`);
+- a colonist-by-fit detail view with deep checks (reachability, reservations) and
+  separate primary/sidearm readiness.
+
+`Only blocked` means blocked as a **primary**. A melee weapon can be
+`Sidearm` or `sidearm ready` for a ranged-role pawn even when it cannot be that
+pawn's primary.
 
 ### Demand
 Per weapon def: `Wanted`, `Blocked`, `Stock`, `Forbidden`, `Shortage`.
@@ -197,11 +202,12 @@ When **Respect Simple Sidearms** is on (default):
 - carried sidearms are listed in the pawn detail (from inventory), with the SS
   primary mode and any forced state.
 
-Armory does **not** remove or replace sidearms. Sidearm management is off by
-default; when enabled it:
+Sidearm management is off by default; when enabled it:
 
-- only adds loose weapons to inventory via Simple Sidearms' `EquipSecondary`
-  job;
+- adds loose weapons to inventory via Simple Sidearms' `EquipSecondary` job;
+- can **upgrade a worse sidearm**: if the pawn already has the desired count,
+  Armory may add a better candidate and drop the worst same-type sidearm (or the
+  worst sidearm if no same-type exists), preserving type diversity;
 - validates every candidate with `CanPickupSidearmInstance`, so SS slot, mass,
   selection, pacifist-tool, biocoding, and role rules all apply;
 - stops at the configured desired count and uses the same claims, cooldown, and
@@ -212,6 +218,17 @@ default; when enabled it:
 - prefers a sidearm of the opposite type from the primary (ranged primary →
   melee sidearm, and vice versa) when **Prefer a different type** is on;
 - never acts on a pawn with a forced/unarmed/prefer-unarmed SS state.
+
+Upgrades are best-effort: Armory adds the better sidearm first and then drops
+the old one, so it never has to remove a weapon without a replacement already
+queued. If SS's slot limits leave no room for one more sidearm, the upgrade is
+skipped; add-only behavior still applies below the desired count.
+
+SS's own mass limits matter: the **Basic** preset caps a melee sidearm at
+1.9 kg. A 2 kg Monosword or Zeushammer is therefore **not a valid melee
+sidearm** (it is still valid as a melee primary), while a 0.85 kg gladius is.
+The Weapons tab shows `Sidearm blocked` with SS's reason, and the pawn detail
+lists the candidate with that blocker.
 
 Turning **Respect Simple Sidearms** off lets Armory override SS primary modes
 and forced states; the two mods may then fight over primaries. Sidearm jobs are
@@ -241,8 +258,9 @@ All settings are under **Options → Mod settings → Armory**. The page scrolls
 | Manual-change pause | 15000 ticks (~250 s) | 2500–30000 | Length of that pause |
 | Respect Simple Sidearms | on | — | Follow SS primary mode, forced weapons, and carried-primary baseline |
 | Manage sidearms | off | — | Add loose weapons to inventory via `EquipSecondary` |
-| Desired sidearms per colonist | 1 | 0–4 | Stop adding at this count |
+| Desired sidearms per colonist | 1 | 0–4 | Target count; upgrades keep the existing count |
 | Prefer a different type than the primary | on | — | Ranged primary → melee sidearm, and vice versa |
+| Upgrade a worse sidearm | off | — | Add a better candidate and drop the worst sidearm |
 | Upgrade threshold | 10% | 0–50% | Required improvement to swap |
 | Ranged preference | ×1.00 | 0.5–2.0 | Global scoring bias |
 | Melee preference | ×1.00 | 0.5–2.0 | Global scoring bias |
@@ -335,10 +353,11 @@ Manual equivalent:
 
 ## Known limitations
 
-- **Sidearm management is add-only.** Armory never removes or replaces a
-  sidearm. It does not compute exact mass/weight budgets itself; Simple
-  Sidearms' `CanPickupSidearmInstance` is checked per candidate. Remembered
-  weapons the pawn no longer carries are not used as sidearm candidates.
+- **Sidearm upgrades are best-effort.** Armory adds the better sidearm first,
+  then drops the old one; if SS's slot limits leave no room, it skips the
+  upgrade. It does not compute exact mass/weight budgets itself; SS's
+  `CanPickupSidearmInstance` is checked per candidate. Remembered weapons the
+  pawn no longer carries are not used as sidearm candidates.
 - **Container scanning** is limited to loose/spawned weapons plus ordinary
   shelves/stockpiles. Weapons inside transport pods or pawn inventory are not
   offered as primary candidates; pod occupants are still listed as unavailable
@@ -367,8 +386,8 @@ Manual equivalent:
    - forced states and primary modes respected;
    - carried-primary baseline and SS job guard prevent most swap loops;
    - SS state and carried sidearms surfaced in pawn detail.
-2. **Milestone 4 — Sidearm ranking and assignment** — done in 0.4.0.
-   - add-only sidearm assignment via `EquipSecondary`;
+2. **Milestone 4 - Sidearm ranking and assignment** - done in 0.4.0; sidearm upgrades and sidearm visibility in 0.5.0.
+   - add and upgrade sidearms via `EquipSecondary`;
    - SS slot/mass/selection checks on every candidate;
    - type-diversity preference, desired count, claims/cooldown/log;
    - sidearm candidates shown in pawn detail.

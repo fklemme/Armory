@@ -20,6 +20,7 @@ namespace Armory.Compatibility
         private const string PackageId = "PeteTimesSix.SimpleSidearms";
         private const string MemoryTypeName = "SimpleSidearms.rimworld.CompSidearmMemory";
         private const string StatCalculatorTypeName = "PeteTimesSix.SimpleSidearms.Utilities.StatCalculator";
+        private const string WeaponAssignmentTypeName = "PeteTimesSix.SimpleSidearms.Utilities.WeaponAssingment";
         private const string ExtensionsTypeName = "PeteTimesSix.SimpleSidearms.Extensions";
 
         /// <summary>SS state that matters for primary coexistence. Null when SS has no memory comp for the pawn.</summary>
@@ -86,6 +87,7 @@ namespace Armory.Compatibility
 
         private static MethodInfo getMemoryMethod;
         private static MethodInfo canPickupSidearmMethod;
+        private static MethodInfo dropSidearmMethod;
         private static MethodInfo skillPreferenceMethod;
 
         private static PropertyInfo forcedUnarmedProperty;
@@ -116,6 +118,16 @@ namespace Armory.Compatibility
             {
                 EnsureInitialized();
                 return active && canPickupSidearmMethod != null;
+            }
+        }
+
+        /// <summary>True when SS's own sidearm drop method resolved, so replacement can unmemorise cleanly.</summary>
+        public static bool CanDropSidearms
+        {
+            get
+            {
+                EnsureInitialized();
+                return active && dropSidearmMethod != null;
             }
         }
 
@@ -332,6 +344,30 @@ namespace Armory.Compatibility
             }
         }
 
+        /// <summary>
+        /// Uses Simple Sidearms' own sidearm drop so the weapon is dropped and forgotten. Returns
+        /// false when the method is unavailable or fails; callers should then leave the sidearm
+        /// alone rather than risk SS retrieving it again.
+        /// </summary>
+        public static bool DropSidearm(Pawn pawn, ThingWithComps weapon, bool intentionalDrop, bool unmemorise)
+        {
+            if (!CanDropSidearms || pawn == null || weapon == null)
+            {
+                return false;
+            }
+            try
+            {
+                dropSidearmMethod.Invoke(null, new object[] { pawn, weapon, intentionalDrop, unmemorise });
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Log.Warning("[Armory] Simple Sidearms DropSidearm failed: " +
+                            exception.GetType().Name + ": " + exception.Message);
+                return false;
+            }
+        }
+
         private static void ResolvePrimaryMode(Pawn pawn, object comp, PawnState state)
         {
             if (primaryModeField == null)
@@ -538,6 +574,17 @@ namespace Armory.Compatibility
                         BindingFlags.Public | BindingFlags.Static,
                         null,
                         new[] { typeof(ThingWithComps), typeof(Pawn), typeof(string).MakeByRefType() },
+                        null);
+                }
+
+                Type weaponAssignmentType = FindType(WeaponAssignmentTypeName);
+                if (weaponAssignmentType != null)
+                {
+                    dropSidearmMethod = weaponAssignmentType.GetMethod(
+                        "DropSidearm",
+                        BindingFlags.Public | BindingFlags.Static,
+                        null,
+                        new[] { typeof(Pawn), typeof(ThingWithComps), typeof(bool), typeof(bool) },
                         null);
                 }
 

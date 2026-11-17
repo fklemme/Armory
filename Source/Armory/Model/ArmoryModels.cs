@@ -33,6 +33,13 @@ namespace Armory
         }
     }
 
+    /// <summary>A weapon already in the pawn's inventory, with its sidearm score.</summary>
+    public sealed class CarriedSidearm
+    {
+        public ThingWithComps Thing;
+        public float Score;
+    }
+
     /// <summary>One sidearm evaluated for one pawn. Kept separate from primary candidates.</summary>
     public sealed class SidearmCandidate
     {
@@ -63,6 +70,8 @@ namespace Armory
 
         /// <summary>Weapons carried in the pawn's inventory (Simple Sidearms sidearms and other carried weapons).</summary>
         public readonly List<ThingWithComps> Sidearms = new List<ThingWithComps>();
+
+        public readonly List<CarriedSidearm> CarriedSidearms = new List<CarriedSidearm>();
 
         public string SidearmText;
 
@@ -143,6 +152,15 @@ namespace Armory
         public float BestScore;
         public PawnAnalysis BestAnyPawn;
         public float BestAnyScore;
+
+        /// <summary>Best pawn that can pick this up as a sidearm right now.</summary>
+        public PawnAnalysis BestSidearmPawn;
+        public float BestSidearmScore;
+
+        /// <summary>Best pawn that could carry it as a sidearm but is blocked.</summary>
+        public PawnAnalysis BestAnySidearmPawn;
+        public float BestAnySidearmScore;
+
         public string Status;
         public readonly List<Candidate> PawnCandidates = new List<Candidate>();
     }

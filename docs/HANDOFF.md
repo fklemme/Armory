@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.4.2**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.5.0**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3, 0.3.0, 0.4.0, 0.4.1, and 0.4.2 are committed.
+Git repository on `main`; 0.2.3 through 0.5.0 are committed.
 
 ---
 
@@ -17,9 +17,9 @@ Milestones 0–4 are implemented:
 - **3** — Simple Sidearms primary coexistence via a reflection adapter:
   forced states, preferences, primary mode, carried-primary baseline, SS job
   guard, sidearm display.
-- **4** — optional add-only sidearm assignment via `EquipSecondary`, with SS
-  limit checks, type-diversity preference, desired count, claims/cooldown, and
-  a sidearm candidate list.
+- **4** — optional sidearm assignment and upgrades via `EquipSecondary`, with
+  SS limit checks, type-diversity preference, desired count, claims/cooldown,
+  sidearm candidate list, and sidearm visibility in the Weapons tab.
 
 **Next:** milestone 5, polish (container scanning, auto-haul, raid arming,
 automation-skip reasons, localization, Workshop prep).
@@ -70,20 +70,53 @@ Status text now reads `SS role: ranged` / `SS role: melee` instead of
 
 ---
 
----
+## 0.5.0 — sidearm upgrades and sidearm visibility
 
-The user was last testing 0.2.2 and reported:
+The user correctly pointed out that SS exists to keep a ranged primary **and** a
+melee sidearm, so the Monosword should be usable as a sidearm even though it is
+blocked as a primary. Two problems were addressed:
 
-- wider tab looks much better;
-- pod pawns still show `Not on the map`;
-- header alignment off by the scrollbar width;
-- Weapons tab `Power`/`Best colonist` too close;
-- (screenshot revealed) beer stacks counted as weapons.
+1. **Weapons tab status was primary-only.** `Only blocked` meant "blocked as a
+   primary", but read as "unusable". The Weapons tab now shows:
+   - `Sidearm` when a ready sidearm pawn exists;
+   - `Sidearm blocked` when only a blocked sidearm pawn exists;
+   - `sidearm ready` in the colonist-by-fit list when the primary is blocked but
+     the sidearm check passes.
+   The detail explains "Sidearm for X. Primary use is blocked."
+2. **Add-only sidearm management did nothing when the desired count was already
+   met.** On the user's save, SS allows 2 melee and 3 total sidearms; pawns
+   already carried sidearms. `desiredSidearms=1` therefore suppressed all
+   additions, and the Monosword was never considered.
 
-0.2.3 fixed all five (map-wide pod lookup, scrollbar-aware headers, weapon
-column gaps, drug/ingestible filter), but the user has not confirmed them on the
-live save yet. 0.3.0/0.4.0 add Simple Sidearms support on top; all of it should
-be confirmed in one pass.
+0.5.0 adds `replaceWorseSidearms` (default off, because the upgrade path could
+not be runtime-tested while the user's game was open):
+
+- if the pawn is at the desired count, find the best ready candidate that beats
+  the worst droppable sidearm by the upgrade threshold;
+- prefer dropping a same-type sidearm (so a melee upgrade does not remove the
+  only ranged sidearm, and vice versa);
+- queue `EquipSecondary` for the better weapon **first**, then drop the old one
+  via SS's `WeaponAssingment.DropSidearm(pawn, weapon, true, true)` so SS does
+  not immediately retrieve it;
+- skip the upgrade when SS's slot limits leave no room for one more, or when the
+  old sidearm is a persona weapon / `destroyOnDrop`;
+- show both actions in the Log: `Queued sidearm` (replacing X) and
+  `Dropped sidearm`.
+
+The user's SS config was confirmed from
+`Mod_927155256_SimpleSidearms.xml`: `SeparateModes=True`,
+`LimitModeSingleMelee=RelativeWeight`, `LimitModeAmountMelee=Slots`,
+`LimitModeAmountTotal=Slots` (3 total). The serialized melee relative mass is
+`0.0542857125`, which is the Basic preset's `1.9 / InferredValues.maxCapacity`
+(35), i.e. a **1.9 kg** single-melee-sidearm cap. A Monosword is **2 kg** and a
+Zeushammer is also **2 kg**, so SS itself rejects them as sidearms
+(`CanPickupSidearmInstance` returns "too heavy"). A gladius is 0.85 kg and
+passes. This is the actual reason the Monosword is never a sidearm; Armory
+cannot override SS's limit without ignoring SS.
+
+**Not runtime-tested:** the user's game was running when this build was made, so
+the isolated replacement test could not be run. The add path and reflection
+method resolution compile clean; the upgrade path needs a live check.
 
 ---
 
@@ -200,9 +233,9 @@ Not done in M3 (now in M4): choosing/equipping sidearms and SS limit handling.
 
 ---
 
-## Milestone 4 (0.4.0) — sidearm assignment
+## Milestone 4 (0.4.0, upgrades in 0.5.0) — sidearm assignment
 
-Add-only and off by default.
+Off by default.
 
 Behaviour:
 
@@ -222,20 +255,28 @@ Behaviour:
    A pawn needs a current/queued primary, and when SS has a preferred primary
    type the primary must match it. Otherwise SS may promote the sidearm and
    Armory sees a manual change.
-4. **Job**: `DefDatabase<JobDef>.GetNamedSilentFail("EquipSecondary")`, then
+4. **Upgrades (0.5.0)**: when at the desired count and
+   `replaceWorseSidearms` is on, find the best candidate that beats the worst
+   droppable sidearm by the upgrade threshold. Prefer dropping a same-type
+   sidearm so diversity is preserved. Queue the new sidearm first, then drop the
+   old one through SS's `DropSidearm(..., true, true)`.
+5. **Job**: `DefDatabase<JobDef>.GetNamedSilentFail("EquipSecondary")`, then
    `JobMaker.MakeJob(def, weapon)` + `TryTakeOrderedJob(..., true)`. If the def
    is absent, sidearm management disables itself with one warning.
-5. **Safety**: sidearm jobs are suppressed for any SS forced/unarmed/prefer-
-   unarmed state, regardless of the respect setting. Armory never removes or
-   replaces a sidearm, and never unforbids one.
-6. **UI**: pawn detail has a sidearm candidate section (ready/blocker, score,
+6. **Safety**: sidearm jobs are suppressed for any SS forced/unarmed/prefer-
+   unarmed state, regardless of the respect setting. Persona weapons and
+   `destroyOnDrop` items are never replacement targets; Armory never unforbids.
+7. **UI**: pawn detail has a sidearm candidate section (ready/blocker, score,
    type, `opposite type` tag) and a `carried / desired` line. Settings expose
-   manage, desired count, and diversity.
-7. **Log**: sidearm jobs use action `Queued sidearm` with `1/1 sidearms;
-   opposite type`.
+   manage, desired count, diversity, and upgrade. The Weapons tab shows
+   `Sidearm` / `Sidearm blocked` and `sidearm ready` per colonist, so a weapon
+   blocked as a primary is not mistaken for unusable.
+8. **Log**: `Queued sidearm` (add or `replacing X`), plus `Dropped sidearm` for
+   an upgrade.
 
 Known gaps: no exact free-slot display for mass-based SS limits (per-candidate
-checks only), no removal/replacement, no remembered-weapon candidates.
+checks only), upgrades are skipped when SS leaves no room for an extra sidearm,
+and remembered-but-absent weapons are not candidates.
 
 ---
 
@@ -356,8 +397,9 @@ These are easy to break; keep them in mind.
 27. **Sidearm count uses inventory weapons** from the snapshot. A stale
     snapshot is harmless because `lastSidearm` enforces the swap cooldown before
     another addition.
-28. **Sidearms are add-only.** No removal/replacement, no unforbid, no use of
-    remembered-but-absent weapons.
+28. **Sidearms are never removed without a replacement.** Upgrades queue the
+    better sidearm first, then drop the old one; there is no standalone removal
+    and no unforbidding. Remembered-but-absent weapons are not candidates.
 29. **Sidearms require a primary that matches SS's role.** If SS prefers ranged
     and the current/queued primary is melee, skip sidearms: adding a ranged
     sidearm makes SS promote it, which Armory then reports as a manual change.
@@ -365,15 +407,39 @@ These are easy to break; keep them in mind.
 30. **Sidearm diversity uses `IsRangedWeapon`**, not SS's broader
     "melee-capable" rule, so a gun with a stock bash is still a ranged sidearm
     for display and ordering.
+31. **Weapons tab status is dual-purpose.** `Wanted`/`Only blocked` are primary
+    status; `Sidearm`/`Sidearm blocked` are sidearm status. `Only blocked` does
+    not mean unusable as a sidearm.
+32. **Sidearm upgrades are add-then-drop.** Check the better candidate with the
+    old sidearm still present; queue `EquipSecondary`; then
+    `DropSidearm(old, intentionalDrop: true, unmemorise: true)`. This avoids
+    losing a sidearm if the new job is rejected. If SS has no room for an extra
+    sidearm, the upgrade is skipped.
+33. **Carried sidearm scores** come from `PawnAnalysis.CarriedSidearms` (combat
+    weapons only). Tools do not count toward the desired sidearm count.
+34. **Replacement targets exclude** persona weapons (`CompBladelinkWeapon`),
+    `destroyOnDrop` items, and the carried SS default ranged/preferred melee
+    pair. Same-type worst is dropped first to preserve diversity.
+35. **Do not force-close the user's running game for quicktests.** The isolated
+    test script refuses by default; pass `-Force` only with explicit permission.
 
 ---
 
-## Pending verification (0.4.1)
+## Pending verification (0.5.0)
 
-The immediate check is the reported save: pawns with a default ranged weapon
-should now show usable ranged upgrades again (melee candidates can still be
-blocked by the SS ranged role), and the Log should fill with queued jobs or
-threshold skips. Then confirm:
+The immediate checks are:
+
+- Weapons tab: melee weapons should now show `Sidearm` (or `Sidearm blocked`)
+  instead of only `Only blocked` when they are valid sidearms for a ranged pawn;
+  the detail should say `Sidearm for X` and the colonist row `sidearm ready`.
+- With **Manage sidearms** and **Upgrade a worse sidearm** on, a better melee
+  candidate (e.g. Monosword) should replace a worse melee sidearm. The Log
+  should show `Queued sidearm` (`replacing X`) and `Dropped sidearm`.
+- The old sidearm should stay on the ground and not be immediately retrieved by
+  SS.
+- If no upgrade happens because SS has no free sidearm slot, the pawn detail
+  should show the candidate as blocked (`All slots full`/mass reason).
+- Then confirm the earlier items:
 
 - Simple Sidearms is detected (pawn detail shows `Simple Sidearms: primary ...`);
 - forced primaries / forced unarmed / prefer unarmed in SS are shown and Armory
@@ -462,9 +528,9 @@ polish, not new core behaviour.
 - **Manager-agnostic**: Armory should not depend on Auto Arm's or Equipment
   Manager's internals. Operationally, only one auto-equipper should act, hence
   the competitor guard and override.
-- **Simple Sidearms**: primary coexistence shipped in 0.3.0; add-only sidearm
-  assignment shipped in 0.4.0. Removal/replacement is deliberately out of scope
-  for now. Simple Sidearms' own QuickSwitch think node enforces its primary
+- **Simple Sidearms**: primary coexistence shipped in 0.3.0; sidearm
+  assignment shipped in 0.4.0, with upgrades in 0.5.0. Standalone removal is out
+  of scope; upgrades always add before dropping. Simple Sidearms' own QuickSwitch think node enforces its primary
   preference among carried weapons, so Armory must not queue a primary SS would
   undo.
 - **No auto-unforbid**: forbidden weapons stay visible and explained, but the
@@ -510,6 +576,7 @@ polish, not new core behaviour.
 | 0.4.0 | Add-only sidearm assignment via `EquipSecondary`, SS limit checks, type diversity, desired count, sidearm candidate UI |
 | 0.4.1 | Fix over-strict SS default-ranged/preferred-melee block that stopped all primary upgrades; pair is now informational |
 | 0.4.2 | Fix settings page multi-column overflow hiding later options; clarify `SS role: ranged/melee`; document per-pawn SS mode |
+| 0.5.0 | Sidearm upgrades (replace worst same-type), Weapons tab sidearm status, per-pawn `sidearm ready`, replace setting |
 
 ---
 

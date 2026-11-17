@@ -85,6 +85,15 @@ namespace Armory
         /// <summary>Null when the pawn is on the map; otherwise why they are unavailable.</summary>
         public string UnavailableReason;
 
+        /// <summary>
+        /// Why automation is not acting on this pawn, or null when it may act. Shown in
+        /// the pawn list/detail so "hand ready" is never unexplained.
+        /// </summary>
+        public string AutomationNote;
+
+        /// <summary>True when the note is a permanent/hard gate (pacifist, age, downed...).</summary>
+        public bool AutomationBlocked;
+
         /// <summary>Weapons carried in the pawn's inventory (Simple Sidearms sidearms and other carried weapons).</summary>
         public readonly List<ThingWithComps> Sidearms = new List<ThingWithComps>();
 

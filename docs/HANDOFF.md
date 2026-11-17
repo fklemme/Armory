@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.6.1**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.6.2**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.6.1 are committed.
+Git repository on `main`; 0.2.3 through 0.6.2 are committed.
 
 ---
 
@@ -255,6 +255,37 @@ inventory + a heavy melee weapon spawned, then reverted):
 
 The live drop-first success path (a valid better backup at the slot cap) still
 needs a live-save check.
+
+---
+
+## 0.6.2 — show why automation is not acting
+
+The user reset pawns by right-clicking weapons in the Simple Sidearms gizmo.
+Some pawns were re-armed, but Trebo (unarmed, every candidate `ready`) got no
+job. Armory had no UI for automation-skip reasons, so "hand ready" was
+unexplained.
+
+Added `PawnAnalysis.AutomationNote` / `AutomationBlocked`, computed read-only by
+`ArmoryPlanner.GetAutomationNote`:
+
+- hard gates: not on map, not free colonist, dead, downed, mental state, under
+  minimum age, incapable of violence (pacifist), cannot manipulate, drafted with
+  equip-drafted off, no job tracker, already equipping, SS sidearm job running,
+  bonded persona weapon;
+- per-pawn pauses: manual weapon change (`Ns` remaining), swap cooldown (`Ns`).
+
+UI:
+
+- Pawns status shows `paused: ...` when there is an actionable hand/backup wish,
+  or `blocked: ...` for a hard gate.
+- Pawn detail shows `Automation: ...` above the weapon sections.
+- Demand ignores hard-blocked pawns (pacifists, children, downed, etc.) so their
+  impossible wishes no longer inflate the shopping list.
+
+This is diagnostic only; the planner's behavior is unchanged. The most likely
+explanations for Trebo are the manual-change pause from the gizmo reset, being
+drafted with `Equip drafted colonists` off, or a bonded persona weapon, which
+Armory deliberately leaves alone. The new `Automation:` line names the exact one.
 
 ---
 
@@ -600,10 +631,18 @@ These are easy to break; keep them in mind.
 
 ---
 
-## Pending verification (0.6.1)
+## Pending verification (0.6.2)
 
 The immediate checks are:
 
+- On the reset save, unarmed pawns that are not being armed should show a
+  `paused:` or `blocked:` reason in the Pawns list and an `Automation:` line in
+  the detail. If it is `manual weapon change (Ns)`, that is the 250-second pause
+  from dropping weapons through the Simple Sidearms gizmo; wait it out or lower
+  the pause in Settings.
+- If it is `drafted`, enable **Equip drafted colonists** or undraft.
+- If it is `bonded persona weapon`, Armory is deliberately leaving that pawn
+  alone; re-equip the bonded weapon manually or accept the skip.
 - A ranged pawn's detail shows only ranged weapons under `Hand slot (ranged)`
   and only melee weapons under `Backup slot (melee)`. The Monosword is absent
   from the hand list and, for a Basic-preset pawn, appears under backup with
@@ -757,6 +796,7 @@ polish, not new core behaviour.
 | 0.5.1 | Explicit SS role blockers + detail explanations; baseline uses SS's actual QuickSwitch choice |
 | 0.6.0 | Typed hand/backup slots; same-type-only upgrades; mirrored ranged/melee loadouts; add-first or drop-first at SS's cap; separate Hand/Backup UI and Demand column |
 | 0.6.1 | Fix drop-first pre-check (SS `isValidSidearm` ignores RelativeWeight; pacifist tools); remember failed drop-first attempts; clearer log |
+| 0.6.2 | Show automation-skip reasons (`paused:`/`blocked:`) in Pawns and detail; demand ignores hard-blocked pawns |
 
 ---
 

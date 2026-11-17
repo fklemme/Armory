@@ -90,7 +90,7 @@ namespace Armory
                 Candidate top = pawn.TopOverall;
                 Candidate ready = pawn.TopReady;
                 Log.Message(string.Format(
-                    "[Armory]   {0}: role {1}; {2} -> best hand {3} ({4:0}) [{5}]; ready {6}; hand ranked {7}, incompatible {8}",
+                    "[Armory]   {0}: role {1}; {2} -> best hand {3} ({4:0}) [{5}]; ready {6}; hand ranked {7}, incompatible {8}; automation {9}",
                     pawn.Pawn.LabelShort,
                     pawn.HasRole
                         ? ((pawn.RoleIsRanged.Value ? "ranged" : "melee") + " (" + pawn.RoleSource + ")")
@@ -101,7 +101,8 @@ namespace Armory
                     top == null ? "n/a" : top.Ready ? "ready" : top.Blocker,
                     ready == null ? "none" : ready.Weapon.Label,
                     pawn.Ranked.Count,
-                    pawn.Incompatible.Count));
+                    pawn.Incompatible.Count,
+                    pawn.AutomationNote ?? "ok"));
                 for (int j = 0; j < pawn.Ranked.Count && j < 4; j++)
                 {
                     Candidate candidate = pawn.Ranked[j];

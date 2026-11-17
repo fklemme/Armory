@@ -503,51 +503,109 @@ namespace Armory
 
         private static bool CanManage(Pawn pawn, Map map, ArmorySettings settings)
         {
+            return GetHardBlock(pawn, map, settings) == null;
+        }
+
+        /// <summary>
+        /// Hard gates that prevent any automation for this pawn, with a readable reason.
+        /// Kept separate from cooldowns/pauses so demand can ignore hard-blocked pawns.
+        /// </summary>
+        public static string GetHardBlock(Pawn pawn, Map map, ArmorySettings settings)
+        {
+            if (settings == null)
+            {
+                return "settings not loaded";
+            }
             if (pawn == null || !pawn.Spawned || pawn.Map != map)
             {
-                return false;
+                return "not on the map";
             }
             if (!pawn.IsColonist || pawn.IsSlave || pawn.IsPrisoner)
             {
-                return false;
+                return "not a free colonist";
             }
-            if (pawn.Dead || pawn.Downed || pawn.InMentalState)
+            if (pawn.Dead)
             {
-                return false;
+                return "dead";
             }
-            if (pawn.ageTracker == null || pawn.ageTracker.AgeBiologicalYears < settings.minimumAge)
+            if (pawn.Downed)
             {
-                return false;
+                return "downed";
+            }
+            if (pawn.InMentalState)
+            {
+                return "in a mental state";
+            }
+            if (pawn.ageTracker == null ||
+                pawn.ageTracker.AgeBiologicalYears < settings.minimumAge)
+            {
+                return string.Format("under minimum age ({0})", settings.minimumAge);
             }
             if (pawn.WorkTagIsDisabled(WorkTags.Violent))
             {
-                return false;
+                return "incapable of violence";
             }
-            if (pawn.health == null || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))
+            if (pawn.health == null ||
+                !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))
             {
-                return false;
+                return "cannot manipulate";
             }
             if (pawn.Drafted && !settings.equipDrafted)
             {
-                return false;
+                return "drafted (equip drafted is off)";
             }
             if (pawn.jobs == null)
             {
-                return false;
+                return "no job tracker";
             }
             if (pawn.jobs.curJob != null && pawn.jobs.curJob.def == JobDefOf.Equip)
             {
-                return false;
+                return "already equipping";
             }
             if (SimpleSidearmsAdapter.IsSidearmJobRunning(pawn))
             {
-                return false;
+                return "Simple Sidearms sidearm job running";
             }
             if (pawn.equipment == null || pawn.equipment.bondedWeapon != null)
             {
-                return false;
+                return "bonded persona weapon";
             }
-            return true;
+            return null;
+        }
+
+        /// <summary>
+        /// Read-only automation explanation for the UI: a hard gate, the manual-change
+        /// pause, or the swap cooldown. Never mutates planner state.
+        /// </summary>
+        public static string GetAutomationNote(Pawn pawn, Map map, ArmorySettings settings,
+            int now, out bool hard)
+        {
+            hard = false;
+            string block = GetHardBlock(pawn, map, settings);
+            if (block != null)
+            {
+                hard = true;
+                return block;
+            }
+
+            if (settings.respectManualEquip)
+            {
+                int until;
+                if (manualUntil.TryGetValue(pawn.thingIDNumber, out until) && now < until)
+                {
+                    int seconds = Mathf.Max(1, (until - now + 59) / 60);
+                    return string.Format("manual weapon change ({0}s)", seconds);
+                }
+            }
+
+            int last = LastSwap(pawn, now);
+            int elapsed = now - last;
+            if (elapsed < settings.swapCooldownTicks)
+            {
+                int seconds = Mathf.Max(1, (settings.swapCooldownTicks - elapsed + 59) / 60);
+                return string.Format("swap cooldown ({0}s)", seconds);
+            }
+            return null;
         }
 
         /// <summary>

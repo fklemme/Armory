@@ -324,6 +324,15 @@ namespace Armory
             analysis.Ranked.Sort((a, b) => b.Score.CompareTo(a.Score));
             analysis.Incompatible.Sort((a, b) => b.Score.CompareTo(a.Score));
             BuildSidearmCandidates(analysis, context, weapons, powerCache);
+
+            if (analysis.Available)
+            {
+                bool hard;
+                analysis.AutomationNote = ArmoryPlanner.GetAutomationNote(
+                    pawn, map, ArmoryMod.Settings, Find.TickManager.TicksGame, out hard);
+                analysis.AutomationBlocked = hard;
+            }
+
             return analysis;
         }
 
@@ -585,7 +594,7 @@ namespace Armory
             for (int i = 0; i < snapshot.Pawns.Count; i++)
             {
                 PawnAnalysis pawn = snapshot.Pawns[i];
-                if (!pawn.Available)
+                if (!pawn.Available || pawn.AutomationBlocked)
                 {
                     continue;
                 }

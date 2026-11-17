@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.6.1** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.6.2** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -41,7 +41,10 @@ For every free colonist, including pawns in pods/caskets:
 - a **backup slot** ranking of the opposite type, with SS's slot/mass/selection
   blockers and current carried backup;
 - a full ranked list with a status per weapon and an expandable factor ledger;
-- a separate `Incompatible` list for biocoded/bonded/role-restricted weapons.
+- a separate `Incompatible` list for biocoded/bonded/role-restricted weapons;
+- an `Automation:` reason when the planner is paused or blocked (manual weapon
+  change, swap cooldown, drafted, pacifist, downed, bonded weapon, Simple
+  Sidearms job, and so on).
 
 Ranged and melee weapons are never compared in one ranking. A ranged pawn's
 hand slot contains ranged weapons and its backup slot contains melee weapons;
@@ -394,8 +397,7 @@ Manual equivalent:
 - **Dropped weapons** stay on the ground; no auto-haul yet.
 - **No raid behaviour** yet (e.g., arm everyone when a raid starts).
 - **Decision log is session-only** and records queued jobs, not every skip.
-- **Automation-skip reasons** (pacifist, drafted, bonded) are not shown in the
-  pawn detail yet; only weapon blockers and off-map availability are.
+  Pawn automation pauses/blocks are shown in the Pawns tab and pawn detail.
 - **English strings are hardcoded**; localization not started.
 - **Workshop packaging** not started.
 - **RimWorld 1.7** (Waylith/.NET 10) not targeted; the structure is ready for a

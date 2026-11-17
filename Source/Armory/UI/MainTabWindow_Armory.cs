@@ -404,11 +404,40 @@ namespace Armory
                 color = new Color(1f, 0.78f, 0.4f);
                 return pawn.SidearmState.VetoReason;
             }
+            if (pawn.AutomationBlocked && !string.IsNullOrEmpty(pawn.AutomationNote))
+            {
+                color = new Color(1f, 0.78f, 0.4f);
+                return "blocked: " + pawn.AutomationNote;
+            }
+
+            ArmorySettings settings = ArmoryMod.Settings;
+            float threshold = settings == null ? 0.1f : settings.upgradeThreshold;
+            float baseline = pawn.HandBaselineScore;
+            Candidate topReady = pawn.TopReady;
+
+            bool hasHandWish = topReady != null &&
+                               (pawn.Current == null ||
+                                (baseline > 0.01f &&
+                                 topReady.Score > baseline * (1f + threshold)));
+
+            bool hasBackupWish = false;
+            if (pawn.HasRole && (settings == null || settings.manageSidearms))
+            {
+                int carriedBackups = CountBackups(pawn);
+                hasBackupWish = carriedBackups == 0
+                    ? BestReadyBackup(pawn) != null
+                    : BestBackupUpgrade(pawn) != null;
+            }
+
+            if (!string.IsNullOrEmpty(pawn.AutomationNote) && (hasHandWish || hasBackupWish))
+            {
+                color = new Color(1f, 0.78f, 0.4f);
+                return "paused: " + pawn.AutomationNote;
+            }
 
             if (!pawn.HasRole)
             {
-                Candidate ready = pawn.TopReady;
-                if (ready != null)
+                if (topReady != null)
                 {
                     color = new Color(0.7f, 0.9f, 0.7f);
                     return "hand ready";
@@ -418,10 +447,6 @@ namespace Armory
                 return any == null ? "no weapons" : any.Blocker;
             }
 
-            ArmorySettings settings = ArmoryMod.Settings;
-            float threshold = settings == null ? 0.1f : settings.upgradeThreshold;
-            float baseline = pawn.HandBaselineScore;
-            Candidate topReady = pawn.TopReady;
             if (pawn.Current == null && topReady != null)
             {
                 color = new Color(0.7f, 0.9f, 0.7f);
@@ -432,8 +457,7 @@ namespace Armory
                 color = new Color(1f, 0.78f, 0.4f);
                 return "no hand weapon";
             }
-            if (topReady != null && baseline > 0.01f &&
-                topReady.Score > baseline * (1f + threshold))
+            if (hasHandWish)
             {
                 color = new Color(0.7f, 0.9f, 0.7f);
                 return "hand upgrade";
@@ -480,6 +504,16 @@ namespace Armory
                     pawn.CurrentScore),
                 new Color(0.78f, 0.86f, 0.96f));
             y += 22f;
+
+            if (!string.IsNullOrEmpty(pawn.AutomationNote))
+            {
+                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
+                    "Automation: " + pawn.AutomationNote,
+                    pawn.AutomationBlocked
+                        ? new Color(1f, 0.72f, 0.55f)
+                        : new Color(1f, 0.82f, 0.45f));
+                y += 22f;
+            }
 
             if (pawn.Sidearms.Count > 0)
             {

@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.5.0**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.5.1**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.5.0 are committed.
+Git repository on `main`; 0.2.3 through 0.5.1 are committed.
 
 ---
 
@@ -117,6 +117,35 @@ cannot override SS's limit without ignoring SS.
 **Not runtime-tested:** the user's game was running when this build was made, so
 the isolated replacement test could not be run. The add path and reflection
 method resolution compile clean; the upgrade path needs a live check.
+
+---
+
+## 0.5.1 — explain SS role blocks; use SS's actual carried choice
+
+The user reported that `SS role: ranged` was not helpful: it did not say why a
+weapon was excluded. The screenshot also showed a carried sidearm
+("The Wargun of Delight", 112 by Armory's score) becoming the upgrade baseline
+even though SS might never promote it, blocking a valid Carbine upgrade.
+
+Changes:
+
+- Blocker text is now explicit: `Melee blocked: SS ranged` or
+  `Ranged blocked: SS melee`.
+- Pawn detail shows a wrapped explanation when the top candidate is blocked by
+  the SS role: the pawn's SS role, why the other type is excluded, and how to
+  change it (SS gizmo → Melee/Ranged, or turn off Respect Simple Sidearms).
+- Weapon detail shows the same explanation for the best blocked primary, plus
+  the sidearm-blocked reason (e.g. `Too heavy for a sidearm melee`).
+- The carried baseline is now **SS's own QuickSwitch choice** via
+  `GettersFilters.findBestRangedWeapon` / `findBestMeleeWeapon` (reflection).
+  This applies SS's manual-use, dangerous, EMP, and blocked-weapon filters, so
+  an unusable carried weapon no longer blocks a valid upgrade. If the call
+  fails, Armory logs once and uses the current primary as the baseline.
+- Labels changed from "carried Simple Sidearms primary" to "carried for the
+  SS role".
+
+Not runtime-tested for the same reason (game running); reflection signatures
+match the decompiled 1.6 methods.
 
 ---
 
@@ -375,9 +404,12 @@ These are easy to break; keep them in mind.
     `BySkill=2`, `ByGenerated=3`. Resolve `BySkill` with SS's own
     `getSkillWeaponPreference` (passion, then level, ties → ranged). Only block
     the other type when the pawn already carries the preferred type.
-21. **SS carried baseline:** `BestCarriedPrimary` is the best carried weapon of
-    the preferred type, scored with Armory's model. The planner uses
-    `max(CurrentScore, BestCarriedPrimaryScore)` as the upgrade baseline.
+21. **SS carried baseline:** `BestCarriedPrimary` is SS's own QuickSwitch choice
+    (`GettersFilters.findBestRangedWeapon` / `findBestMeleeWeapon`), scored with
+    Armory's model. The planner uses `max(CurrentScore, BestCarriedPrimaryScore)`
+    as the upgrade baseline. Do not substitute "best carried by Armory score":
+    SS skips manual-use, dangerous, EMP, and blocked carried weapons. If the
+    reflection call fails, log once and use the current primary only.
 22. **SS job guard:** skip pawns whose `curJob.def.defName` is
     `EquipSecondary`, `ReequipSecondary`, or `ReequipSecondaryCombat`.
 23. **Do not call SS methods that mutate state.** The adapter only reads
@@ -577,6 +609,7 @@ polish, not new core behaviour.
 | 0.4.1 | Fix over-strict SS default-ranged/preferred-melee block that stopped all primary upgrades; pair is now informational |
 | 0.4.2 | Fix settings page multi-column overflow hiding later options; clarify `SS role: ranged/melee`; document per-pawn SS mode |
 | 0.5.0 | Sidearm upgrades (replace worst same-type), Weapons tab sidearm status, per-pawn `sidearm ready`, replace setting |
+| 0.5.1 | Explicit SS role blockers + detail explanations; baseline uses SS's actual QuickSwitch choice |
 
 ---
 

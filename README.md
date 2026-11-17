@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.5.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.5.1** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -194,9 +194,12 @@ When **Respect Simple Sidearms** is on (default):
 - Armory follows the pawn's primary mode: `Ranged`, `Melee`, or `By skill`
   resolved with Simple Sidearms' own skill rule. It will not equip a weapon of
   the other type **when the pawn already carries a weapon of the preferred
-  type**, because Simple Sidearms would immediately switch back;
-- the best carried weapon for the SS primary role is the upgrade baseline, so a
-  loose weapon must beat it before Armory queues a job;
+  type**, because Simple Sidearms would immediately switch back. The blocker is
+  shown as `Melee blocked: SS ranged` or `Ranged blocked: SS melee`, and the
+  pawn/weapon detail explains how to change the pawn's SS role;
+- the upgrade baseline is Simple Sidearms' own QuickSwitch choice among carried
+  weapons (its manual-use, dangerous, and EMP filters apply), not merely the
+  best carried weapon by Armory's score;
 - pawns currently running `EquipSecondary` / `ReequipSecondary` /
   `ReequipSecondaryCombat` are skipped;
 - carried sidearms are listed in the pawn detail (from inventory), with the SS

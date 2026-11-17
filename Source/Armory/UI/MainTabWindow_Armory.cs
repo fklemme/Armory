@@ -328,11 +328,33 @@ namespace Armory
                 if (pawn.BestCarriedPrimary != null && pawn.BestCarriedPrimary != pawn.Current)
                 {
                     DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
-                        string.Format("Best carried for the SS primary role: {0}    score {1:0}",
+                        string.Format("Best carried for the SS role: {0}    score {1:0}",
                             pawn.BestCarriedPrimary.LabelCap, pawn.BestCarriedPrimaryScore),
                         new Color(0.72f, 0.82f, 0.92f));
                     y += 22f;
                 }
+            }
+
+            if (pawn.SidearmState != null && pawn.TopOverall != null && !pawn.TopOverall.Ready &&
+                IsSSRoleBlock(pawn.TopOverall.Blocker))
+            {
+                string role = pawn.SidearmState.PreferredPrimaryIsRanged.HasValue
+                    ? (pawn.SidearmState.PreferredPrimaryIsRanged.Value ? "ranged" : "melee")
+                    : "unknown";
+                string other = role == "ranged" ? "melee" : "ranged";
+                string explanation = string.Format(
+                    "SS role is {0}, so {1} primaries are excluded while this pawn carries a {0} weapon. Set this pawn's SS role to {2} in the Simple Sidearms gizmo, or turn off Respect Simple Sidearms.",
+                    role, other, other == "melee" ? "Melee" : "Ranged");
+
+                bool previousWrap = Text.WordWrap;
+                Color previousColor = GUI.color;
+                Text.WordWrap = true;
+                Text.Anchor = TextAnchor.UpperLeft;
+                GUI.color = new Color(1f, 0.82f, 0.45f);
+                Widgets.Label(new Rect(rect.x, y, rect.width, 62f), explanation);
+                GUI.color = previousColor;
+                Text.WordWrap = previousWrap;
+                y += 64f;
             }
 
             if (!pawn.Available)
@@ -363,7 +385,7 @@ namespace Armory
                 if (belowThreshold)
                 {
                     string baselineLabel = carriedIsBaseline
-                        ? pawn.BestCarriedPrimary.LabelCap + " (carried Simple Sidearms primary)"
+                        ? pawn.BestCarriedPrimary.LabelCap + " (carried for the SS role)"
                         : "current weapon";
                     DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
                         string.Format("Would keep {0}: improvement is below the {1}% threshold.",
@@ -569,6 +591,12 @@ namespace Armory
             }
 
             Widgets.EndScrollView();
+        }
+
+        private static bool IsSSRoleBlock(string blocker)
+        {
+            return !string.IsNullOrEmpty(blocker) &&
+                   (blocker.StartsWith("Melee blocked") || blocker.StartsWith("Ranged blocked"));
         }
 
         private static string SidearmWaitReason(PawnAnalysis pawn)
@@ -781,10 +809,33 @@ namespace Armory
             }
             else if (row.BestAnyPawn != null)
             {
+                string primaryReason = ReasonFor(row.BestAnyPawn, row.Weapon);
                 DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
                     string.Format("Best fit: {0}, but blocked as a primary ({1})", row.BestAnyPawn.Pawn.LabelShort,
-                        ReasonFor(row.BestAnyPawn, row.Weapon)),
+                        primaryReason),
                     new Color(1f, 0.8f, 0.42f));
+                if (IsSSRoleBlock(primaryReason))
+                {
+                    y += 22f;
+                    bool previousWrap = Text.WordWrap;
+                    Text.WordWrap = true;
+                    Text.Anchor = TextAnchor.UpperLeft;
+                    GUI.color = new Color(1f, 0.82f, 0.45f);
+                    Widgets.Label(new Rect(rect.x, y, rect.width, 48f),
+                        "That pawn's Simple Sidearms role excludes this weapon type while they carry the other type. Set the pawn's SS role in the Simple Sidearms gizmo, or turn off Respect Simple Sidearms.");
+                    GUI.color = Color.white;
+                    Text.WordWrap = previousWrap;
+                    y += 44f;
+                }
+                if (row.BestAnySidearmPawn != null)
+                {
+                    y += 22f;
+                    DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
+                        string.Format("Sidearm fit: {0}, but blocked ({1})",
+                            row.BestAnySidearmPawn.Pawn.LabelShort,
+                            SidearmReasonFor(row.BestAnySidearmPawn, row.Weapon)),
+                        new Color(1f, 0.8f, 0.42f));
+                }
             }
             else if (row.BestAnySidearmPawn != null)
             {

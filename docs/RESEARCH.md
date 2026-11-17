@@ -346,6 +346,12 @@ upgrades.
 Zeushammer (both 2 kg) therefore fails as a melee sidearm; a gladius (0.85 kg)
 passes. This is an SS rule, not an Armory score.
 
+`GettersFilters.findBestRangedWeapon(Pawn, LocalTargetInfo?, bool, bool, bool,
+bool)` returns a `(ThingWithComps, float dps, float averageSpeed)` tuple;
+`findBestMeleeWeapon(Pawn, out ThingWithComps, bool, bool, Pawn)` returns bool.
+These are the QuickSwitch choices and apply SS's manual-use/dangerous/EMP
+filters. Armory uses them for the carried-primary baseline.
+
 ### Jobs and think tree
 
 JobDefs in `Defs/JobDefs/Jobs_Misc.xml`:
@@ -424,8 +430,10 @@ no compile-time reference, no hard dependency, safe in Core-only games.
    resolved with SS's own rule). Armory blocks the other type only when the pawn
    already carries a weapon of the preferred type, i.e. when SS would switch
    back.
-6. The best carried weapon of the preferred type is scored with Armory's model
-   and used as the upgrade baseline.
+6. The carried baseline is SS's own QuickSwitch choice
+   (`GettersFilters.findBestRangedWeapon` / `findBestMeleeWeapon`), scored with
+   Armory's model. This applies SS's manual-use/dangerous/EMP/blocked filters;
+   do not use "best carried by Armory score".
 7. Pawns running `EquipSecondary`, `ReequipSecondary`, or
    `ReequipSecondaryCombat` are skipped.
 8. Verified: SS absent (inactive, no change), SS present (all three pawns read a

@@ -21,6 +21,7 @@ namespace Armory.Compatibility
         private const string MemoryTypeName = "SimpleSidearms.rimworld.CompSidearmMemory";
         private const string StatCalculatorTypeName = "PeteTimesSix.SimpleSidearms.Utilities.StatCalculator";
         private const string WeaponAssignmentTypeName = "PeteTimesSix.SimpleSidearms.Utilities.WeaponAssingment";
+        private const string GettersFiltersTypeName = "PeteTimesSix.SimpleSidearms.Utilities.GettersFilters";
         private const string ExtensionsTypeName = "PeteTimesSix.SimpleSidearms.Extensions";
 
         /// <summary>SS state that matters for primary coexistence. Null when SS has no memory comp for the pawn.</summary>
@@ -80,6 +81,7 @@ namespace Armory.Compatibility
         private static bool initialized;
         private static bool active;
         private static bool failed;
+        private static bool preferredPrimaryCheckFailed;
 
         private static Type memoryType;
         private static Type statCalculatorType;
@@ -88,6 +90,9 @@ namespace Armory.Compatibility
         private static MethodInfo getMemoryMethod;
         private static MethodInfo canPickupSidearmMethod;
         private static MethodInfo dropSidearmMethod;
+        private static MethodInfo findBestRangedMethod;
+        private static MethodInfo findBestMeleeMethod;
+        private static FieldInfo tupleItem1Field;
         private static MethodInfo skillPreferenceMethod;
 
         private static PropertyInfo forcedUnarmedProperty;
@@ -199,7 +204,9 @@ namespace Armory.Compatibility
             if (state.PreferredPrimaryIsRanged.HasValue && state.CarriesPreferredPrimary &&
                 !MatchesPrimaryType(weapon.def, state.PreferredPrimaryIsRanged.Value))
             {
-                reason = state.PreferredPrimaryIsRanged.Value ? "SS role: ranged" : "SS role: melee";
+                reason = state.PreferredPrimaryIsRanged.Value
+                    ? "Melee blocked: SS ranged"
+                    : "Ranged blocked: SS melee";
                 return true;
             }
 
@@ -365,6 +372,48 @@ namespace Armory.Compatibility
                 Log.Warning("[Armory] Simple Sidearms DropSidearm failed: " +
                             exception.GetType().Name + ": " + exception.Message);
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Asks Simple Sidearms which carried weapon it would use as the primary for this
+        /// pawn (QuickSwitch filters: manual use, dangerous, EMP, blocked weapons). This is
+        /// the baseline Armory must beat; do not substitute "best carried by Armory score".
+        /// Returns null when SS would not switch or the call is unavailable.
+        /// </summary>
+        public static ThingWithComps GetPreferredCarriedPrimary(Pawn pawn, bool ranged)
+        {
+            if (!Active || pawn == null || preferredPrimaryCheckFailed)
+            {
+                return null;
+            }
+            try
+            {
+                if (ranged)
+                {
+                    if (findBestRangedMethod == null || tupleItem1Field == null)
+                    {
+                        return null;
+                    }
+                    object result = findBestRangedMethod.Invoke(null,
+                        new object[] { pawn, null, true, true, true, true });
+                    return tupleItem1Field.GetValue(result) as ThingWithComps;
+                }
+
+                if (findBestMeleeMethod == null)
+                {
+                    return null;
+                }
+                object[] arguments = { pawn, null, true, true, null };
+                bool found = (bool)findBestMeleeMethod.Invoke(null, arguments);
+                return found ? arguments[1] as ThingWithComps : null;
+            }
+            catch (Exception exception)
+            {
+                preferredPrimaryCheckFailed = true;
+                Log.Warning("[Armory] Simple Sidearms carried-primary check failed; using the current " +
+                            "primary as the baseline. " + exception.GetType().Name + ": " + exception.Message);
+                return null;
             }
         }
 
@@ -586,6 +635,35 @@ namespace Armory.Compatibility
                         null,
                         new[] { typeof(Pawn), typeof(ThingWithComps), typeof(bool), typeof(bool) },
                         null);
+                }
+
+                Type gettersType = FindType(GettersFiltersTypeName);
+                if (gettersType != null)
+                {
+                    findBestRangedMethod = gettersType.GetMethod(
+                        "findBestRangedWeapon",
+                        BindingFlags.Public | BindingFlags.Static,
+                        null,
+                        new[]
+                        {
+                            typeof(Pawn), typeof(LocalTargetInfo?), typeof(bool), typeof(bool),
+                            typeof(bool), typeof(bool)
+                        },
+                        null);
+                    findBestMeleeMethod = gettersType.GetMethod(
+                        "findBestMeleeWeapon",
+                        BindingFlags.Public | BindingFlags.Static,
+                        null,
+                        new[]
+                        {
+                            typeof(Pawn), typeof(ThingWithComps).MakeByRefType(), typeof(bool),
+                            typeof(bool), typeof(Pawn)
+                        },
+                        null);
+                    if (findBestRangedMethod != null)
+                    {
+                        tupleItem1Field = findBestRangedMethod.ReturnType.GetField("Item1");
+                    }
                 }
 
                 extensionsType = FindType(ExtensionsTypeName);

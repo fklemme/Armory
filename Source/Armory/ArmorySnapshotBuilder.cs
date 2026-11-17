@@ -255,19 +255,20 @@ namespace Armory
                                         PawnFit.Compute(context, analysis.Current);
             }
 
-            // Simple Sidearms has an explicit primary role. If the pawn already carries a
-            // weapon for that role, Armory must beat it before queueing a loose weapon,
-            // otherwise SS will simply switch back and the job is wasted.
+            // Simple Sidearms has an explicit primary role. Use SS's own QuickSwitch
+            // choice among carried weapons as the baseline; do not assume the best
+            // carried weapon by Armory's score, because SS may skip it (manual use,
+            // dangerous, EMP, role) and Armory would then block a valid upgrade.
             analysis.SidearmState = SimpleSidearmsAdapter.GetState(pawn);
             if (analysis.SidearmState != null &&
                 analysis.SidearmState.PreferredPrimaryIsRanged.HasValue &&
                 SimpleSidearmsAdapter.RespectEnabled)
             {
                 bool ranged = analysis.SidearmState.PreferredPrimaryIsRanged.Value;
-                ConsiderCarried(analysis, context, analysis.Current, ranged, powerCache);
-                for (int i = 0; i < analysis.Sidearms.Count; i++)
+                ThingWithComps ssChoice = SimpleSidearmsAdapter.GetPreferredCarriedPrimary(pawn, ranged);
+                if (ssChoice != null && ssChoice != analysis.Current)
                 {
-                    ConsiderCarried(analysis, context, analysis.Sidearms[i], ranged, powerCache);
+                    ConsiderCarried(analysis, context, ssChoice, ranged, powerCache);
                 }
             }
 

@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.7.2**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.7.3**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.7.2 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.7.3 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -960,6 +960,32 @@ warning for `PatientSomeone.StorageTypeCategories` but proceeded.
 
 ---
 
+## 0.7.3 — main-tab icon
+
+The Armory button was text-only. `MainButtonDef.Icon` loads `iconPath`, and Core
+only ships paths for History, Factions and Menu. The icons on the other buttons
+in the user's game come from **Vanilla Textures Expanded**
+(`VanillaExpanded.VTEXE`), which patches `iconPath` for Architect, Work,
+Schedule, Research, Assign, Animals, Wildlife, Quests and World, and replaces the
+existing History/Factions/Menu paths (plus Mechs).
+
+- Added `Textures/UI/Buttons/MainButtons/IconArmory.png`: 64×64, transparent,
+  flat `#BBBBBB`, crossed swords, glyph bounding box ~47 px, matching the VTEX
+  set (same size, fill and weight).
+- Added `<iconPath>UI/Buttons/MainButtons/IconArmory</iconPath>` to
+  `MainButtonDefs.xml`. Armory ships the texture itself, so the icon appears with
+  or without VTEX.
+- `tools/Generate-ArmoryIcon.ps1` redraws it with `System.Drawing`; no external
+  image tooling is required.
+- `MainButtonWorker.DoButton` draws an empty label when `Icon != null`, so the
+  button becomes icon-only like the VTEX tabs. The tooltip still shows the label
+  and description.
+
+Verified live against the real mod list with VTEX: the bottom bar shows the
+crossed swords at the neighbours' visual weight. Build clean.
+
+---
+
 ## Pending verification (0.7.2)
 
 Verified live on the real save:
@@ -1177,6 +1203,7 @@ polish, not new core behaviour.
 | 0.7.0 | Demand rework: ideal loadout vs owned copies over all craftable/buyable/owned defs, normal-quality scoring probes, `Build`/`Locked by research` sections, `Owned`/`Need`/`Gain`/`Source`, expandable per-colonist detail |
 | 0.7.1 | Demand lists every upgrade as an independent option (overlapping wants), white/grey best-vs-alternative markers, and Craft / Research / Buy sections in action order |
 | 0.7.2 | Keep the best option visible when already covered (`enough` in green), so owned ideals and white backup rows no longer disappear behind grey alternatives |
+| 0.7.3 | Add a crossed-swords main-tab icon matching the Vanilla Textures Expanded button set |
 
 ---
 

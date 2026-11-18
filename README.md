@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.7.2** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.7.3** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -360,6 +360,7 @@ Armory/
   About/About.xml
   About/Preview.png
   Defs/MainButtonDefs.xml          MainButtonDef "Armory", order 35
+  Textures/UI/Buttons/MainButtons/IconArmory.png  main-tab icon
   Assemblies/Armory.dll            build output
   Source/Armory/
     Armory.csproj
@@ -385,6 +386,7 @@ Armory/
   tools/Quicktest-Armory.ps1       isolated quicktest harness
   tools/Setup-LiveTest.ps1         copies a real save into an isolated folder
   tools/LiveTestScaffold.cs.txt    temporary auto-load/screenshot scaffold
+  tools/Generate-ArmoryIcon.ps1    regenerates the tab icon
 ```
 
 ---

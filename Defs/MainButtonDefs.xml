@@ -5,6 +5,7 @@
     <label>Armory</label>
     <description>Inspect weapon preferences and blockers for every colonist.</description>
     <tabWindowClass>Armory.MainTabWindow_Armory</tabWindowClass>
+    <iconPath>UI/Buttons/MainButtons/IconArmory</iconPath>
     <order>35</order>
     <validWithoutMap>false</validWithoutMap>
   </MainButtonDef>

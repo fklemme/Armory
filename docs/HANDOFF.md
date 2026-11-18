@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.7.7**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.7.8**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.7.7 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.7.8 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -1113,6 +1113,52 @@ Verified live on the real save:
   in green.
 - `Score` and per-colonist detail alignment; no Armory exceptions.
 
+---
+
+## 0.7.8 — real bench selection and Craft button
+
+Demand showed `Electric smithy` for a recurve bow even though the colony had a
+crafting spot and Electricity was not researched. `ResolveBench` returned the
+first `AllRecipeUsers` entry, which is arbitrary and can be a locked bench.
+
+- `WeaponSource.BenchUsers` caches the recipe's work benches once, using
+  `RecipeDef.AllRecipeUsers` and `IBillGiver`.
+- `ResolveBench` prefers a **built** player bench on the current map (usable
+  first, then the more advanced/least busy one), then the best **unlocked**
+  bench (all `researchPrerequisites` finished). A tribal crafting spot therefore
+  no longer hides behind an electric smithy.
+- `DemandRow.CanCraft` is true only when the recipe is unlocked, at least one
+  copy is missing, and a built bench exists.
+- Craft rows show a `Craft` button in the Source column. It queues a single 1x
+  `Bill_Production` at the same bench named in the row (`DemandCrafting`). It
+  does not equip the weapon or manage the bill afterwards.
+- The Source tooltip explains built vs unlocked and the button.
+- The live test harness now waits for `LongEventHandler.AnyEventNowOrWaiting` to
+  clear instead of requiring `Map.uniqueID` to change; a save whose first map is
+  id 0 no longer times out.
+
+Verified live:
+
+- New Tribe8: `Recurve bow` shows `craft · Crafting spot`, `can craft yes`, and
+  `TryAddBill` added one recurve bow bill to the crafting spot (bills 1).
+- Armory Testing: the built electric smithy was selected and received the bill
+  (bills 3).
+- Craft buttons render in the Source column on both saves; no Armory exceptions.
+
+---
+
+## Pending verification (0.7.8)
+
+- On New Tribe8, the recurve bow row shows `Crafting spot`, not a locked
+  Electric smithy.
+- Clicking `Craft` at a built bench adds exactly one bill and shows the
+  confirmation message.
+- No `Craft` button when no valid bench is built, when the recipe is
+  research-locked, or when `Needed` is `enough`.
+- If several benches are built, the bill goes to the same bench named in the
+  row (usable and more advanced first).
+- Clicking `Craft` does not toggle the row's expanded details.
+
 Still worth a look:
 
 - Whether the 54-row option menu is too long for normal use; the top white rows
@@ -1322,6 +1368,7 @@ polish, not new core behaviour.
 | 0.7.5 | Order Demand by total expected score (power × fit across colonists), add a `Power` column, and stop forcing best-for-someone rows above stronger alternatives |
 | 0.7.6 | Make all Demand weapon names white; mark best-in-section rows with a gold star in a fixed left gutter |
 | 0.7.7 | Show the real sort key as a `Score` column, align expanded per-colonist `Score`/`Slot`/`Gain` under the headers, and rename `Want`/`Need` to `Wanted by`/`Needed` |
+| 0.7.8 | Show the best built/unlocked bench instead of an arbitrary recipe user, and add a `Craft` button that queues one bill at that bench |
 
 ---
 
@@ -1338,6 +1385,7 @@ polish, not new core behaviour.
 | `Source/Armory/ArmoryPlanner.cs` | Automation decisions and job issuing |
 | `Source/Armory/ArmorySnapshotBuilder.cs` | Ranking, pod lookup, weapon filter, demand |
 | `Source/Armory/Scoring/*` | Power, fit, blockers, weapon catalog/probes |
+| `Source/Armory/DemandCrafting.cs` | Queues a Demand weapon bill at the chosen built bench |
 | `Source/Armory/UI/MainTabWindow_Armory.cs` | All tabs and layout |
 | `Source/Armory/ArmorySettings.cs` | Settings + migration + scroll UI |
 | `Source/Armory/ArmoryGameComponent.cs` | Session log, planner reset |

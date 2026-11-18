@@ -157,7 +157,7 @@ namespace Armory
                     ? "new"
                     : row.AverageGain.ToString("0%");
                 Log.Message(string.Format(
-                    "[Armory]   demand {0}: {1} | score {2:0} | power {3:0} | wanted {4} (best {5}) | owned {6} ({7} forbidden) | needed {8} | gain {9} | {10} | {11}",
+                    "[Armory]   demand {0}: {1} | score {2:0} | power {3:0} | wanted {4} (best {5}) | owned {6} ({7} forbidden) | needed {8} | gain {9} | {10} | {11} | can craft {12} | bench {13}",
                     i + 1,
                     row.Label,
                     row.TotalScore,
@@ -173,7 +173,9 @@ namespace Armory
                         ? (row.MissingResearch ?? "locked")
                         : row.CraftableNow
                             ? "craft " + row.BenchLabel
-                            : "buy"));
+                            : "buy",
+                    row.CanCraft ? "yes" : "no",
+                    row.BenchLabel ?? "-"));
             }
         }
     }

@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.7.7** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.7.8** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -97,7 +97,11 @@ Columns:
   for someone but already covered;
 - `Gain`: average improvement over the current weapon, assuming a newly made
   normal-quality copy; `new` when the pawn has nothing in that slot;
-- `Source`: `craft · bench`, the research project, or `buy`.
+- `Source`: `craft · bench`, the research project, or `buy`. For craft rows the
+  bench is the best **built** bench that can make it; if none is built, the best
+  **unlocked** bench is shown instead. A craft row with missing copies and a
+  built bench also gets a `Craft` button that queues one bill at that bench. It
+  does not equip the weapon.
 
 Sections follow the order of action: **Craft** (recipe unlocked now),
 **Research** (a project unlocks it; `· buy` when a trader can also supply it),

@@ -21,6 +21,12 @@ namespace Armory
         public float ProbePower;
         public string BenchLabel;
 
+        /// <summary>Best work bench for this recipe right now (built first, then unlocked).</summary>
+        public ThingDef BenchDef;
+
+        /// <summary>All work-bench defs that can run the recipe, resolved once.</summary>
+        public List<ThingDef> BenchUsers;
+
         public bool AvailableNow;
         public ResearchProjectDef MissingResearch;
         public bool Buyable;
@@ -112,14 +118,15 @@ namespace Armory
         }
 
         /// <summary>
-        /// Recomputes research availability; finishing a project must not require a restart.
+        /// Recomputes research availability and the best bench; finishing a project or
+        /// building a bench must not require a restart.
         /// </summary>
-        public static void RefreshAvailability()
+        public static void RefreshAvailability(Map map)
         {
             EnsureBuilt();
             for (int i = 0; i < sources.Count; i++)
             {
-                Refresh(sources[i]);
+                Refresh(sources[i], map);
             }
         }
 
@@ -142,7 +149,9 @@ namespace Armory
                     continue;
                 }
                 source.Recipe = pair.Value;
-                source.BenchLabel = ResolveBench(pair.Value);
+                source.BenchUsers = CollectBenchUsers(pair.Value);
+                source.BenchDef = ResolveBench(source, null);
+                source.BenchLabel = source.BenchDef == null ? null : source.BenchDef.LabelCap;
                 byDef[pair.Key] = source;
                 sources.Add(source);
             }
@@ -260,12 +269,14 @@ namespace Armory
             return source.ProbePower > 0f ? source : null;
         }
 
-        private static void Refresh(WeaponSource source)
+        private static void Refresh(WeaponSource source, Map map)
         {
             if (source.Recipe == null)
             {
                 source.AvailableNow = false;
                 source.MissingResearch = null;
+                source.BenchDef = null;
+                source.BenchLabel = null;
                 return;
             }
 
@@ -278,6 +289,8 @@ namespace Armory
                 source.AvailableNow = false;
             }
             source.MissingResearch = FirstMissing(source.Recipe);
+            source.BenchDef = ResolveBench(source, map);
+            source.BenchLabel = source.BenchDef == null ? null : source.BenchDef.LabelCap;
         }
 
         private static bool SafeAvailable(RecipeDef recipe)
@@ -312,35 +325,171 @@ namespace Armory
             return null;
         }
 
-        private static string ResolveBench(RecipeDef recipe)
+        private static List<ThingDef> CollectBenchUsers(RecipeDef recipe)
         {
+            List<ThingDef> result = new List<ThingDef>();
+            if (recipe == null)
+            {
+                return result;
+            }
+
+            HashSet<ThingDef> seen = new HashSet<ThingDef>();
             try
             {
                 foreach (ThingDef user in recipe.AllRecipeUsers)
                 {
-                    if (user != null)
+                    if (user == null || user.thingClass == null || !seen.Add(user))
                     {
-                        return user.LabelCap;
+                        continue;
                     }
+                    if (!typeof(IBillGiver).IsAssignableFrom(user.thingClass))
+                    {
+                        continue;
+                    }
+                    result.Add(user);
                 }
+            }
+            catch (Exception exception)
+            {
+                Log.Warning("[Armory] could not resolve bench users for " + recipe.defName +
+                            ": " + exception.GetType().Name + ": " + exception.Message);
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Picks the bench that should receive a new bill. A built bench always wins
+        /// (the bill has somewhere real to go); otherwise prefer the best unlocked
+        /// bench so a tribal crafting spot is not hidden behind an electric smithy.
+        /// </summary>
+        private static ThingDef ResolveBench(WeaponSource source, Map map)
+        {
+            if (source == null || source.Recipe == null || source.BenchUsers == null)
+            {
+                return null;
+            }
+
+            Thing built = FindBuiltBench(source, map) as Thing;
+            if (built != null)
+            {
+                return built.def;
+            }
+
+            ThingDef best = null;
+            int bestRank = int.MinValue;
+            for (int i = 0; i < source.BenchUsers.Count; i++)
+            {
+                ThingDef user = source.BenchUsers[i];
+                if (!IsBenchUnlocked(user))
+                {
+                    continue;
+                }
+
+                int rank = BenchRank(user);
+                if (best == null || rank > bestRank ||
+                    (rank == bestRank &&
+                     string.Compare(user.defName, best.defName, StringComparison.OrdinalIgnoreCase) < 0))
+                {
+                    best = user;
+                    bestRank = rank;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// Finds a built, player-owned bench that can run the recipe. Prefer one that is
+        /// currently usable, then the more advanced bench, then the least busy one.
+        /// </summary>
+        public static IBillGiver FindBuiltBench(WeaponSource source, Map map)
+        {
+            if (source == null || source.Recipe == null || map == null ||
+                source.BenchUsers == null || source.BenchUsers.Count == 0)
+            {
+                return null;
+            }
+
+            IBillGiver best = null;
+            int bestUsable = -1;
+            int bestRank = int.MinValue;
+            int bestBills = int.MaxValue;
+            string bestDefName = null;
+
+            List<Building> buildings = map.listerBuildings.allBuildingsColonist;
+            for (int i = 0; i < buildings.Count; i++)
+            {
+                Building building = buildings[i];
+                if (building == null || building.Destroyed ||
+                    !source.BenchUsers.Contains(building.def))
+                {
+                    continue;
+                }
+
+                IBillGiver giver = building as IBillGiver;
+                if (giver == null || giver.BillStack == null)
+                {
+                    continue;
+                }
+
+                int usable = SafeUsable(giver) ? 1 : 0;
+                int rank = BenchRank(building.def);
+                int bills = giver.BillStack.Count;
+                bool better = best == null ||
+                              usable > bestUsable ||
+                              (usable == bestUsable && rank > bestRank) ||
+                              (usable == bestUsable && rank == bestRank && bills < bestBills) ||
+                              (usable == bestUsable && rank == bestRank && bills == bestBills &&
+                               string.Compare(building.def.defName, bestDefName,
+                                   StringComparison.OrdinalIgnoreCase) < 0);
+                if (!better)
+                {
+                    continue;
+                }
+
+                best = giver;
+                bestUsable = usable;
+                bestRank = rank;
+                bestBills = bills;
+                bestDefName = building.def.defName;
+            }
+            return best;
+        }
+
+        private static bool SafeUsable(IBillGiver giver)
+        {
+            try
+            {
+                return giver.CurrentlyUsableForBills();
             }
             catch (Exception)
             {
-                // Fall through to the plain recipeUsers list.
+                return false;
             }
+        }
 
-            if (recipe.recipeUsers != null)
+        /// <summary>
+        /// Higher tech level first; uiOrder breaks ties when tech levels are unset.
+        /// </summary>
+        private static int BenchRank(ThingDef def)
+        {
+            return (int)def.techLevel * 100000 + (int)def.uiOrder;
+        }
+
+        private static bool IsBenchUnlocked(ThingDef def)
+        {
+            if (def.researchPrerequisites == null)
             {
-                for (int i = 0; i < recipe.recipeUsers.Count; i++)
+                return true;
+            }
+            for (int i = 0; i < def.researchPrerequisites.Count; i++)
+            {
+                ResearchProjectDef project = def.researchPrerequisites[i];
+                if (project != null && !project.IsFinished)
                 {
-                    ThingDef user = recipe.recipeUsers[i];
-                    if (user != null)
-                    {
-                        return user.LabelCap;
-                    }
+                    return false;
                 }
             }
-            return null;
+            return true;
         }
 
         /// <summary>

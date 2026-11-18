@@ -102,7 +102,8 @@ Useful switches:
 1. Waits for `-quicktest` to enter the play scene and generate a throwaway map.
 2. Queues `SavedGameLoaderNow.LoadGameFromSaveFileNow(markerText)` **from the
    play scene**, once the quicktest map exists.
-3. Waits for the new map (`Map.uniqueID` changes), logs the colony size.
+3. Waits for the load long event to finish (`LongEventHandler.AnyEventNowOrWaiting`
+   becomes false) and logs the colony size.
 4. Opens the Armory tab with `Find.MainTabsRoot.SetCurrentTab`, reflects the
    private `view` field to `Demand`, and calls `ArmoryMapComponent.LogSnapshot`.
 5. Closes `Dialog_Debug` windows, captures `armory-live.png`, waits a second, and
@@ -144,6 +145,10 @@ script recreates it from the real profile on the next run.
   `GenFilePaths.FilePathForSavedGame` appends the extension.
 - **Wait for the quicktest map before queuing the load.** The quicktest map
   initialises the world grid; queueing earlier reintroduces the 0-colonist load.
+- **Do not key load completion on `Map.uniqueID` changing.** A save's first map
+  can also have id `0`, the same id the quicktest map receives; that looked like
+  "still loading" and timed out. Wait for
+  `LongEventHandler.AnyEventNowOrWaiting` to become false instead.
 - Dev mode auto-opens the **debug log window**; close `Dialog_Debug` before the
   screenshot (`Find.WindowStack.TryRemove`).
 - The user's mod list may print an "incompatible version" warning (in this setup,

@@ -619,7 +619,7 @@ namespace Armory
             {
                 WeaponCatalog.GetOrCreate(ownedDefs[i]);
             }
-            WeaponCatalog.RefreshAvailability();
+            WeaponCatalog.RefreshAvailability(snapshot.Map);
 
             List<WeaponSource> universe = WeaponCatalog.All;
             ArmorySettings settings = ArmoryMod.Settings;
@@ -706,6 +706,8 @@ namespace Armory
                     row.CraftableNow = source.AvailableNow;
                     row.Buyable = source.Buyable;
                     row.BenchLabel = source.BenchLabel;
+                    row.CanCraft = row.CraftableNow && row.Need > 0 &&
+                                   WeaponCatalog.FindBuiltBench(source, snapshot.Map) != null;
                     row.MissingResearch = source.MissingResearch == null
                         ? null
                         : source.MissingResearch.LabelCap;

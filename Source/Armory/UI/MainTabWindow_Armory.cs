@@ -1230,7 +1230,8 @@ namespace Armory
             public const float OwnedWidth = 92f;
             public const float NeedWidth = 64f;
             public const float GainWidth = 64f;
-            public const float SourceWidth = 190f;
+            public const float SourceWidth = 238f;
+            public const float CraftButtonWidth = 52f;
             public const float BestMarkerWidth = 20f;
             private const float Gap = 8f;
 
@@ -1326,7 +1327,15 @@ namespace Armory
 
                 Rect rowRect = new Rect(0f, cursor, rowWidth, RowHeight);
                 Widgets.DrawHighlightIfMouseover(rowRect);
-                if (Widgets.ButtonInvisible(rowRect))
+
+                Rect craftButton = new Rect(
+                    columns.SourceX + DemandColumns.SourceWidth - DemandColumns.CraftButtonWidth,
+                    cursor + 2f, DemandColumns.CraftButtonWidth, RowHeight - 4f);
+                bool showCraft = row.CanCraft;
+                Rect rowClickRect = new Rect(rowRect.x, rowRect.y,
+                    rowRect.width - (showCraft ? DemandColumns.CraftButtonWidth + 4f : 0f),
+                    rowRect.height);
+                if (Widgets.ButtonInvisible(rowClickRect))
                 {
                     expandedDemandDef = expandedDemandDef == row.Def ? null : row.Def;
                 }
@@ -1409,8 +1418,20 @@ namespace Armory
                 DrawCell(new Rect(columns.GainX, cursor, DemandColumns.GainWidth, RowHeight),
                     GainText(row), TextAnchor.MiddleRight, GameFont.Small,
                     new Color(0.72f, 0.9f, 0.72f));
-                DrawCell(new Rect(columns.SourceX, cursor, DemandColumns.SourceWidth, RowHeight),
-                    SourceText(row), TextAnchor.MiddleLeft, GameFont.Small, SourceColor(row));
+                Rect sourceTextRect = new Rect(columns.SourceX, cursor,
+                    DemandColumns.SourceWidth -
+                    (showCraft ? DemandColumns.CraftButtonWidth + 4f : 0f), RowHeight);
+                DrawCell(sourceTextRect, SourceText(row), TextAnchor.MiddleLeft, GameFont.Small,
+                    SourceColor(row));
+                if (showCraft)
+                {
+                    if (Widgets.ButtonText(craftButton, "Craft"))
+                    {
+                        DemandCrafting.TryAddBill(row.Def, snapshot.Map, out _);
+                    }
+                    TooltipHandler.TipRegion(craftButton,
+                        "Add a 1x bill at " + row.BenchLabel + ". This does not equip the weapon.");
+                }
 
                 cursor += RowHeight;
 
@@ -1496,7 +1517,7 @@ namespace Armory
                 DemandColumns.SourceWidth, rect.height);
             DrawCell(sourceRect, "Source", TextAnchor.MiddleLeft, GameFont.Tiny, color);
             TooltipHandler.TipRegion(sourceRect,
-                "Craft: the recipe is unlocked now. Research: the named project unlocks it. Buy: a trader is the only source.");
+                "Craft: the best built bench, or the best unlocked bench if none is built yet. Research: the named project unlocks it. Buy: a trader is the only source. Craft rows with a built bench also show a Craft button that queues one bill.");
         }
 
         private static string DemandSectionTitle(DemandSection section)

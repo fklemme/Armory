@@ -542,7 +542,9 @@ loading a real 12-colonist save with the user's 73-mod list in an isolated
   `GenFilePaths.FilePathForSavedGame` appends the extension.
 - `-quicktest` is a usable vehicle for entering the play scene with an isolated
   save-data folder. It also generates a throwaway map first; wait for its map,
-  then queue the save load and detect the new `Map.uniqueID`.
+  then queue the save load and wait for `LongEventHandler.AnyEventNowOrWaiting`
+  to clear. Do **not** key completion on a changed `Map.uniqueID`: a save's first
+  map can also be id `0`, the same id the quicktest map gets.
 - **`ScreenCapture.CaptureScreenshot(path)`** captures the game's own frame even
   when its window is behind other applications. No desktop capture, focus
   change, `SendInput`, or keystrokes are needed.

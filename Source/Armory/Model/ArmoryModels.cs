@@ -345,6 +345,12 @@ namespace Armory
 
         public bool CraftableNow;
         public bool Buyable;
+
+        /// <summary>
+        /// True when the recipe is unlocked, at least one copy is missing, and a valid
+        /// player-owned bench is built on the current map.
+        /// </summary>
+        public bool CanCraft;
         public string BenchLabel;
         public string MissingResearch;
 

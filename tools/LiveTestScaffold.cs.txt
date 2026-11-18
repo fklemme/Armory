@@ -44,7 +44,6 @@ namespace Armory
     {
         private static string saveName;
         private bool saveLoadQueued;
-        private int quicktestMapId = -1;
         private int loadQueuedFrame = -1;
         private int mapFrame = -1;
         private bool opened;
@@ -113,10 +112,9 @@ namespace Armory
                         return;
                     }
 
-                    quicktestMapId = map.uniqueID;
                     saveLoadQueued = true;
                     loadQueuedFrame = Time.frameCount;
-                    Log.Message("[Armory] live test: quicktest map " + quicktestMapId +
+                    Log.Message("[Armory] live test: quicktest map " + map.uniqueID +
                                 "; loading " + SaveName);
                     LongEventHandler.QueueLongEvent(
                         delegate { SavedGameLoaderNow.LoadGameFromSaveFileNow(SaveName); },
@@ -124,15 +122,22 @@ namespace Armory
                     return;
                 }
 
-                if (map.uniqueID == quicktestMapId)
+                // Do not trust Map.uniqueID to change: a save's first map can also be 0,
+                // the same id the quicktest map received. The long event is the reliable
+                // "save has finished loading" signal.
+                if (LongEventHandler.AnyEventNowOrWaiting)
                 {
                     return;
                 }
 
-                loadQueuedFrame = -1;
-
-                if (mapFrame < 0)
+                if (loadQueuedFrame >= 0)
                 {
+                    loadQueuedFrame = -1;
+                    map = Find.CurrentMap;
+                    if (map == null)
+                    {
+                        return;
+                    }
                     mapFrame = Time.frameCount;
                     Log.Message("[Armory] live test: save map loaded, frame " + mapFrame +
                                 ", colonists " + map.mapPawns.FreeColonists.Count +

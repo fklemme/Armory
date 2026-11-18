@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.7.10**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.7.11**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.7.10 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.7.11 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -1223,6 +1223,39 @@ Verified live on New Tribe8: `Simple Sidearms: primary by skill (ranged)` and
 - A forced/blocked SS state also wraps onto the second line.
 - No `LiveTestScaffold` or repair-migration code remains in `Source/`.
 
+---
+
+## 0.7.11 — separate hand and backup list limits
+
+`maxCandidates` only limited the hand list; backups used a hard-coded
+`SidearmDisplayLimit = 12`.
+
+- `ArmorySettings.maxCandidates` default is now **10** for the hand list.
+- New `ArmorySettings.maxSidearmCandidates` defaults to **5** for the backup
+  list and is saved independently.
+- Settings now has `Hand weapons shown per pawn` (5–100) and
+  `Backup weapons shown per pawn` (1–50).
+- `MainTabWindow_Armory.SidearmDisplayLimit` reads the setting; both the list
+  rows and the `... N more` height use it.
+- Settings migration 3 moves the old default 25 and the common manual minimum 5
+  to the new hand default 10; other explicit hand values are preserved. The new
+  backup value defaults to 5.
+
+Verified live on New Tribe8 with the isolated config: the pawn detail shows up
+to 10 hand candidates and 5 backup candidates, with the remaining backups
+collapsed into `... N more`. Build clean.
+
+---
+
+## Pending verification (0.7.11)
+
+- The hand list respects 10 by default and the backup list 5.
+- The two sliders change their lists independently.
+- `... N more` appears when a list is longer than its limit, and the backup
+  panel remains reachable.
+- Existing saves with hand 5/25 migrate to 10; other explicit hand values are
+  preserved.
+
 Still worth a look:
 
 - Whether the 54-row option menu is too long for normal use; the top white rows
@@ -1435,6 +1468,7 @@ polish, not new core behaviour.
 | 0.7.8 | Show the best built/unlocked bench instead of an arbitrary recipe user, and add a `Craft` button that queues one bill at that bench |
 | 0.7.9 | Use `RecipeDef.MakeNewBill()` so unfinished-thing recipes get `Bill_ProductionWithUft`, and repair bills created by 0.7.8 on load |
 | 0.7.10 | Split the SS preference and backup-rule text across lines; remove the temporary malformed-bill migration |
+| 0.7.11 | Separate hand/backup list limits: default 10 hand and 5 backup, with independent sliders |
 
 ---
 

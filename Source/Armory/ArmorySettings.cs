@@ -6,7 +6,8 @@ namespace Armory
     public class ArmorySettings : ModSettings
     {
         public float upgradeThreshold = 0.10f;
-        public int maxCandidates = 25;
+        public int maxCandidates = 10;
+        public int maxSidearmCandidates = 5;
         public int scanIntervalTicks = 120;
         public bool showBlocked = true;
         public bool debugLogging;
@@ -24,7 +25,7 @@ namespace Armory
         public bool manageSidearms;
         public bool replaceWorseSidearms = true;
         public int manualCooldownTicks = 15000;
-        public int settingsVersion = 2;
+        public int settingsVersion = 3;
 
         private Vector2 scrollPosition;
         private float contentHeight = 1200f;
@@ -33,7 +34,8 @@ namespace Armory
         {
             base.ExposeData();
             Scribe_Values.Look(ref upgradeThreshold, "upgradeThreshold", 0.10f);
-            Scribe_Values.Look(ref maxCandidates, "maxCandidates", 25);
+            Scribe_Values.Look(ref maxCandidates, "maxCandidates", 10);
+            Scribe_Values.Look(ref maxSidearmCandidates, "maxSidearmCandidates", 5);
             Scribe_Values.Look(ref scanIntervalTicks, "scanIntervalTicks", 120);
             Scribe_Values.Look(ref showBlocked, "showBlocked", true);
             Scribe_Values.Look(ref debugLogging, "debugLogging", false);
@@ -70,6 +72,19 @@ namespace Armory
                 // backup, and makes per-type upgrades part of the default behaviour.
                 replaceWorseSidearms = true;
                 settingsVersion = 2;
+            }
+
+            if (Scribe.mode == LoadSaveMode.PostLoadInit && settingsVersion < 3)
+            {
+                // 0.7.11 splits the old single list limit into hand and backup limits.
+                // The old default (25) and the common manual minimum (5) move to the
+                // new hand default of 10; explicit other values are preserved.
+                if (maxCandidates == 25 || maxCandidates == 5)
+                {
+                    maxCandidates = 10;
+                }
+                maxSidearmCandidates = 5;
+                settingsVersion = 3;
             }
         }
 
@@ -158,8 +173,10 @@ namespace Armory
             listing.Label(string.Format("Melee preference: x{0:0.00}", meleeWeight));
             meleeWeight = listing.Slider(meleeWeight, 0.5f, 2f);
 
-            listing.Label(string.Format("Ranked weapons shown per pawn: {0}", maxCandidates));
+            listing.Label(string.Format("Hand weapons shown per pawn: {0}", maxCandidates));
             maxCandidates = Mathf.RoundToInt(listing.Slider(maxCandidates, 5f, 100f));
+            listing.Label(string.Format("Backup weapons shown per pawn: {0}", maxSidearmCandidates));
+            maxSidearmCandidates = Mathf.RoundToInt(listing.Slider(maxSidearmCandidates, 1f, 50f));
 
             listing.CheckboxLabeled("Show blocked weapons by default", ref showBlocked);
 

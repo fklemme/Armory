@@ -34,7 +34,16 @@ namespace Armory
 
         private const float RowHeight = 26f;
         private const float HeaderHeight = 22f;
-        private const int SidearmDisplayLimit = 12;
+
+        private static int SidearmDisplayLimit
+        {
+            get
+            {
+                return ArmoryMod.Settings == null
+                    ? 5
+                    : Mathf.Max(1, ArmoryMod.Settings.maxSidearmCandidates);
+            }
+        }
 
         public override Vector2 RequestedTabSize
         {
@@ -619,7 +628,7 @@ namespace Armory
                 }
             }
 
-            int configuredLimit = ArmoryMod.Settings == null ? 25 : ArmoryMod.Settings.maxCandidates;
+            int configuredLimit = ArmoryMod.Settings == null ? 10 : ArmoryMod.Settings.maxCandidates;
             int limit = Mathf.Min(visibleRanked.Count, Mathf.Max(5, configuredLimit));
             if (selectedCandidate >= limit)
             {

@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.7.10** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.7.11** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -359,12 +359,13 @@ All settings are under **Options → Mod settings → Armory**. The page scrolls
 | Upgrade threshold | 10% | 0–50% | Required improvement to swap |
 | Ranged preference | ×1.00 | 0.5–2.0 | Global scoring bias |
 | Melee preference | ×1.00 | 0.5–2.0 | Global scoring bias |
-| Ranked weapons shown per pawn | 25 | 5–100 | UI list limit |
+| Ranked hand weapons shown per pawn | 10 | 5–100 | Hand list limit |
+| Ranked backup weapons shown per pawn | 5 | 1–50 | Backup list limit |
 | Show blocked weapons by default | on | — | Include non-ready rows |
 | Rescan interval | 120 ticks | 30–600 | Snapshot rebuild interval |
 | Log snapshot summary on map load | off | — | Writes a one-time diagnostic to `Player.log` |
 
-Internal: `settingsVersion` (currently 2) drives the age and typed-slot
+Internal: `settingsVersion` (currently 3) drives the age, typed-slot and list-limit
 migrations.
 
 ---

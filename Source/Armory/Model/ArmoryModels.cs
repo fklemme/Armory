@@ -345,8 +345,17 @@ namespace Armory
         public string BenchLabel;
         public string MissingResearch;
 
-        /// <summary>Sum of relative gains; used for ordering so count and size both matter.</summary>
+        /// <summary>Normal-quality, pawn-independent weapon strength for display.</summary>
+        public float Power;
+
+        /// <summary>Sum of relative gains; used as a secondary ordering key.</summary>
         public float TotalGain;
+
+        /// <summary>
+        /// Sum of candidate scores (power x pawn fit) across the contributing colonists.
+        /// Primary ordering key inside a section: power, fit and breadth all matter.
+        /// </summary>
+        public float TotalScore;
 
         /// <summary>Sum of gains that have a baseline (weapons, not empty slots).</summary>
         public float KnownGain;

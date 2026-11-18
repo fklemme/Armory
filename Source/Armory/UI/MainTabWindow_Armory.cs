@@ -1224,6 +1224,7 @@ namespace Armory
         private struct DemandColumns
         {
             public const float SlotWidth = 150f;
+            public const float PowerWidth = 60f;
             public const float WantWidth = 52f;
             public const float OwnedWidth = 100f;
             public const float NeedWidth = 56f;
@@ -1233,6 +1234,7 @@ namespace Armory
 
             public float WeaponX;
             public float WeaponWidth;
+            public float PowerX;
             public float SlotX;
             public float WantX;
             public float OwnedX;
@@ -1249,8 +1251,9 @@ namespace Armory
                 columns.OwnedX = columns.NeedX - Gap - OwnedWidth;
                 columns.WantX = columns.OwnedX - Gap - WantWidth;
                 columns.SlotX = columns.WantX - Gap - SlotWidth;
+                columns.PowerX = columns.SlotX - Gap - PowerWidth;
                 columns.WeaponX = 4f;
-                columns.WeaponWidth = Mathf.Max(120f, columns.SlotX - Gap - columns.WeaponX);
+                columns.WeaponWidth = Mathf.Max(120f, columns.PowerX - Gap - columns.WeaponX);
                 return columns;
             }
         }
@@ -1344,6 +1347,9 @@ namespace Armory
                     TooltipHandler.TipRegion(weaponCell,
                         "An upgrade, but not the best option in this section for any colonist.");
                 }
+                DrawCell(new Rect(columns.PowerX, cursor, DemandColumns.PowerWidth, RowHeight),
+                    row.Power.ToString("0"), TextAnchor.MiddleRight, GameFont.Small,
+                    new Color(0.82f, 0.82f, 0.82f));
                 DrawCell(new Rect(columns.SlotX, cursor, DemandColumns.SlotWidth, RowHeight),
                     row.Uses, TextAnchor.MiddleLeft, GameFont.Small,
                     new Color(0.72f, 0.82f, 0.92f));
@@ -1412,6 +1418,11 @@ namespace Armory
             Color color = new Color(0.68f, 0.68f, 0.68f);
             DrawCell(new Rect(rect.x + columns.WeaponX, rect.y, columns.WeaponWidth, rect.height),
                 "Weapon", TextAnchor.MiddleLeft, GameFont.Tiny, color);
+            Rect powerRect = new Rect(rect.x + columns.PowerX, rect.y, DemandColumns.PowerWidth,
+                rect.height);
+            DrawCell(powerRect, "Power", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            TooltipHandler.TipRegion(powerRect,
+                "Normal-quality weapon strength, independent of the pawn. Rows are sorted by total expected score (power x fit, summed over contributing colonists), then total gain.");
             DrawCell(new Rect(rect.x + columns.SlotX, rect.y, DemandColumns.SlotWidth, rect.height),
                 "Slot", TextAnchor.MiddleLeft, GameFont.Tiny, color);
             Rect wantRect = new Rect(rect.x + columns.WantX, rect.y, DemandColumns.WantWidth,
@@ -1430,7 +1441,7 @@ namespace Armory
                 rect.height);
             DrawCell(gainRect, "Gain", TextAnchor.MiddleRight, GameFont.Tiny, color);
             TooltipHandler.TipRegion(gainRect,
-                "Improvement over the colonist's current weapon, assuming an ordinary normal-quality copy.");
+                "Improvement over the colonist's current weapon, assuming an ordinary normal-quality copy. 'new' means the slot is empty.");
             Rect sourceRect = new Rect(rect.x + columns.SourceX, rect.y,
                 DemandColumns.SourceWidth, rect.height);
             DrawCell(sourceRect, "Source", TextAnchor.MiddleLeft, GameFont.Tiny, color);

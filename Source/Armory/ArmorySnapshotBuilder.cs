@@ -742,15 +742,14 @@ namespace Armory
                     return bySection;
                 }
 
-                // Rows that are the best option in their section for at least one
-                // colonist come first; the rest are alternatives.
-                bool aTop = a.BestCount > 0;
-                bool bTop = b.BestCount > 0;
-                if (aTop != bTop)
+                // Aggregate expected benefit: power x pawn fit, summed over the
+                // colonists who would upgrade. This keeps weak starter weapons below
+                // stronger options even when they are somebody's current best.
+                int byScore = b.TotalScore.CompareTo(a.TotalScore);
+                if (byScore != 0)
                 {
-                    return bTop ? 1 : -1;
+                    return byScore;
                 }
-
                 int byGain = b.TotalGain.CompareTo(a.TotalGain);
                 if (byGain != 0)
                 {
@@ -919,10 +918,13 @@ namespace Armory
                 row = new DemandRow
                 {
                     Def = source.Def,
-                    Label = source.Def.LabelCap
+                    Label = source.Def.LabelCap,
+                    Power = source.ProbePower
                 };
                 rows[source.Def] = row;
             }
+
+            row.TotalScore += score;
 
             bool isNew = baseline <= 0.01f;
             float gain = isNew ? 0f : score / baseline - 1f;

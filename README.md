@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.7.4** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.7.5** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -87,6 +87,8 @@ Need = max(0, Want - owned copies that are not forbidden)
 
 Columns:
 
+- `Power`: normal-quality weapon strength, independent of the pawn (shown so
+  unarmed-order comparisons are visible);
 - `Slot`: `hand`, `backup`, or how many of each;
 - `Want`: colonists who would improve with this def (may overlap other rows);
 - `Owned`: copies in the colony (`2 · 1 forb.` when some are forbidden);
@@ -98,13 +100,19 @@ Columns:
 
 Sections follow the order of action: **Craft** (recipe unlocked now),
 **Research** (a project unlocks it; `· buy` when a trader can also supply it),
-and **Buy** (no crafting route, trader only). Within a section, rows that are the
-best option for at least one colonist come first, then alternatives by total
-gain. Rows that are the best option for someone stay visible even when the
-requirement is already covered; those show `enough` in green. Without that, an
-owned ideal (for example the hatchet a colonist already carries) would disappear
-and leave only grey alternatives. Click a row to see the contributing colonists,
-their slot, gain, and current weapon. Defs with no gap are otherwise hidden.
+and **Buy** (no crafting route, trader only). Within a section, rows are ordered
+by **total expected score** (`power × pawn fit`, summed over contributing
+colonists), then total gain, best count and need. This is not pure weapon power:
+a weapon that suits more colonists can outrank a slightly stronger one that
+helps only one. The `Power` column makes that trade-off visible, and it keeps a
+weak starter bow below stronger options even when it is somebody's current best.
+
+Rows that are the best option for someone stay visible even when the requirement
+is already covered; those show `enough` in green. White weapon names are the best
+option in their section for at least one colonist; grey names are alternatives.
+Without that, an owned ideal (for example the hatchet a colonist already carries)
+would disappear. Click a row to see the contributing colonists, their slot, gain,
+and current weapon. Defs with no gap are otherwise hidden.
 
 `Owned` includes forbidden copies; `Need` only counts usable ones, and its
 tooltip shows how many unforbidding would cover. A research-locked def you

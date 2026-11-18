@@ -157,9 +157,10 @@ namespace Armory
                     ? "new"
                     : row.AverageGain.ToString("0%");
                 Log.Message(string.Format(
-                    "[Armory]   demand {0}: {1} | want {2} (best {3}) | owned {4} ({5} forbidden) | need {6} | gain {7} | {8} | {9}",
+                    "[Armory]   demand {0}: {1} | power {2:0} | want {3} (best {4}) | owned {5} ({6} forbidden) | need {7} | gain {8} | {9} | {10}",
                     i + 1,
                     row.Label,
+                    row.Power,
                     row.Uses,
                     row.BestCount,
                     row.Owned,

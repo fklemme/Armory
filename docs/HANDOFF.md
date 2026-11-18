@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.7.4**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.7.5**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.7.4 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.7.5 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -1022,15 +1022,45 @@ Build clean.
 
 ---
 
-## Pending verification (0.7.4)
+## 0.7.5 — Demand ordered by expected strength
 
-- A pawn carrying a gladius and an axe should no longer upgrade the axe to a
-  second gladius; a loose gladius should show `Already carried` in the backup
-  list and be skipped by the planner.
-- Rathat's existing pair is not auto-removed. Drop one manually; the planner must
-  not add a third.
-- The hand list still allows a same-def quality upgrade (normal → excellent);
-  only the backup slot is deduplicated.
+All-new wants contributed a flat `1.0` to `TotalGain`, and rows that were the
+best for someone were sorted before every alternative. For an unarmed colonist
+every weapon is "new", so a Short bow tied with a heavy blaster on the gain key,
+and the best-group rule kept it near the top.
+
+- `DemandRow.TotalScore` — sum of `ProbePower × PawnFit` over the contributing
+  colonists. This is now the primary sort key inside a section: power, fit and
+  breadth all count.
+- `DemandRow.Power` — normal-quality, pawn-independent strength, shown as a new
+  `Power` column between Weapon and Slot.
+- The best-for-someone group is no longer forced to the top. White still marks
+  the best option in a section; grey marks alternatives.
+- Sort: section, `TotalScore` desc, `TotalGain` desc, `BestCount` desc, `Need`
+  desc, def name.
+- `Gain` remains the average relative improvement; `Power` makes "new" rows
+  comparable. The debug demand log now includes `power`.
+
+Deliberately not pure `WeaponPower`: a broad medium upgrade can outrank a narrow
+high-power one, which is what a build plan wants. The `Power` and `Want` columns
+expose the trade-off.
+
+Build clean.
+
+---
+
+## Pending verification (0.7.5)
+
+- With an unarmed colonist (every weapon is "new"), Heavy/Charge blaster should
+  be near the top and Short bow far below; the `Power` column should descend
+  sensibly within a section.
+- White best rows are no longer forced to the top. Check that the colour and the
+  "best option in this section" tooltip still make the plan easy to spot.
+- A medium weapon that suits many colonists may outrank a slightly stronger one
+  that suits only one; verify that the `Power`, `Want` and `Gain` columns make
+  that understandable.
+- Same-def hand quality upgrades remain allowed; backup duplicates remain
+  blocked.
 
 Verified live on the real save:
 
@@ -1249,6 +1279,7 @@ polish, not new core behaviour.
 | 0.7.2 | Keep the best option visible when already covered (`enough` in green), so owned ideals and white backup rows no longer disappear behind grey alternatives |
 | 0.7.3 | Add a crossed-swords main-tab icon matching the Vanilla Textures Expanded button set |
 | 0.7.4 | Never add a second backup of a weapon def the pawn already carries (soft `Already carried` blocker; planner, Demand and Weapons tab all skip it) |
+| 0.7.5 | Order Demand by total expected score (power × fit across colonists), add a `Power` column, and stop forcing best-for-someone rows above stronger alternatives |
 
 ---
 

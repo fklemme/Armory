@@ -684,9 +684,11 @@ namespace Armory
                 DemandRow row = pair.Value;
                 row.Owned = CountOf(owned, row.Def);
                 row.Forbidden = CountOf(forbidden, row.Def);
-                if (row.Need <= 0)
+
+                // Keep the best option even when it is already covered, so the ideal
+                // hand/backup is visible and not replaced by a wall of grey alternatives.
+                if (row.Need <= 0 && row.BestCount <= 0)
                 {
-                    // Already covered by what the colony owns.
                     continue;
                 }
 

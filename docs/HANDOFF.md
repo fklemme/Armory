@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.7.1**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.7.2**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.7.1 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.7.2 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -907,15 +907,40 @@ rows. No Armory exceptions.
 
 ---
 
-## Pending verification (0.7.1)
+## 0.7.2 — keep the best option visible
+
+After 0.7.1 the live save showed only grey backup rows, and a steel hatchet that
+Grant had been carrying was missing from the list. Both came from one bug: rows
+with `Need <= 0` were dropped. A colonist's best hand or backup is often already
+owned, so the white best row vanished and only grey alternatives remained.
+
+- The filter is now `Need <= 0 && BestCount <= 0`. A row that is the best option
+  in its section for at least one colonist always stays visible.
+- Those rows render `enough` in green instead of `0`.
+- The hatchet was the owned ideal: `Need` was 0, so it was hidden. After dropping
+  it, the loose copy was forbidden, which raised `Need` and made the row appear.
+  It should now be visible while equipped as well.
+- The vanilla Axe only appears when its probe beats the equipped hatchet by the
+  upgrade threshold. Once the pawn is unarmed the baseline is 0, so every melee
+  option becomes an upgrade. That part is expected.
+
+The tab rebuilds on the normal 2-second scan interval (`scanIntervalTicks`), so
+a weapon change can take up to 2 s — or one `Refresh` click — to show. That is
+not a logic delay.
+
+---
+
+## Pending verification (0.7.2)
 
 The immediate checks are:
 
+- Backups now show a white best row instead of a wall of grey alternatives; a
+  best row that is already covered shows `enough` in green.
+- The steel hatchet stays visible while equipped (as `enough`) and when dropped.
 - Demand renders at the default window size: header/column alignment, section
   dividers, no overlapping columns, readable `Source` text.
-- On the live save, Demand now lists several rows per section: every weapon that
-  would upgrade at least one colonist, not just the single best. White names are
-  the best option in their section; grey ones are alternatives.
+- On the live save, Demand lists several rows per section: every weapon that
+  would upgrade at least one colonist, not just the single best.
 - Sections appear as **Craft**, **Research**, **Buy** in that order. Craft
   wording is `craft · bench`; Research shows the project (plus `· buy` when
   tradeable); a research-locked def you own shows `more: <project>`.
@@ -1119,6 +1144,7 @@ polish, not new core behaviour.
 | 0.6.7 | Shorten weight blocker to `Can't carry (...)`, number the backup list, white section headers with dividers, move the main tab next to Assign |
 | 0.7.0 | Demand rework: ideal loadout vs owned copies over all craftable/buyable/owned defs, normal-quality scoring probes, `Build`/`Locked by research` sections, `Owned`/`Need`/`Gain`/`Source`, expandable per-colonist detail |
 | 0.7.1 | Demand lists every upgrade as an independent option (overlapping wants), white/grey best-vs-alternative markers, and Craft / Research / Buy sections in action order |
+| 0.7.2 | Keep the best option visible when already covered (`enough` in green), so owned ideals and white backup rows no longer disappear behind grey alternatives |
 
 ---
 

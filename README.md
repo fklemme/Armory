@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.7.1** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.7.2** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -90,7 +90,8 @@ Columns:
 - `Slot`: `hand`, `backup`, or how many of each;
 - `Want`: colonists who would improve with this def (may overlap other rows);
 - `Owned`: copies in the colony (`2 · 1 forb.` when some are forbidden);
-- `Need`: copies still missing;
+- `Need`: copies still missing; `enough` (green) when the def is the best option
+  for someone but already covered;
 - `Gain`: average improvement over the current weapon, assuming a newly made
   normal-quality copy; `new` when the pawn has nothing in that slot;
 - `Source`: `craft · bench`, the research project, or `buy`.
@@ -99,8 +100,11 @@ Sections follow the order of action: **Craft** (recipe unlocked now),
 **Research** (a project unlocks it; `· buy` when a trader can also supply it),
 and **Buy** (no crafting route, trader only). Within a section, rows that are the
 best option for at least one colonist come first, then alternatives by total
-gain. Click a row to see the contributing colonists, their slot, gain, and
-current weapon. Defs with no gap are hidden.
+gain. Rows that are the best option for someone stay visible even when the
+requirement is already covered; those show `enough` in green. Without that, an
+owned ideal (for example the hatchet a colonist already carries) would disappear
+and leave only grey alternatives. Click a row to see the contributing colonists,
+their slot, gain, and current weapon. Defs with no gap are otherwise hidden.
 
 `Owned` includes forbidden copies; `Need` only counts usable ones, and its
 tooltip shows how many unforbidding would cover. A research-locked def you

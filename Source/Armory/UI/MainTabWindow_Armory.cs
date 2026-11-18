@@ -1324,9 +1324,11 @@ namespace Armory
                     expandedDemandDef = expandedDemandDef == row.Def ? null : row.Def;
                 }
 
-                Color needColor = row.Section == DemandSection.Craft
-                    ? new Color(1f, 0.68f, 0.5f)
-                    : new Color(0.78f, 0.72f, 0.62f);
+                Color needColor = row.Need <= 0
+                    ? new Color(0.7f, 0.9f, 0.7f)
+                    : row.Section == DemandSection.Craft
+                        ? new Color(1f, 0.68f, 0.5f)
+                        : new Color(0.78f, 0.72f, 0.62f);
 
                 Rect weaponCell = new Rect(columns.WeaponX, cursor, columns.WeaponWidth, RowHeight);
                 DrawCell(weaponCell, row.Label, TextAnchor.MiddleLeft, GameFont.Small,
@@ -1351,9 +1353,14 @@ namespace Armory
                     OwnedText(row), TextAnchor.MiddleRight, GameFont.Small,
                     row.Forbidden > 0 ? new Color(1f, 0.8f, 0.42f) : Color.white);
                 Rect needCell = new Rect(columns.NeedX, cursor, DemandColumns.NeedWidth, RowHeight);
-                DrawCell(needCell, row.Need.ToString(), TextAnchor.MiddleRight, GameFont.Small,
-                    needColor);
-                if (row.Forbidden > 0)
+                DrawCell(needCell, row.Need <= 0 ? "enough" : row.Need.ToString(),
+                    TextAnchor.MiddleRight, GameFont.Small, needColor);
+                if (row.Need <= 0)
+                {
+                    TooltipHandler.TipRegion(needCell,
+                        "Enough copies already owned. This row is the current ideal for at least one colonist, not a missing item.");
+                }
+                else if (row.Forbidden > 0)
                 {
                     int afterUnforbid = Mathf.Max(0, row.Wanted - row.Owned);
                     string tip;

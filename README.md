@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.7.8** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.7.9** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:

@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.7.8**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.7.9**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.7.8 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.7.9 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -1159,6 +1159,42 @@ Verified live:
   row (usable and more advanced first).
 - Clicking `Craft` does not toggle the row's expanded details.
 
+---
+
+## 0.7.9 — fix bills that ate ingredients
+
+The first Craft button created a plain `Bill_Production` for every recipe. A
+recipe with an unfinished thing (the recurve bow uses `UnfinishedWeapon`) needs
+`Bill_ProductionWithUft`; vanilla's `MakeUnfinishedThingIfNeeded` casts the bill
+to that type. The cast threw `InvalidCastException` after the ingredients were
+taken, so the pawn reset with no weapon and the bill retried forever.
+
+- `DemandCrafting` now uses `RecipeDef.MakeNewBill()`, the same factory the
+  vanilla bills tab uses. It returns `Bill_ProductionWithUft` when the recipe
+  needs a UFT, and `Bill_Production` otherwise.
+- `RepairMalformedBills` finds any plain `Bill_Production` on a player work table
+  whose recipe uses an unfinished thing and replaces it with `MakeNewBill()`,
+  copying repeat mode, count, search radius, skill range, restrictions and store
+  settings. It runs once per map in `ArmoryMapComponent.MapComponentTick`, so
+  saves already broken by 0.7.8 repair themselves on load.
+- Ingredients already lost are not restored; the old bill's job may end on the
+  replacement tick.
+
+Verified live on New Tribe8: injecting a plain `Bill_Production` produced
+`repaired 1, last type Bill_ProductionWithUft`; a fresh Craft bill was also
+`Bill_ProductionWithUft`; no `InvalidCastException` in the log.
+
+---
+
+## Pending verification (0.7.9)
+
+- With a recurve bow bill, the pawn carries wood to the crafting spot, starts
+  work and produces a bow instead of losing the ingredients.
+- An existing malformed bill is repaired on load (log:
+  `repaired N malformed unfinished-thing bill(s)`), and can be completed.
+- Recipes without an unfinished thing still get a normal `Bill_Production`.
+- Repair preserves repeat count, skill range, restrictions and store mode.
+
 Still worth a look:
 
 - Whether the 54-row option menu is too long for normal use; the top white rows
@@ -1369,6 +1405,7 @@ polish, not new core behaviour.
 | 0.7.6 | Make all Demand weapon names white; mark best-in-section rows with a gold star in a fixed left gutter |
 | 0.7.7 | Show the real sort key as a `Score` column, align expanded per-colonist `Score`/`Slot`/`Gain` under the headers, and rename `Want`/`Need` to `Wanted by`/`Needed` |
 | 0.7.8 | Show the best built/unlocked bench instead of an arbitrary recipe user, and add a `Craft` button that queues one bill at that bench |
+| 0.7.9 | Use `RecipeDef.MakeNewBill()` so unfinished-thing recipes get `Bill_ProductionWithUft`, and repair bills created by 0.7.8 on load |
 
 ---
 

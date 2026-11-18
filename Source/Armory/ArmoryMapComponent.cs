@@ -11,6 +11,7 @@ namespace Armory
     {
         private ArmorySnapshot snapshot;
         private bool startupDiagnosticDone;
+        private bool billsRepaired;
 
         public ArmoryMapComponent(Map map) : base(map)
         {
@@ -18,6 +19,12 @@ namespace Armory
 
         public override void MapComponentTick()
         {
+            if (!billsRepaired)
+            {
+                billsRepaired = true;
+                DemandCrafting.RepairMalformedBills(map);
+            }
+
             if (!startupDiagnosticDone)
             {
                 startupDiagnosticDone = true;

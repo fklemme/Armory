@@ -519,6 +519,41 @@ display; remembered-but-absent weapons are not candidates.
 
 ---
 
+## Automated live-save testing
+
+Findings from loading a real 12-colonist save with the user's 73-mod list in an
+isolated `-savedatafolder`:
+
+- **`SaveGameFilesUtility.GetAutostartSaveFile()`** returns
+  `Prefs.DevMode ? GenFilePaths.AllSavedGameFiles.FirstOrDefault() : null`
+  (a `FileInfo`). `Root_Play.Start` queues it. On the isolated quicktest it
+  returned `null` even with DevMode on, one `.rws` present, and
+  `AllSavedGameFiles` reporting 1 element. Do not rely on it.
+- **Do not load from the entry scene.** Calling
+  `SavedGameLoaderNow.LoadGameFromSaveFileNow(name)` from the main menu produced
+  `InvalidCastException` in `Game.LoadGame` (PathfindingAvoidance prefix /
+  MapPreview postfix), `WorldGrid` index errors from Colony Manager Redux, and a
+  map with 0 free colonists. The same call **from the play scene** (after
+  `-quicktest` has generated and initialised a map) loaded the save cleanly with
+  12 colonists, 87 catalog defs and no Armory exceptions.
+- `LoadGameFromSaveFileNow` takes the **save name without `.rws`**;
+  `GenFilePaths.FilePathForSavedGame` appends the extension.
+- `-quicktest` is a usable vehicle for entering the play scene with an isolated
+  save-data folder. It also generates a throwaway map first; wait for its map,
+  then queue the save load and detect the new `Map.uniqueID`.
+- **`ScreenCapture.CaptureScreenshot(path)`** captures the game's own frame even
+  when its window is behind other applications. No desktop capture, focus
+  change, `SendInput`, or keystrokes are needed.
+- To show the tab programmatically: `Find.MainTabsRoot.SetCurrentTab(def, false)`
+  with `DefDatabase<MainButtonDef>.GetNamed("Armory")`, then reflect the private
+  `view` field on `MainTabWindow_Armory` to `Demand`.
+- Dev mode auto-opens the debug log window (`Dialog_Debug`); remove it before a
+  screenshot by iterating `Find.WindowStack.Windows` and calling `TryRemove`.
+- The user's mod list prints an "incompatible version" warning for
+  `PatientSomeone.StorageTypeCategories` but `-quicktest` still proceeds.
+
+---
+
 ## Caveats
 
 - All findings are from installed 1.6 builds; mods may change/update.

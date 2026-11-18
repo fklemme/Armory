@@ -930,26 +930,64 @@ not a logic delay.
 
 ---
 
+## Live save test — verified 0.7.2
+
+The isolated harness can load the user's real colony without touching their save
+or config. The setup used here:
+
+1. Copy `Config/*` and `Saves/Armory Testing.rws` from the real profile into
+   `%TEMP%\opencode\armory-live`.
+2. In the copy: `devMode=true`, windowed 1600×900, Armory auto-equip off,
+   `debugLogging=true`, and an `armory-live.txt` marker in the save-data root.
+3. Add a temporary `[StaticConstructorOnStartup]` driver (removed before
+   commit). It waits for `Current.Game`/a map from `-quicktest`, then queues
+   `SavedGameLoaderNow.LoadGameFromSaveFileNow("Armory Testing")` **from the play
+   scene**, waits for the new map, opens the Demand tab via
+   `Find.MainTabsRoot.SetCurrentTab` plus reflection on the private `view` field,
+   calls `ArmoryMapComponent.LogSnapshot`, captures with
+   `ScreenCapture.CaptureScreenshot`, and calls `Application.Quit()`.
+4. Launch with `-quicktest -savedatafolder=...`. No keystrokes, focus changes,
+   or desktop capture are involved.
+
+Results: **12 colonists, 29 loose weapons, 87 catalog defs (79 obtainable), 54
+demand rows**, and no Armory exceptions. The screenshot confirmed the 0.7.2 fix:
+the `Combat knife` backup row was white with `enough` in green, followed by grey
+hand alternatives.
+
+Important: do **not** call `LoadGameFromSaveFileNow` from the entry scene (main
+menu). That produced `InvalidCastException` in `Game.LoadGame` and loaded a map
+with 0 colonists and an uninitialised `WorldGrid`. Loading from the play scene,
+after quicktest has initialised a map, works.
+`SaveGameFilesUtility.GetAutostartSaveFile()` returned `none` in this setup even
+with DevMode on and exactly one save present; do not rely on it.
+
+`-quicktest` with the user's 73-mod config printed an "incompatible version"
+warning for `PatientSomeone.StorageTypeCategories` but proceeded.
+
+---
+
 ## Pending verification (0.7.2)
 
-The immediate checks are:
+Verified live on the real save:
 
-- Backups now show a white best row instead of a wall of grey alternatives; a
-  best row that is already covered shows `enough` in green.
-- The steel hatchet stays visible while equipped (as `enough`) and when dropped.
-- Demand renders at the default window size: header/column alignment, section
-  dividers, no overlapping columns, readable `Source` text.
-- On the live save, Demand lists several rows per section: every weapon that
-  would upgrade at least one colonist, not just the single best.
-- Sections appear as **Craft**, **Research**, **Buy** in that order. Craft
-  wording is `craft · bench`; Research shows the project (plus `· buy` when
-  tradeable); a research-locked def you own shows `more: <project>`.
-- `Buy` is allowed to be empty in vanilla. If it is populated, the def should
-  have no crafting route.
+- Demand rendering, column alignment, section dividers and `Source` text at
+  1600×900.
+- Craft / Research / Buy ordering (Buy was empty, as expected in vanilla).
+- White best rows vs grey alternatives; the covered best backup row showed
+  `enough` in green.
+- 87 catalog defs and 54 option rows with plausible `want (best N)` / `owned` /
+  `need` values.
+- No Armory exceptions.
+
+Still worth a look:
+
+- Whether the 54-row option menu is too long for normal use; the top white rows
+  are the plan, the grey rows are alternatives. If it feels noisy, the next
+  option is a "best only" toggle.
+- The expanded per-row detail (colonist, slot, gain, current weapon) was not
+  clicked in the automated run.
 - The seven pawns who were `blocked` on the monosword no longer create monosword
   demand (the probe is too heavy for their SS backup cap).
-- Clicking a row expands the contributing colonists; the expanded lines show
-  slot, gain and current weapon.
 - `Armory → Log weapon snapshot` reports a non-zero catalog size and prints
   demand rows with sane `want (best N)` / `owned` / `need` numbers.
 - If the catalog is empty or tiny, the likely cause is recipe enumeration or

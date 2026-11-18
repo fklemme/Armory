@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.7.6** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.7.7** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -82,17 +82,18 @@ threshold, so research never advertises a weapon that is worse than something
 already buildable. Owned copies (equipped, carried, or loose) are subtracted:
 
 ```
-Need = max(0, Want - owned copies that are not forbidden)
+Needed = max(0, Wanted by - owned copies that are not forbidden)
 ```
 
 Columns:
 
-- `Power`: normal-quality weapon strength, independent of the pawn (shown so
-  unarmed-order comparisons are visible);
+- `Power`: normal-quality weapon strength, independent of the pawn;
+- `Score`: expected value for the colony (`power × pawn fit`, summed over the
+  colonists who would take it); this is the main sort key;
 - `Slot`: `hand`, `backup`, or how many of each;
-- `Want`: colonists who would improve with this def (may overlap other rows);
+- `Wanted by`: colonists who would improve with this def (may overlap other rows);
 - `Owned`: copies in the colony (`2 · 1 forb.` when some are forbidden);
-- `Need`: copies still missing; `enough` (green) when the def is the best option
+- `Needed`: copies still missing; `enough` (green) when the def is the best option
   for someone but already covered;
 - `Gain`: average improvement over the current weapon, assuming a newly made
   normal-quality copy; `new` when the pawn has nothing in that slot;
@@ -101,21 +102,21 @@ Columns:
 Sections follow the order of action: **Craft** (recipe unlocked now),
 **Research** (a project unlocks it; `· buy` when a trader can also supply it),
 and **Buy** (no crafting route, trader only). Within a section, rows are ordered
-by **total expected score** (`power × pawn fit`, summed over contributing
-colonists), then total gain, best count and need. This is not pure weapon power:
-a weapon that suits more colonists can outrank a slightly stronger one that
-helps only one. The `Power` column makes that trade-off visible, and it keeps a
-weak starter bow below stronger options even when it is somebody's current best.
+by `Score`, then total gain, best count and needed copies. This is not pure weapon
+power: a weapon that suits more colonists can outrank a slightly stronger one
+that helps only one. `Power` and `Score` make that trade-off visible: power is the
+weapon alone, score adds how well it fits the colonists who want it.
 
 Rows that are the best option for someone stay visible even when the requirement
 is already covered; those show `enough` in green. A gold star before the name
 marks the best option in its section for at least one colonist; all names are
-white, so the star is the only distinction.
-Without that, an owned ideal (for example the hatchet a colonist already carries)
-would disappear. Click a row to see the contributing colonists, their slot, gain,
-and current weapon. Defs with no gap are otherwise hidden.
+white, so the star is the only distinction. Without that, an owned ideal (for
+example the hatchet a colonist already carries) would disappear. Click a row to
+see one detail line per contributing colonist, with their name, current weapon,
+individual `Score`, `Slot`, and `Gain` aligned under the same columns. Defs with
+no gap are otherwise hidden.
 
-`Owned` includes forbidden copies; `Need` only counts usable ones, and its
+`Owned` includes forbidden copies; `Needed` only counts usable ones, and its
 tooltip shows how many unforbidding would cover. A research-locked def you
 already own shows `more: <project>` when only extra copies need the research.
 A pawn is never offered a second copy of a weapon def they already carry as a

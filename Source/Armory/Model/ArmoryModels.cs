@@ -312,6 +312,9 @@ namespace Armory
         public bool Hand;
         public float Gain;
 
+        /// <summary>This colonist's contribution to the row's total score.</summary>
+        public float Score;
+
         /// <summary>True when the pawn has no weapon for that slot, so there is no baseline.</summary>
         public bool IsNew;
 

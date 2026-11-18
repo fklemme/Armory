@@ -1223,11 +1223,12 @@ namespace Armory
         /// <summary>Fixed column layout shared by the Demand header and rows.</summary>
         private struct DemandColumns
         {
-            public const float SlotWidth = 150f;
-            public const float PowerWidth = 60f;
-            public const float WantWidth = 52f;
-            public const float OwnedWidth = 100f;
-            public const float NeedWidth = 56f;
+            public const float PowerWidth = 58f;
+            public const float ScoreWidth = 64f;
+            public const float SlotWidth = 132f;
+            public const float WantedWidth = 86f;
+            public const float OwnedWidth = 92f;
+            public const float NeedWidth = 64f;
             public const float GainWidth = 64f;
             public const float SourceWidth = 190f;
             public const float BestMarkerWidth = 20f;
@@ -1236,8 +1237,9 @@ namespace Armory
             public float WeaponX;
             public float WeaponWidth;
             public float PowerX;
+            public float ScoreX;
             public float SlotX;
-            public float WantX;
+            public float WantedX;
             public float OwnedX;
             public float NeedX;
             public float GainX;
@@ -1250,11 +1252,12 @@ namespace Armory
                 columns.GainX = columns.SourceX - Gap - GainWidth;
                 columns.NeedX = columns.GainX - Gap - NeedWidth;
                 columns.OwnedX = columns.NeedX - Gap - OwnedWidth;
-                columns.WantX = columns.OwnedX - Gap - WantWidth;
-                columns.SlotX = columns.WantX - Gap - SlotWidth;
-                columns.PowerX = columns.SlotX - Gap - PowerWidth;
+                columns.WantedX = columns.OwnedX - Gap - WantedWidth;
+                columns.SlotX = columns.WantedX - Gap - SlotWidth;
+                columns.ScoreX = columns.SlotX - Gap - ScoreWidth;
+                columns.PowerX = columns.ScoreX - Gap - PowerWidth;
                 columns.WeaponX = 4f;
-                columns.WeaponWidth = Mathf.Max(120f, columns.PowerX - Gap - columns.WeaponX);
+                columns.WeaponWidth = Mathf.Max(140f, columns.PowerX - Gap - columns.WeaponX);
                 return columns;
             }
         }
@@ -1356,10 +1359,15 @@ namespace Armory
                 DrawCell(new Rect(columns.PowerX, cursor, DemandColumns.PowerWidth, RowHeight),
                     row.Power.ToString("0"), TextAnchor.MiddleRight, GameFont.Small,
                     new Color(0.82f, 0.82f, 0.82f));
+                Rect scoreCell = new Rect(columns.ScoreX, cursor, DemandColumns.ScoreWidth, RowHeight);
+                DrawCell(scoreCell, row.TotalScore.ToString("0"), TextAnchor.MiddleRight, GameFont.Small,
+                    new Color(0.9f, 0.86f, 0.7f));
+                TooltipHandler.TipRegion(scoreCell,
+                    "Expected value: normal-quality power x pawn fit, summed over the wanted colonists. Expand the row to see each contribution.");
                 DrawCell(new Rect(columns.SlotX, cursor, DemandColumns.SlotWidth, RowHeight),
                     row.Uses, TextAnchor.MiddleLeft, GameFont.Small,
                     new Color(0.72f, 0.82f, 0.92f));
-                DrawCell(new Rect(columns.WantX, cursor, DemandColumns.WantWidth, RowHeight),
+                DrawCell(new Rect(columns.WantedX, cursor, DemandColumns.WantedWidth, RowHeight),
                     row.Wanted.ToString(), TextAnchor.MiddleRight);
                 DrawCell(new Rect(columns.OwnedX, cursor, DemandColumns.OwnedWidth, RowHeight),
                     OwnedText(row), TextAnchor.MiddleRight, GameFont.Small,
@@ -1410,7 +1418,7 @@ namespace Armory
                 {
                     for (int j = 0; j < row.Wants.Count; j++)
                     {
-                        DrawWantLine(row.Wants[j], cursor, rowWidth);
+                        DrawWantLine(row.Wants[j], cursor, columns);
                         cursor += 20f;
                     }
                 }
@@ -1456,26 +1464,34 @@ namespace Armory
                 rect.height);
             DrawCell(powerRect, "Power", TextAnchor.MiddleRight, GameFont.Tiny, color);
             TooltipHandler.TipRegion(powerRect,
-                "Normal-quality weapon strength, independent of the pawn. Rows are sorted by total expected score (power x fit, summed over contributing colonists), then total gain.");
-            DrawCell(new Rect(rect.x + columns.SlotX, rect.y, DemandColumns.SlotWidth, rect.height),
-                "Slot", TextAnchor.MiddleLeft, GameFont.Tiny, color);
-            Rect wantRect = new Rect(rect.x + columns.WantX, rect.y, DemandColumns.WantWidth,
+                "Normal-quality weapon strength before pawn fit. Score combines power, fit and how many colonists benefit.");
+            Rect scoreRect = new Rect(rect.x + columns.ScoreX, rect.y, DemandColumns.ScoreWidth,
                 rect.height);
-            DrawCell(wantRect, "Want", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            DrawCell(scoreRect, "Score", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            TooltipHandler.TipRegion(scoreRect,
+                "Expected value: normal-quality power x pawn fit, summed over the wanted colonists. Rows are sorted by this inside each section, then by total gain.");
+            Rect slotRect = new Rect(rect.x + columns.SlotX, rect.y, DemandColumns.SlotWidth,
+                rect.height);
+            DrawCell(slotRect, "Slot", TextAnchor.MiddleLeft, GameFont.Tiny, color);
+            TooltipHandler.TipRegion(slotRect,
+                "Where the weapon is wanted: hand, backup, or both. Expand a row to see each colonist's slot.");
+            Rect wantRect = new Rect(rect.x + columns.WantedX, rect.y, DemandColumns.WantedWidth,
+                rect.height);
+            DrawCell(wantRect, "Wanted by", TextAnchor.MiddleRight, GameFont.Tiny, color);
             TooltipHandler.TipRegion(wantRect,
                 "Colonists who would improve with this weapon. A colonist can appear in several rows; each row is an independent option.");
             DrawCell(new Rect(rect.x + columns.OwnedX, rect.y, DemandColumns.OwnedWidth, rect.height),
                 "Owned", TextAnchor.MiddleRight, GameFont.Tiny, color);
             Rect needRect = new Rect(rect.x + columns.NeedX, rect.y, DemandColumns.NeedWidth,
                 rect.height);
-            DrawCell(needRect, "Need", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            DrawCell(needRect, "Needed", TextAnchor.MiddleRight, GameFont.Tiny, color);
             TooltipHandler.TipRegion(needRect,
-                "Copies missing after counting owned weapons that are not forbidden. Unforbid stock before crafting more.");
+                "Copies still missing after counting owned weapons that are not forbidden. Unforbid stock before crafting more.");
             Rect gainRect = new Rect(rect.x + columns.GainX, rect.y, DemandColumns.GainWidth,
                 rect.height);
             DrawCell(gainRect, "Gain", TextAnchor.MiddleRight, GameFont.Tiny, color);
             TooltipHandler.TipRegion(gainRect,
-                "Improvement over the colonist's current weapon, assuming an ordinary normal-quality copy. 'new' means the slot is empty.");
+                "Improvement over the current weapon. The row value is the average; expand the row to see each colonist.");
             Rect sourceRect = new Rect(rect.x + columns.SourceX, rect.y,
                 DemandColumns.SourceWidth, rect.height);
             DrawCell(sourceRect, "Source", TextAnchor.MiddleLeft, GameFont.Tiny, color);
@@ -1551,13 +1567,28 @@ namespace Armory
             }
         }
 
-        private static void DrawWantLine(DemandWant want, float cursor, float width)
+        private static void DrawWantLine(DemandWant want, float cursor, DemandColumns columns)
         {
-            string gain = want.IsNew ? "new" : FormatPct(want.Gain);
-            string text = string.Format("    {0} · {1} · {2} · now {3}",
-                want.Colonist, want.Hand ? "hand" : "backup", gain, want.CurrentLabel);
-            DrawCell(new Rect(8f, cursor, width - 16f, 20f), text, TextAnchor.MiddleLeft,
-                GameFont.Small, new Color(0.72f, 0.72f, 0.72f));
+            const float nameWidth = 110f;
+            float nameX = columns.WeaponX + DemandColumns.BestMarkerWidth + 8f;
+            DrawCell(new Rect(nameX, cursor, nameWidth, 20f), want.Colonist,
+                TextAnchor.MiddleLeft, GameFont.Small, new Color(0.78f, 0.78f, 0.78f));
+
+            float currentX = nameX + nameWidth;
+            float currentWidth = Mathf.Max(40f, columns.WeaponWidth - (currentX - columns.WeaponX));
+            DrawCell(new Rect(currentX, cursor, currentWidth, 20f),
+                "now " + want.CurrentLabel, TextAnchor.MiddleLeft, GameFont.Small,
+                new Color(0.62f, 0.62f, 0.62f));
+
+            DrawCell(new Rect(columns.ScoreX, cursor, DemandColumns.ScoreWidth, 20f),
+                want.Score.ToString("0"), TextAnchor.MiddleRight, GameFont.Small,
+                new Color(0.82f, 0.8f, 0.68f));
+            DrawCell(new Rect(columns.SlotX, cursor, DemandColumns.SlotWidth, 20f),
+                want.Hand ? "hand" : "backup", TextAnchor.MiddleLeft, GameFont.Small,
+                new Color(0.66f, 0.74f, 0.82f));
+            DrawCell(new Rect(columns.GainX, cursor, DemandColumns.GainWidth, 20f),
+                want.IsNew ? "new" : FormatPct(want.Gain), TextAnchor.MiddleRight, GameFont.Small,
+                new Color(0.68f, 0.82f, 0.68f));
         }
 
         // ------------------------------------------------------------------ Log

@@ -943,6 +943,7 @@ namespace Armory
                 Colonist = pawn.Pawn.LabelShort,
                 Hand = hand,
                 Gain = gain,
+                Score = score,
                 IsNew = isNew,
                 IsTop = isTop,
                 CurrentLabel = currentLabel

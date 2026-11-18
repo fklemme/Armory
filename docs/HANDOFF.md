@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.7.6**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.7.7**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.7.6 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.7.7 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -1069,26 +1069,49 @@ names are white. Build clean.
 
 ---
 
-## Pending verification (0.7.6)
+## 0.7.7 — Score column and aligned detail rows
 
-- Best rows show a gold star; all weapon names are white, and the name column
-  stays aligned whether or not a star is present.
-- Multiple best rows (for example after stripping a pawn) each show a star.
-- A weak best-for-someone row (e.g. Short bow for an unarmed pawn) can still sit
-  lower by total score; the star marks it as that pawn's best.
-- The star texture loads from `UI/Icons/ArmoryBestStar` with no missing-texture
-  log spam.
+`Power` looked like the sort key, but the actual key is `Power × PawnFit` summed
+over the colonists who want the def. A combat knife could therefore sit between
+power-46 and power-43 rows without any visible explanation. The score driving the
+order was hidden.
+
+- `DemandRow.TotalScore` is now the `Score` column. Its header explains that it is
+  `power × fit` summed over the wanted colonists and that rows are sorted by it
+  inside each section.
+- `DemandWant.Score` records each colonist's contribution. Expanded rows now draw
+  the colonist name, current weapon, individual `Score`, `Slot` and `Gain` in the
+  same columns as the parent row. The detail scores add up to the row score.
+- Header names: `Want` → `Wanted by`, `Need` → `Needed`, plus the new `Score`.
+- Column widths were retuned for the extra column (`Slot` is narrower; `Wanted
+  by`, `Owned` and `Needed` were adjusted). The star gutter and white names are
+  unchanged.
+- The debug demand log now prints `score` before `power`.
+
+Verified live on the real save: `Heavy charge blaster` shows score 1817; its
+expanded values 170 + 240 + 234 + 205 + 229 + 252 + 221 + 266 = 1817, with
+`Score`, `Slot` and `Gain` aligned under their headers.
+
+---
+
+## Pending verification (0.7.7)
+
+- The `Score` column equals the sum of the expanded per-colonist scores.
+- `Wanted by` and `Needed` labels fit at 1600×900 and at narrower widths.
+- Detail-row current-weapon labels do not truncate; `Machine pistol (normal 98%)`
+  fits after the 110px name column.
+- Hovering `Score` explains the ordering; hovering `Power` distinguishes raw
+  strength from expected value.
+- Best-row star and white names still render correctly beside the new columns.
 
 Verified live on the real save:
 
 - Demand rendering, column alignment, section dividers and `Source` text at
   1600×900.
 - Craft / Research / Buy ordering (Buy was empty, as expected in vanilla).
-- White best rows vs grey alternatives; the covered best backup row showed
-  `enough` in green.
-- 87 catalog defs and 54 option rows with plausible `want (best N)` / `owned` /
-  `need` values.
-- No Armory exceptions.
+- Best-row stars, white names, and the covered best backup row showing `enough`
+  in green.
+- `Score` and per-colonist detail alignment; no Armory exceptions.
 
 Still worth a look:
 
@@ -1298,6 +1321,7 @@ polish, not new core behaviour.
 | 0.7.4 | Never add a second backup of a weapon def the pawn already carries (soft `Already carried` blocker; planner, Demand and Weapons tab all skip it) |
 | 0.7.5 | Order Demand by total expected score (power × fit across colonists), add a `Power` column, and stop forcing best-for-someone rows above stronger alternatives |
 | 0.7.6 | Make all Demand weapon names white; mark best-in-section rows with a gold star in a fixed left gutter |
+| 0.7.7 | Show the real sort key as a `Score` column, align expanded per-colonist `Score`/`Slot`/`Gain` under the headers, and rename `Want`/`Need` to `Wanted by`/`Needed` |
 
 ---
 

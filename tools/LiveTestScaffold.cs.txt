@@ -1,0 +1,235 @@
+using System;
+using System.IO;
+using System.Reflection;
+using RimWorld;
+using UnityEngine;
+using Verse;
+
+namespace Armory
+{
+    // TEMPORARY live-save test harness.
+    //
+    // Copy this file to Source/Armory/LiveTestScaffold.cs, build, run the isolated
+    // save with -quicktest, then DELETE the file and rebuild before committing.
+    //
+    // It only arms itself when an "armory-live.txt" marker exists in the active
+    // save-data folder. The marker's text is the save name (without ".rws").
+    // See docs/TESTING.md and tools/Setup-LiveTest.ps1.
+    [StaticConstructorOnStartup]
+    public static class LiveTestBootstrap
+    {
+        static LiveTestBootstrap()
+        {
+            try
+            {
+                string marker = Path.Combine(GenFilePaths.SaveDataFolderPath, "armory-live.txt");
+                if (!File.Exists(marker))
+                {
+                    return;
+                }
+
+                GameObject go = new GameObject("ArmoryLiveTest");
+                UnityEngine.Object.DontDestroyOnLoad(go);
+                go.AddComponent<LiveTestDriver>();
+                Log.Message("[Armory] live test driver armed");
+            }
+            catch (Exception exception)
+            {
+                Log.Error("[Armory] live test bootstrap failed: " + exception);
+            }
+        }
+    }
+
+    public class LiveTestDriver : MonoBehaviour
+    {
+        private static string saveName;
+        private bool saveLoadQueued;
+        private int quicktestMapId = -1;
+        private int loadQueuedFrame = -1;
+        private int mapFrame = -1;
+        private bool opened;
+        private int framesAfterOpen;
+        private bool captured;
+        private int framesAfterCapture;
+
+        public static string SaveName
+        {
+            get
+            {
+                if (saveName == null)
+                {
+                    try
+                    {
+                        string marker = Path.Combine(GenFilePaths.SaveDataFolderPath,
+                            "armory-live.txt");
+                        saveName = File.Exists(marker)
+                            ? File.ReadAllText(marker).Trim()
+                            : string.Empty;
+                    }
+                    catch (Exception)
+                    {
+                        saveName = string.Empty;
+                    }
+                    if (string.IsNullOrEmpty(saveName))
+                    {
+                        saveName = "Armory Testing";
+                    }
+                }
+                return saveName;
+            }
+        }
+
+        private void Update()
+        {
+            try
+            {
+                // A failed load can leave Current.Game null; still time out and quit.
+                if (saveLoadQueued && loadQueuedFrame > 0 &&
+                    Time.frameCount - loadQueuedFrame > 60 * 300)
+                {
+                    Log.Error("[Armory] live test: timed out loading " + SaveName);
+                    Application.Quit();
+                    return;
+                }
+
+                if (Current.Game == null)
+                {
+                    return;
+                }
+
+                Map map = Find.CurrentMap;
+                if (map == null)
+                {
+                    return;
+                }
+
+                // -quicktest creates a throwaway map first. Load the real save only
+                // after the play scene and world grid exist; loading from the entry
+                // scene leaves WorldGrid half-initialised and spawns 0 colonists.
+                if (!saveLoadQueued)
+                {
+                    if (map.mapPawns.FreeColonists.Count == 0)
+                    {
+                        return;
+                    }
+
+                    quicktestMapId = map.uniqueID;
+                    saveLoadQueued = true;
+                    loadQueuedFrame = Time.frameCount;
+                    Log.Message("[Armory] live test: quicktest map " + quicktestMapId +
+                                "; loading " + SaveName);
+                    LongEventHandler.QueueLongEvent(
+                        delegate { SavedGameLoaderNow.LoadGameFromSaveFileNow(SaveName); },
+                        "LoadingLongEvent", false, null);
+                    return;
+                }
+
+                if (map.uniqueID == quicktestMapId)
+                {
+                    return;
+                }
+
+                loadQueuedFrame = -1;
+
+                if (mapFrame < 0)
+                {
+                    mapFrame = Time.frameCount;
+                    Log.Message("[Armory] live test: save map loaded, frame " + mapFrame +
+                                ", colonists " + map.mapPawns.FreeColonists.Count +
+                                ", map " + map.uniqueID);
+                    return;
+                }
+
+                if (!opened)
+                {
+                    if (Time.frameCount - mapFrame < 180)
+                    {
+                        return;
+                    }
+
+                    OpenDemandTab();
+                    ArmoryMapComponent component = map.GetComponent<ArmoryMapComponent>();
+                    if (component != null)
+                    {
+                        ArmoryMapComponent.LogSnapshot(component.GetSnapshot(true), "live test");
+                    }
+                    opened = true;
+                    framesAfterOpen = 0;
+                    return;
+                }
+
+                if (!captured)
+                {
+                    framesAfterOpen++;
+                    if (framesAfterOpen < 5)
+                    {
+                        return;
+                    }
+
+                    string shot = Path.Combine(GenFilePaths.SaveDataFolderPath,
+                        "armory-live.png");
+                    CloseDebugWindows();
+                    ScreenCapture.CaptureScreenshot(shot);
+                    Log.Message("[Armory] live test: screenshot " + shot);
+                    captured = true;
+                    framesAfterCapture = 0;
+                    return;
+                }
+
+                framesAfterCapture++;
+                if (framesAfterCapture > 60)
+                {
+                    Log.Message("[Armory] live test: quitting");
+                    Application.Quit();
+                }
+            }
+            catch (Exception exception)
+            {
+                Log.Error("[Armory] live test driver failed: " + exception);
+                Application.Quit();
+            }
+        }
+
+        private static void CloseDebugWindows()
+        {
+            for (int i = Find.WindowStack.Windows.Count - 1; i >= 0; i--)
+            {
+                Window window = Find.WindowStack.Windows[i];
+                string name = window.GetType().Name;
+                if (name.Contains("Debug") || name.Contains("Log"))
+                {
+                    Find.WindowStack.TryRemove(window, false);
+                }
+            }
+        }
+
+        private static void OpenDemandTab()
+        {
+            MainButtonDef def = DefDatabase<MainButtonDef>.GetNamedSilentFail("Armory");
+            if (def == null)
+            {
+                Log.Warning("[Armory] live test: Armory tab def missing");
+                return;
+            }
+
+            Find.MainTabsRoot.SetCurrentTab(def, false);
+            MainButtonDef open = Find.MainTabsRoot.OpenTab;
+            MainTabWindow_Armory window = open == null
+                ? null
+                : open.TabWindow as MainTabWindow_Armory;
+            if (window == null)
+            {
+                Log.Warning("[Armory] live test: Armory tab window missing");
+                return;
+            }
+
+            FieldInfo view = typeof(MainTabWindow_Armory).GetField("view",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            if (view != null)
+            {
+                view.SetValue(window, Enum.Parse(view.FieldType, "Demand"));
+            }
+            Log.Message("[Armory] live test: Demand tab opened");
+        }
+    }
+}

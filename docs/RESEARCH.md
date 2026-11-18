@@ -521,8 +521,10 @@ display; remembered-but-absent weapons are not candidates.
 
 ## Automated live-save testing
 
-Findings from loading a real 12-colonist save with the user's 73-mod list in an
-isolated `-savedatafolder`:
+Reusable procedure and scripts: [`docs/TESTING.md`](TESTING.md),
+`tools/Setup-LiveTest.ps1`, `tools/LiveTestScaffold.cs.txt`. Findings from
+loading a real 12-colonist save with the user's 73-mod list in an isolated
+`-savedatafolder`:
 
 - **`SaveGameFilesUtility.GetAutostartSaveFile()`** returns
   `Prefs.DevMode ? GenFilePaths.AllSavedGameFiles.FirstOrDefault() : null`

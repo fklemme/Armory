@@ -933,33 +933,27 @@ not a logic delay.
 ## Live save test — verified 0.7.2
 
 The isolated harness can load the user's real colony without touching their save
-or config. The setup used here:
+or config. The full procedure, switches, pitfalls and cleanup are in
+[`docs/TESTING.md`](TESTING.md). The reusable pieces are committed:
 
-1. Copy `Config/*` and `Saves/Armory Testing.rws` from the real profile into
-   `%TEMP%\opencode\armory-live`.
-2. In the copy: `devMode=true`, windowed 1600×900, Armory auto-equip off,
-   `debugLogging=true`, and an `armory-live.txt` marker in the save-data root.
-3. Add a temporary `[StaticConstructorOnStartup]` driver (removed before
-   commit). It waits for `Current.Game`/a map from `-quicktest`, then queues
-   `SavedGameLoaderNow.LoadGameFromSaveFileNow("Armory Testing")` **from the play
-   scene**, waits for the new map, opens the Demand tab via
-   `Find.MainTabsRoot.SetCurrentTab` plus reflection on the private `view` field,
-   calls `ArmoryMapComponent.LogSnapshot`, captures with
-   `ScreenCapture.CaptureScreenshot`, and calls `Application.Quit()`.
-4. Launch with `-quicktest -savedatafolder=...`. No keystrokes, focus changes,
-   or desktop capture are involved.
+- `tools/Setup-LiveTest.ps1` — copies one save + `Config` into an isolated folder,
+  sets DevMode/windowed/debug logging, optionally builds and launches.
+- `tools/LiveTestScaffold.cs.txt` — copy-in temporary driver that loads the save
+  from the play scene, opens the Demand tab, logs the snapshot, captures
+  `armory-live.png`, and quits. It is inert without the `armory-live.txt` marker
+  and is removed before commit.
 
-Results: **12 colonists, 29 loose weapons, 87 catalog defs (79 obtainable), 54
-demand rows**, and no Armory exceptions. The screenshot confirmed the 0.7.2 fix:
-the `Combat knife` backup row was white with `enough` in green, followed by grey
-hand alternatives.
+Recorded run (the `Armory Testing` save): **12 colonists, 29 loose weapons, 87
+catalog defs (79 obtainable), 54 demand rows**, and no Armory exceptions. The
+screenshot confirmed the 0.7.2 fix: the `Combat knife` backup row was white with
+`enough` in green, followed by grey hand alternatives.
 
-Important: do **not** call `LoadGameFromSaveFileNow` from the entry scene (main
-menu). That produced `InvalidCastException` in `Game.LoadGame` and loaded a map
-with 0 colonists and an uninitialised `WorldGrid`. Loading from the play scene,
-after quicktest has initialised a map, works.
-`SaveGameFilesUtility.GetAutostartSaveFile()` returned `none` in this setup even
-with DevMode on and exactly one save present; do not rely on it.
+Critical pitfall: do **not** call `LoadGameFromSaveFileNow` from the entry scene
+(main menu). That produced `InvalidCastException` in `Game.LoadGame` and a map
+with 0 colonists and an uninitialised `WorldGrid`. Load from the play scene after
+quicktest has initialised a map. The built-in
+`SaveGameFilesUtility.GetAutostartSaveFile()` was unreliable (returned `none`
+with DevMode on and exactly one save present).
 
 `-quicktest` with the user's 73-mod config printed an "incompatible version"
 warning for `PatientSomeone.StorageTypeCategories` but proceeded.
@@ -1193,6 +1187,9 @@ polish, not new core behaviour.
 | `README.md` | User/dev overview, settings, build, roadmap |
 | `docs/RESEARCH.md` | Auto Arm / Equipment Manager / vanilla / SS findings |
 | `docs/HANDOFF.md` | This file |
+| `docs/TESTING.md` | Quick harness + live-save procedure, pitfalls, cleanup |
+| `tools/Setup-LiveTest.ps1` | Copies a real save/config into an isolated folder |
+| `tools/LiveTestScaffold.cs.txt` | Temporary load/screenshot scaffold template |
 | `Source/Armory/ArmoryPlanner.cs` | Automation decisions and job issuing |
 | `Source/Armory/ArmorySnapshotBuilder.cs` | Ranking, pod lookup, weapon filter, demand |
 | `Source/Armory/Scoring/*` | Power, fit, blockers, weapon catalog/probes |

@@ -1,0 +1,171 @@
+# Testing Armory
+
+Two levels of testing:
+
+1. **Quick harness** — Core (+ optionally Simple Sidearms), a generated 3-colonist
+   map. Fast, deterministic, no user data. Good for scoring/catalog/scanning
+   regressions.
+2. **Live save** — a copy of a real colony with the full mod list, loaded in an
+   isolated save-data folder. Slower, but it exercises real weapons, modded defs,
+   Simple Sidearms state, and the actual Demand tab.
+
+Neither level touches the user's save or config, and neither uses keystrokes or
+window focus.
+
+---
+
+## Quick harness
+
+```powershell
+.\tools\Quicktest-Armory.ps1
+.\tools\Quicktest-Armory.ps1 -IncludeSimpleSidearms
+```
+
+It creates an isolated `Config/ModsConfig.xml` under
+`%TEMP%\opencode\armorytest`, launches RimWorld with `-quicktest`, prints
+`[Armory]` lines, and closes only that instance. The generated map is enough to
+verify the weapon catalog, demand rows, and exceptions.
+
+Armory settings for the isolated game live in
+`%TEMP%\opencode\armorytest\Config\Mod_Armory_ArmoryMod.xml`.
+
+---
+
+## Live save
+
+### Prerequisites
+
+- RimWorld closed (the DLL is locked while it is running).
+- The save must exist in the real save folder:
+  `%USERPROFILE%\AppData\LocalLow\Ludeon Studios\RimWorld by Ludeon Studios\Saves`.
+- Time: loading 70+ mods and a ~19 MB save takes a minute or two.
+- No extra tools are required. The game captures its own frame with Unity's
+  `ScreenCapture`, which works even when the window is behind other apps.
+
+### One-time/temporary scaffold
+
+The live test needs a short-lived `[StaticConstructorOnStartup]` driver that
+loads the save and captures the tab. The template is committed at:
+
+```
+tools\LiveTestScaffold.cs.txt
+```
+
+Copy it into the compiled source tree only while testing:
+
+```powershell
+Copy-Item .\tools\LiveTestScaffold.cs.txt .\Source\Armory\LiveTestScaffold.cs
+```
+
+It arms itself only when `armory-live.txt` exists in the active save-data folder,
+so the same DLL is inert in the user's real profile. The marker text is the save
+name (without `.rws`).
+
+**Always delete it and rebuild before committing.** No test scaffold should stay
+in `Source/`.
+
+### Run
+
+```powershell
+# Copy config + save, configure the isolated folder, build, launch, wait, report
+.\tools\Setup-LiveTest.ps1 -SaveName "Armory Testing" -Build -Launch -Wait
+```
+
+Or step by step:
+
+```powershell
+# 1. Prepare the isolated folder (copy Config + save, marker, DevMode, windowed,
+#    Armory debug logging on and auto-equip off)
+.\tools\Setup-LiveTest.ps1 -SaveName "Armory Testing"
+
+# 2. Add the scaffold and build
+Copy-Item .\tools\LiveTestScaffold.cs.txt .\Source\Armory\LiveTestScaffold.cs
+dotnet build .\Source\Armory\Armory.csproj
+
+# 3. Launch
+.\tools\Setup-LiveTest.ps1 -SaveName "Armory Testing" -Launch -Wait
+```
+
+Useful switches:
+
+| Switch | Effect |
+|---|---|
+| `-Build` | Runs `dotnet build` before launching |
+| `-Launch` | Starts the isolated game with `-quicktest -savedatafolder=...` |
+| `-Wait` | Polls `Player.log` and prints Armory lines and the screenshot path |
+| `-Force` | Stops an existing RimWorld process (only with explicit permission) |
+| `-Width` / `-Height` | Isolated window size (default 1600×900) |
+| `-TimeoutSeconds` | Wait limit for `-Wait` (default 300) |
+
+### What the scaffold does
+
+1. Waits for `-quicktest` to enter the play scene and generate a throwaway map.
+2. Queues `SavedGameLoaderNow.LoadGameFromSaveFileNow(markerText)` **from the
+   play scene**, once the quicktest map exists.
+3. Waits for the new map (`Map.uniqueID` changes), logs the colony size.
+4. Opens the Armory tab with `Find.MainTabsRoot.SetCurrentTab`, reflects the
+   private `view` field to `Demand`, and calls `ArmoryMapComponent.LogSnapshot`.
+5. Closes `Dialog_Debug` windows, captures `armory-live.png`, waits a second, and
+   calls `Application.Quit()`.
+
+### Results
+
+- Log: `%USERPROFILE%\AppData\LocalLow\Ludeon Studios\RimWorld by Ludeon Studios\Player.log`
+- Screenshot: `%TEMP%\opencode\armory-live\armory-live.png`
+- Isolated save/config: `%TEMP%\opencode\armory-live\`
+
+Search the log for `[Armory] live test` to see the sequence, and for
+`[Armory] map load` / `demand` for the snapshot itself.
+
+### Cleanup
+
+```powershell
+Remove-Item .\Source\Armory\LiveTestScaffold.cs
+dotnet build .\Source\Armory\Armory.csproj
+```
+
+Keep `%TEMP%\opencode\armory-live` if you want to rerun the same save; the setup
+script recreates it from the real profile on the next run.
+
+---
+
+## Pitfalls (learned the hard way)
+
+- **Never load from the entry scene.** Calling
+  `SavedGameLoaderNow.LoadGameFromSaveFileNow` while the main menu is up produced
+  `InvalidCastException` in `Game.LoadGame`, `WorldGrid` index errors from Colony
+  Manager Redux, and a map with **0 colonists**. Loading from the play scene,
+  after `-quicktest` has initialised a map, works.
+- **The built-in autostart is unreliable.** `SaveGameFilesUtility.GetAutostartSaveFile()`
+  returns `Prefs.DevMode ? AllSavedGameFiles.FirstOrDefault() : null`, but it
+  returned `null` on the isolated quicktest even with DevMode on and exactly one
+  save present. Do not depend on it.
+- `LoadGameFromSaveFileNow` takes the **name without `.rws`**;
+  `GenFilePaths.FilePathForSavedGame` appends the extension.
+- **Wait for the quicktest map before queuing the load.** The quicktest map
+  initialises the world grid; queueing earlier reintroduces the 0-colonist load.
+- Dev mode auto-opens the **debug log window**; close `Dialog_Debug` before the
+  screenshot (`Find.WindowStack.TryRemove`).
+- The user's mod list may print an "incompatible version" warning (in this setup,
+  `PatientSomeone.StorageTypeCategories`); `-quicktest` still proceeds.
+- The isolated save is a **copy**. Dropping/equipping in automation affects only
+  the copy.
+- Do not force-close the user's running game. The script refuses without
+  `-Force`.
+- Remove the scaffold and rebuild before committing; `Assemblies/*.dll` is
+  gitignored, but leaving a test hook in source is not acceptable.
+
+---
+
+## UI interaction
+
+The scaffold can open the Armory tab and select Demand programmatically, but it
+does not click arbitrary UI. For a clicked row or a different tab, set the
+relevant private field by reflection in the scaffold:
+
+- `MainTabWindow_Armory.view` — `ArmoryView` (`Pawns`, `Weapons`, `Demand`, `Log`).
+- `MainTabWindow_Armory.expandedDemandDef` — `ThingDef` to expand a Demand row.
+
+Avoid `SendInput`/key emulation; it steals focus and can interfere with the user.
+Unity's `ScreenCapture` and the reflection hooks are sufficient for unattended
+checks.

@@ -381,7 +381,10 @@ Armory/
     UI/TextUtil.cs                 rich-text safe measurement/truncation
   docs/RESEARCH.md                 decompiled-mod + API findings
   docs/HANDOFF.md                  exact state and next-step plan
+  docs/TESTING.md                  quick + live-save testing procedure
   tools/Quicktest-Armory.ps1       isolated quicktest harness
+  tools/Setup-LiveTest.ps1         copies a real save into an isolated folder
+  tools/LiveTestScaffold.cs.txt    temporary auto-load/screenshot scaffold
 ```
 
 ---
@@ -429,6 +432,19 @@ Manual equivalent:
 & "C:\Program Files (x86)\Steam\steamapps\common\RimWorld\RimWorldWin64.exe" `
   -quicktest -savedatafolder="C:\Users\mail\AppData\Local\Temp\opencode\armorytest"
 ```
+
+### Live save
+
+`tools/Setup-LiveTest.ps1` copies one real save and the whole `Config` folder into
+an isolated save-data folder, then optionally builds and launches it with the
+full mod list. A temporary copy-in scaffold
+(`tools/LiveTestScaffold.cs.txt`) auto-loads the save, dumps the Armory snapshot,
+opens the Demand tab, and captures `armory-live.png` using Unity's
+`ScreenCapture` — no keystrokes, focus changes, or desktop capture. The real save
+and config are never modified.
+
+Full procedure, switches, pitfalls and cleanup:
+[`docs/TESTING.md`](docs/TESTING.md).
 
 ---
 
@@ -517,3 +533,5 @@ Manual equivalent:
   Simple Sidearms internals, vanilla API notes, integration plan.
 - [`docs/HANDOFF.md`](docs/HANDOFF.md) — current state, test evidence, exact
   next steps, open questions.
+- [`docs/TESTING.md`](docs/TESTING.md) — quick harness and live-save testing,
+  including the isolated copy + temporary scaffold procedure.

@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.7.0**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.7.1**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.7.0 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.7.1 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -864,26 +864,69 @@ when only extra copies need research).
 Not yet verified: the tab's rendering, and the live Simple Sidearms save. The
 quicktest map has no SS and the harness never opens the Demand tab.
 
+Superseded by 0.7.1 below: the single-pick plan became an option menu, and the
+sections were renamed to Craft / Research / Buy.
+
 ---
 
-## Pending verification (0.7.0)
+## 0.7.1 — Demand as an option menu with craft/research/buy
+
+Two changes after seeing 0.7.0 on the live save.
+
+**Every upgrade is listed.** 0.7.0 picked only each colonist's argmax, so the tab
+collapsed to one row (the heavy charge blaster was best for all eight ranged
+pawns) and hid the alternatives. `AddSlotWants` now adds a want for *every*
+obtainable def that beats the baseline by `upgradeThreshold`, not just the best.
+Rows are independent options and wants overlap: a colonist can appear in several
+rows for the same slot. `Need` still describes what one row alone would require.
+
+To keep the list navigable:
+
+- `DemandWant.IsTop` / `DemandRow.BestCount` mark the best def in its group for
+  each colonist. The weapon name is white when `BestCount > 0` and grey for an
+  alternative; the tooltip says which.
+- Sorting is: section, then `BestCount > 0` first, then total gain, best count,
+  need, def name.
+- Research options must still beat the best available option by another
+  threshold, so research never lists a weapon worse than something buildable.
+
+**Sections follow action priority:** `Craft` (recipe available now), `Research`
+(unfinished project; `· buy` appended when tradeable), `Buy` (no crafting route,
+trader only). `DemandSection` is now `Craft` / `Research` / `Buy`, and the sort
+relies on those enum values. In vanilla most weapon defs have recipes, so `Buy`
+is usually empty; research-locked but buyable defs stay under `Research` by
+design.
+
+UI text: the header explains overlapping rows and the section order; `Want` and
+`Source` have header tooltips. The row `Need` tooltip still explains that
+unforbidding owned copies can replace some of the need.
+
+Verified in the isolated quicktest: 17 demand rows for three unarmed colonists,
+with `Knife (best 2)` first in Craft, grey alternatives after it, then Research
+rows. No Armory exceptions.
+
+---
+
+## Pending verification (0.7.1)
 
 The immediate checks are:
 
 - Demand renders at the default window size: header/column alignment, section
   dividers, no overlapping columns, readable `Source` text.
-- Demand is non-empty on the live save and no longer recommends weapons just
-  because they are the best leftovers. Rows should reflect missing copies of
-  good defs even when the existing copies are equipped.
-- `Locked by research` is populated with the next research project(s); a
-  research-locked but buyable def shows `· buy` after the project name, and an
-  already-owned def shows `more: <project>`.
+- On the live save, Demand now lists several rows per section: every weapon that
+  would upgrade at least one colonist, not just the single best. White names are
+  the best option in their section; grey ones are alternatives.
+- Sections appear as **Craft**, **Research**, **Buy** in that order. Craft
+  wording is `craft · bench`; Research shows the project (plus `· buy` when
+  tradeable); a research-locked def you own shows `more: <project>`.
+- `Buy` is allowed to be empty in vanilla. If it is populated, the def should
+  have no crafting route.
 - The seven pawns who were `blocked` on the monosword no longer create monosword
   demand (the probe is too heavy for their SS backup cap).
 - Clicking a row expands the contributing colonists; the expanded lines show
   slot, gain and current weapon.
 - `Armory → Log weapon snapshot` reports a non-zero catalog size and prints
-  demand rows with sane `owned` / `need` numbers.
+  demand rows with sane `want (best N)` / `owned` / `need` numbers.
 - If the catalog is empty or tiny, the likely cause is recipe enumeration or
   probe construction failing; the log line is the first thing to check.
 
@@ -1075,6 +1118,7 @@ polish, not new core behaviour.
 | 0.6.6 | Widen reason/status columns (Weapons `Colonists by fit`, pawn hand/backup/incompatible lists) so long blockers fit |
 | 0.6.7 | Shorten weight blocker to `Can't carry (...)`, number the backup list, white section headers with dividers, move the main tab next to Assign |
 | 0.7.0 | Demand rework: ideal loadout vs owned copies over all craftable/buyable/owned defs, normal-quality scoring probes, `Build`/`Locked by research` sections, `Owned`/`Need`/`Gain`/`Source`, expandable per-colonist detail |
+| 0.7.1 | Demand lists every upgrade as an independent option (overlapping wants), white/grey best-vs-alternative markers, and Craft / Research / Buy sections in action order |
 
 ---
 

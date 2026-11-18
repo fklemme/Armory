@@ -261,14 +261,17 @@ namespace Armory
         public readonly List<Candidate> PawnCandidates = new List<Candidate>();
     }
 
-    /// <summary>Where a demand row belongs in the tab.</summary>
+    /// <summary>Where a demand row belongs in the tab, in action-priority order.</summary>
     public enum DemandSection
     {
-        /// <summary>Craftable now or buyable from a trader.</summary>
-        Build = 0,
+        /// <summary>Recipe available now; the colony can craft it immediately.</summary>
+        Craft = 0,
 
-        /// <summary>Not available yet, but an unfinished research project unlocks it.</summary>
-        Locked = 1
+        /// <summary>An unfinished research project unlocks crafting.</summary>
+        Research = 1,
+
+        /// <summary>No crafting route yet; a trader is the only source.</summary>
+        Buy = 2
     }
 
     /// <summary>One colonist contributing to a demand row.</summary>
@@ -281,13 +284,17 @@ namespace Armory
         /// <summary>True when the pawn has no weapon for that slot, so there is no baseline.</summary>
         public bool IsNew;
 
+        /// <summary>True when this def is the pawn's best option within its section.</summary>
+        public bool IsTop;
+
         /// <summary>Weapon the pawn currently uses for that slot, or "nothing".</summary>
         public string CurrentLabel;
     }
 
     /// <summary>
-    /// Ideal loadout minus owned copies for one weapon def. Wants are counted per colonist
-    /// and slot; owned copies include equipped, carried and loose weapons of the same def.
+    /// Ideal loadout minus owned copies for one weapon def. Rows are independent options:
+    /// a colonist appears in every row that would improve their slot, so the wants of
+    /// different rows overlap. Owned copies include equipped, carried and loose weapons.
     /// </summary>
     public sealed class DemandRow
     {
@@ -298,6 +305,9 @@ namespace Armory
         public int Owned;
         public int Forbidden;
         public DemandSection Section;
+
+        /// <summary>Colonists for whom this is the best option within its section.</summary>
+        public int BestCount;
 
         public bool CraftableNow;
         public bool Buyable;

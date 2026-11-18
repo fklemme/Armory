@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.7.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.7.1** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -66,17 +66,20 @@ cannot be that pawn's primary; if SS's mass cap rejects it, it is
 `Backup blocked` with SS's reason.
 
 ### Demand
-The build plan: ideal loadout minus what the colony already owns, so the tab
-answers "what should we build, buy, or research next?" instead of "who would
-pick up the leftovers on the floor?"
+The upgrade menu: every obtainable weapon that would improve a colonist, minus
+what the colony already owns. It answers "what could we make, research, or buy
+next?" instead of "who would pick up the leftovers on the floor?"
 
 For every colonist and slot, Armory scores every weapon def the colony could
 obtain: craftable now, craftable after pending research, buyable from a trader,
-or already owned. A def is counted as `Want` when it is that colonist's best
-option in its group and beats their current weapon by the upgrade threshold.
-The research group only contributes when its best option is meaningfully better
-than the best build-now option. Owned copies (equipped, carried, or loose) are
-subtracted:
+or already owned. **Every** def that beats the current weapon by the upgrade
+threshold is listed. Rows are independent options, so one colonist can appear in
+several of them; a white weapon name means the def is the best option in its
+section for at least one colonist, while grey rows are alternatives.
+
+Research options must also beat the best currently obtainable option by the
+threshold, so research never advertises a weapon that is worse than something
+already buildable. Owned copies (equipped, carried, or loose) are subtracted:
 
 ```
 Need = max(0, Want - owned copies that are not forbidden)
@@ -85,17 +88,19 @@ Need = max(0, Want - owned copies that are not forbidden)
 Columns:
 
 - `Slot`: `hand`, `backup`, or how many of each;
-- `Want`: colonists whose ideal weapon for that slot is this def;
+- `Want`: colonists who would improve with this def (may overlap other rows);
 - `Owned`: copies in the colony (`2 · 1 forb.` when some are forbidden);
 - `Need`: copies still missing;
 - `Gain`: average improvement over the current weapon, assuming a newly made
   normal-quality copy; `new` when the pawn has nothing in that slot;
-- `Source`: `craft · bench`, `buy`, or the research project that unlocks it.
+- `Source`: `craft · bench`, the research project, or `buy`.
 
-Rows are grouped into **Build or buy** (actionable now) and **Locked by research**
-(needs a project; `· buy` when a trader can also supply it), sorted by total gain
-so the biggest improvement is first. Click a row to see the contributing
-colonists, their slot, gain, and current weapon. Defs with no gap are hidden.
+Sections follow the order of action: **Craft** (recipe unlocked now),
+**Research** (a project unlocks it; `· buy` when a trader can also supply it),
+and **Buy** (no crafting route, trader only). Within a section, rows that are the
+best option for at least one colonist come first, then alternatives by total
+gain. Click a row to see the contributing colonists, their slot, gain, and
+current weapon. Defs with no gap are hidden.
 
 `Owned` includes forbidden copies; `Need` only counts usable ones, and its
 tooltip shows how many unforbidding would cover. A research-locked def you
@@ -447,12 +452,15 @@ Manual equivalent:
   show less demand than it really has. Owned copies are counted per def; their
   individual quality only affects each colonist's current baseline, so owning one
   awful copy also hides the need to craft a better copy of the same def.
-- **Demand is per def, not per item.** Each colonist contributes at most one
-  build-now want and one research-locked want per slot; there is no
-  second-choice wish list. `Need` covers the count.
+- **Demand is per def, not per item.** Every upgrade is listed, so wants overlap:
+  a colonist can appear in several rows for the same slot. `Need` describes what
+  one row alone would require, not a combined shopping list.
 - **Demand does not create bills or buy anything.** `buy` comes from the def's
   `tradeability`; it does not know whether a suitable trader is currently
-  available, and nothing is queued automatically.
+  available, and nothing is queued automatically. The **Buy** section is usually
+  empty in vanilla because most weapon defs have recipes; it is for modded or
+  quest weapons with no crafting route. Research-locked defs stay under
+  Research even when a trader could also supply them.
 - **Weapons carried by colonists in caravans** are not part of owned supply,
   because the snapshot only sees the current map.
 - **Combat Extended** ammo state is not scored beyond its stat effects.

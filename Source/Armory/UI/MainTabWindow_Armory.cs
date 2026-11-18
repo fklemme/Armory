@@ -1264,7 +1264,7 @@ namespace Armory
             Text.WordWrap = false;
             GUI.color = new Color(0.8f, 0.8f, 0.8f);
             Widgets.LabelEllipses(new Rect(inner.x, inner.y, inner.width, 22f),
-                "Ideal loadout vs. what you own - build, buy, or research the gap. Forbidden stock only counts once unforbidden.");
+                "Upgrade options vs owned stock; a colonist can appear in several rows. Order: craft, research, buy. Forbidden stock only counts once unforbidden.");
             GUI.color = Color.white;
             Text.WordWrap = previousWrap;
 
@@ -1324,12 +1324,24 @@ namespace Armory
                     expandedDemandDef = expandedDemandDef == row.Def ? null : row.Def;
                 }
 
-                Color needColor = row.Section == DemandSection.Build
+                Color needColor = row.Section == DemandSection.Craft
                     ? new Color(1f, 0.68f, 0.5f)
                     : new Color(0.78f, 0.72f, 0.62f);
 
-                DrawCell(new Rect(columns.WeaponX, cursor, columns.WeaponWidth, RowHeight),
-                    row.Label, TextAnchor.MiddleLeft);
+                Rect weaponCell = new Rect(columns.WeaponX, cursor, columns.WeaponWidth, RowHeight);
+                DrawCell(weaponCell, row.Label, TextAnchor.MiddleLeft, GameFont.Small,
+                    row.BestCount > 0 ? Color.white : new Color(0.72f, 0.72f, 0.72f));
+                if (row.BestCount > 0)
+                {
+                    TooltipHandler.TipRegion(weaponCell, string.Format(
+                        "Best option in this section for {0} colonist{1}.",
+                        row.BestCount, row.BestCount == 1 ? string.Empty : "s"));
+                }
+                else
+                {
+                    TooltipHandler.TipRegion(weaponCell,
+                        "An upgrade, but not the best option in this section for any colonist.");
+                }
                 DrawCell(new Rect(columns.SlotX, cursor, DemandColumns.SlotWidth, RowHeight),
                     row.Uses, TextAnchor.MiddleLeft, GameFont.Small,
                     new Color(0.72f, 0.82f, 0.92f));
@@ -1395,8 +1407,11 @@ namespace Armory
                 "Weapon", TextAnchor.MiddleLeft, GameFont.Tiny, color);
             DrawCell(new Rect(rect.x + columns.SlotX, rect.y, DemandColumns.SlotWidth, rect.height),
                 "Slot", TextAnchor.MiddleLeft, GameFont.Tiny, color);
-            DrawCell(new Rect(rect.x + columns.WantX, rect.y, DemandColumns.WantWidth, rect.height),
-                "Want", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            Rect wantRect = new Rect(rect.x + columns.WantX, rect.y, DemandColumns.WantWidth,
+                rect.height);
+            DrawCell(wantRect, "Want", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            TooltipHandler.TipRegion(wantRect,
+                "Colonists who would improve with this weapon. A colonist can appear in several rows; each row is an independent option.");
             DrawCell(new Rect(rect.x + columns.OwnedX, rect.y, DemandColumns.OwnedWidth, rect.height),
                 "Owned", TextAnchor.MiddleRight, GameFont.Tiny, color);
             Rect needRect = new Rect(rect.x + columns.NeedX, rect.y, DemandColumns.NeedWidth,
@@ -1409,18 +1424,23 @@ namespace Armory
             DrawCell(gainRect, "Gain", TextAnchor.MiddleRight, GameFont.Tiny, color);
             TooltipHandler.TipRegion(gainRect,
                 "Improvement over the colonist's current weapon, assuming an ordinary normal-quality copy.");
-            DrawCell(new Rect(rect.x + columns.SourceX, rect.y, DemandColumns.SourceWidth,
-                    rect.height), "Source", TextAnchor.MiddleLeft, GameFont.Tiny, color);
+            Rect sourceRect = new Rect(rect.x + columns.SourceX, rect.y,
+                DemandColumns.SourceWidth, rect.height);
+            DrawCell(sourceRect, "Source", TextAnchor.MiddleLeft, GameFont.Tiny, color);
+            TooltipHandler.TipRegion(sourceRect,
+                "Craft: the recipe is unlocked now. Research: the named project unlocks it. Buy: a trader is the only source.");
         }
 
         private static string DemandSectionTitle(DemandSection section)
         {
             switch (section)
             {
-                case DemandSection.Locked:
-                    return "Locked by research";
+                case DemandSection.Research:
+                    return "Research";
+                case DemandSection.Buy:
+                    return "Buy";
                 default:
-                    return "Build or buy";
+                    return "Craft";
             }
         }
 
@@ -1445,32 +1465,38 @@ namespace Armory
 
         private static string SourceText(DemandRow row)
         {
-            if (row.Section == DemandSection.Locked)
+            switch (row.Section)
             {
-                string research = row.MissingResearch ?? "locked";
-                if (row.Owned > 0 && row.Need > 0)
-                {
-                    // Some copies already exist; research only unlocks additional ones.
-                    research = "more: " + research;
-                }
-                return row.Buyable ? research + " · buy" : research;
+                case DemandSection.Research:
+                    string research = row.MissingResearch ?? "locked";
+                    if (row.Owned > 0 && row.Need > 0)
+                    {
+                        // Some copies already exist; research only unlocks additional ones.
+                        research = "more: " + research;
+                    }
+                    return row.Buyable ? research + " · buy" : research;
+                case DemandSection.Buy:
+                    return "buy";
+                default:
+                    return row.CraftableNow
+                        ? (string.IsNullOrEmpty(row.BenchLabel)
+                            ? "craft"
+                            : "craft · " + row.BenchLabel)
+                        : "buy";
             }
-            if (row.CraftableNow)
-            {
-                return string.IsNullOrEmpty(row.BenchLabel) ? "craft" : "craft · " + row.BenchLabel;
-            }
-            return row.Buyable ? "buy" : "craft";
         }
 
         private static Color SourceColor(DemandRow row)
         {
-            if (row.Section == DemandSection.Locked)
+            switch (row.Section)
             {
-                return new Color(0.95f, 0.78f, 0.5f);
+                case DemandSection.Research:
+                    return new Color(0.95f, 0.78f, 0.5f);
+                case DemandSection.Buy:
+                    return new Color(0.85f, 0.8f, 0.65f);
+                default:
+                    return new Color(0.7f, 0.85f, 0.95f);
             }
-            return row.CraftableNow
-                ? new Color(0.7f, 0.85f, 0.95f)
-                : new Color(0.85f, 0.8f, 0.65f);
         }
 
         private static void DrawWantLine(DemandWant want, float cursor, float width)

@@ -157,16 +157,17 @@ namespace Armory
                     ? "new"
                     : row.AverageGain.ToString("0%");
                 Log.Message(string.Format(
-                    "[Armory]   demand {0}: {1} | want {2} | owned {3} ({4} forbidden) | need {5} | gain {6} | {7} | {8}",
+                    "[Armory]   demand {0}: {1} | want {2} (best {3}) | owned {4} ({5} forbidden) | need {6} | gain {7} | {8} | {9}",
                     i + 1,
                     row.Label,
                     row.Uses,
+                    row.BestCount,
                     row.Owned,
                     row.Forbidden,
                     row.Need,
                     gain,
                     row.Section,
-                    row.Section == DemandSection.Locked
+                    row.Section == DemandSection.Research
                         ? (row.MissingResearch ?? "locked")
                         : row.CraftableNow
                             ? "craft " + row.BenchLabel

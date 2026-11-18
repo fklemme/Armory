@@ -618,10 +618,11 @@ namespace Armory
             float threshold = settings == null ? 0.1f : settings.upgradeThreshold;
             int minimumAge = settings == null ? 0 : settings.minimumAge;
 
-            // Two separate ideals: what the colony can make/buy now, and what research
-            // would unlock. A pawn can appear in both, because "build this now" and
-            // "research towards that later" are different plans.
-            List<WeaponSource> buildSources = new List<WeaponSource>();
+            // Two option groups per pawn: what can be obtained now, and what research
+            // would unlock. Every qualifying def is listed, so a pawn can appear in
+            // several rows; the sections keep immediate crafting ahead of research and
+            // trader-only weapons last.
+            List<WeaponSource> craftSources = new List<WeaponSource>();
             List<WeaponSource> researchSources = new List<WeaponSource>();
             for (int i = 0; i < universe.Count; i++)
             {
@@ -638,7 +639,7 @@ namespace Armory
                 bool isOwned = owned.ContainsKey(source.Def);
                 if (source.AvailableNow || source.MissingResearch == null || isOwned)
                 {
-                    buildSources.Add(source);
+                    craftSources.Add(source);
                 }
                 else
                 {
@@ -659,7 +660,7 @@ namespace Armory
 
                 if (!pawn.HandLocked)
                 {
-                    AddSlotWants(rows, pawn, context, buildSources, researchSources, true,
+                    AddSlotWants(rows, pawn, context, craftSources, researchSources, true,
                         pawn.HandBaselineScore, threshold, LabelOf(pawn.Current));
                 }
 
@@ -674,7 +675,7 @@ namespace Armory
                 float backupBaseline;
                 ThingWithComps worstBackup;
                 TryGetWorstBackup(pawn, out backupBaseline, out worstBackup);
-                AddSlotWants(rows, pawn, context, buildSources, researchSources, false,
+                AddSlotWants(rows, pawn, context, craftSources, researchSources, false,
                     backupBaseline, threshold, LabelOf(worstBackup));
             }
 
@@ -702,17 +703,22 @@ namespace Armory
 
                 if (row.CraftableNow)
                 {
-                    row.Section = DemandSection.Build;
+                    row.Section = DemandSection.Craft;
                 }
                 else if (row.MissingResearch != null)
                 {
-                    // Research is the blocker even when a trader could also supply it; the
-                    // Source cell appends "buy" so the row still reads as obtainable.
-                    row.Section = DemandSection.Locked;
+                    // Research is the next step even when a trader could also supply it;
+                    // the Source cell appends "buy" so the row still reads as obtainable.
+                    row.Section = DemandSection.Research;
+                }
+                else if (row.Buyable)
+                {
+                    row.Section = DemandSection.Buy;
                 }
                 else
                 {
-                    row.Section = DemandSection.Build;
+                    // Unreachable: picks come from Obtainable sources only.
+                    row.Section = DemandSection.Buy;
                 }
 
                 snapshot.Demand.Add(row);
@@ -725,10 +731,25 @@ namespace Armory
                 {
                     return bySection;
                 }
+
+                // Rows that are the best option in their section for at least one
+                // colonist come first; the rest are alternatives.
+                bool aTop = a.BestCount > 0;
+                bool bTop = b.BestCount > 0;
+                if (aTop != bTop)
+                {
+                    return bTop ? 1 : -1;
+                }
+
                 int byGain = b.TotalGain.CompareTo(a.TotalGain);
                 if (byGain != 0)
                 {
                     return byGain;
+                }
+                int byBest = b.BestCount.CompareTo(a.BestCount);
+                if (byBest != 0)
+                {
+                    return byBest;
                 }
                 int byNeed = b.Need.CompareTo(a.Need);
                 if (byNeed != 0)
@@ -771,92 +792,110 @@ namespace Armory
         }
 
         /// <summary>
-        /// Best obtainable weapon for one slot, ignoring stock and transient capacity.
-        /// Only def-level rules apply, so a pawn with a full bag still creates demand.
-        /// </summary>
-        private static WeaponSource PickBest(PawnAnalysis pawn, PawnFitContext context,
-            List<WeaponSource> universe, float baseline, float threshold, bool hand,
-            out float bestScore)
-        {
-            float required = baseline * (1f + threshold);
-            WeaponSource best = null;
-            bestScore = 0f;
-
-            for (int i = 0; i < universe.Count; i++)
-            {
-                WeaponSource source = universe[i];
-                if (source == null || source.Probe == null || source.ProbePower <= 0f ||
-                    !source.Obtainable)
-                {
-                    continue;
-                }
-
-                ThingDef def = source.Def;
-                if (hand ? !pawn.IsHandType(def) : !pawn.IsBackupType(def))
-                {
-                    continue;
-                }
-
-                if (!hand)
-                {
-                    // Def-level rules only: a hypothetical new weapon has no biocoding,
-                    // bond or inventory state, and transient slot/capacity rules must not
-                    // suppress demand.
-                    string reason;
-                    if (!IsUsableAsBackup(source.Probe) ||
-                        !SimpleSidearmsAdapter.IsValidSidearmForPawn(pawn.Pawn, source.Probe,
-                            out reason))
-                    {
-                        continue;
-                    }
-                }
-
-                float score = source.ProbePower * PawnFit.Compute(context, source.Probe);
-                if (score <= required || score <= bestScore)
-                {
-                    continue;
-                }
-                best = source;
-                bestScore = score;
-            }
-
-            return best;
-        }
-
-        /// <summary>
-        /// Adds the best build-now and the best research-locked pick for one slot. The
-        /// research pick is only kept when it is meaningfully better than the build pick,
-        /// so the two sections do not repeat the same advice.
+        /// Adds every obtainable weapon that is an upgrade for this pawn and slot. The
+        /// rows are independent options, so one colonist can appear in several of them.
+        /// Research options must also beat the best craft-now option by the threshold;
+        /// otherwise they would only advertise something worse than what is buildable.
         /// </summary>
         private static void AddSlotWants(Dictionary<ThingDef, DemandRow> rows,
-            PawnAnalysis pawn, PawnFitContext context, List<WeaponSource> buildSources,
+            PawnAnalysis pawn, PawnFitContext context, List<WeaponSource> craftSources,
             List<WeaponSource> researchSources, bool hand, float baseline, float threshold,
             string currentLabel)
         {
-            float buildScore;
-            WeaponSource build = PickBest(pawn, context, buildSources, baseline, threshold, hand,
-                out buildScore);
-            if (build != null)
+            float required = baseline * (1f + threshold);
+            float bestCraft = 0f;
+            float bestResearch = 0f;
+
+            for (int i = 0; i < craftSources.Count; i++)
             {
-                AddWant(rows, pawn, build, buildScore, hand, baseline, currentLabel);
+                float score;
+                if (TryScoreCandidate(pawn, context, craftSources[i], hand, required, out score) &&
+                    score > bestCraft)
+                {
+                    bestCraft = score;
+                }
             }
 
-            float researchScore;
-            WeaponSource research = PickBest(pawn, context, researchSources, baseline, threshold,
-                hand, out researchScore);
-            if (research == null)
+            float researchRequired = bestCraft > 0f ? bestCraft * (1f + threshold) : required;
+            for (int i = 0; i < researchSources.Count; i++)
             {
-                return;
+                float score;
+                if (TryScoreCandidate(pawn, context, researchSources[i], hand, researchRequired,
+                        out score) &&
+                    score > bestResearch)
+                {
+                    bestResearch = score;
+                }
             }
-            if (build != null && researchScore <= buildScore * (1f + threshold))
+
+            for (int i = 0; i < craftSources.Count; i++)
             {
-                return;
+                float score;
+                if (!TryScoreCandidate(pawn, context, craftSources[i], hand, required,
+                        out score))
+                {
+                    continue;
+                }
+                bool isTop = bestCraft > 0f && score >= bestCraft - 0.001f;
+                AddWant(rows, pawn, craftSources[i], score, hand, baseline, currentLabel, isTop);
             }
-            AddWant(rows, pawn, research, researchScore, hand, baseline, currentLabel);
+
+            for (int i = 0; i < researchSources.Count; i++)
+            {
+                float score;
+                if (!TryScoreCandidate(pawn, context, researchSources[i], hand, researchRequired,
+                        out score))
+                {
+                    continue;
+                }
+                bool isTop = bestResearch > 0f && score >= bestResearch - 0.001f;
+                AddWant(rows, pawn, researchSources[i], score, hand, baseline, currentLabel,
+                    isTop);
+            }
+        }
+
+        /// <summary>
+        /// Scores one candidate for a slot, applying def-level rules and the minimum
+        /// improvement. Returns false when the weapon does not belong in that slot or
+        /// would not be an upgrade.
+        /// </summary>
+        private static bool TryScoreCandidate(PawnAnalysis pawn, PawnFitContext context,
+            WeaponSource source, bool hand, float requiredScore, out float score)
+        {
+            score = 0f;
+            if (source == null || source.Probe == null || source.ProbePower <= 0f ||
+                !source.Obtainable)
+            {
+                return false;
+            }
+
+            ThingDef def = source.Def;
+            if (hand ? !pawn.IsHandType(def) : !pawn.IsBackupType(def))
+            {
+                return false;
+            }
+
+            if (!hand)
+            {
+                // Def-level rules only: a hypothetical new weapon has no biocoding,
+                // bond or inventory state, and transient slot/capacity rules must not
+                // suppress demand.
+                string reason;
+                if (!IsUsableAsBackup(source.Probe) ||
+                    !SimpleSidearmsAdapter.IsValidSidearmForPawn(pawn.Pawn, source.Probe,
+                        out reason))
+                {
+                    return false;
+                }
+            }
+
+            score = source.ProbePower * PawnFit.Compute(context, source.Probe);
+            return score > requiredScore;
         }
 
         private static void AddWant(Dictionary<ThingDef, DemandRow> rows, PawnAnalysis pawn,
-            WeaponSource source, float score, bool hand, float baseline, string currentLabel)
+            WeaponSource source, float score, bool hand, float baseline, string currentLabel,
+            bool isTop)
         {
             DemandRow row;
             if (!rows.TryGetValue(source.Def, out row))
@@ -887,9 +926,14 @@ namespace Armory
                 Hand = hand,
                 Gain = gain,
                 IsNew = isNew,
+                IsTop = isTop,
                 CurrentLabel = currentLabel
             });
 
+            if (isTop)
+            {
+                row.BestCount++;
+            }
             row.KnownCount += isNew ? 0 : 1;
             row.NewCount += isNew ? 1 : 0;
             row.KnownGain += isNew ? 0f : gain;

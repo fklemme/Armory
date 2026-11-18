@@ -707,10 +707,10 @@ namespace Armory
                 }
 
                 DrawCell(new Rect(4f, cursor, 24f, 22f), (i + 1) + ".", TextAnchor.MiddleRight);
-                DrawCell(new Rect(32f, cursor, Mathf.Max(40f, width - 286f), 22f),
+                DrawCell(new Rect(32f, cursor, Mathf.Max(40f, width - 366f), 22f),
                     candidate.Weapon.Label, TextAnchor.MiddleLeft);
-                DrawCell(new Rect(width - 246f, cursor, 120f, 22f),
-                    candidate.Ready ? "ready" : candidate.Blocker, TextAnchor.MiddleRight,
+                DrawCell(new Rect(width - 326f, cursor, 200f, 22f),
+                    candidate.Ready ? "ready" : candidate.Blocker, TextAnchor.MiddleLeft,
                     GameFont.Small, StatusColor(candidate));
                 DrawCell(new Rect(width - 122f, cursor, 48f, 22f), candidate.Score.ToString("0"),
                     TextAnchor.MiddleRight);
@@ -740,10 +740,10 @@ namespace Armory
                 for (int i = 0; i < incompatibleLimit; i++)
                 {
                     Candidate blocked = pawn.Incompatible[i];
-                    DrawCell(new Rect(32f, cursor, Mathf.Max(40f, width - 200f), 22f),
+                    DrawCell(new Rect(32f, cursor, Mathf.Max(40f, width - 244f), 22f),
                         blocked.Weapon.Label, TextAnchor.MiddleLeft);
-                    DrawCell(new Rect(width - 164f, cursor, 156f, 22f), blocked.Blocker,
-                        TextAnchor.MiddleRight, GameFont.Small, new Color(1f, 0.55f, 0.55f));
+                    DrawCell(new Rect(width - 204f, cursor, 200f, 22f), blocked.Blocker,
+                        TextAnchor.MiddleLeft, GameFont.Small, new Color(1f, 0.55f, 0.55f));
                     cursor += 22f;
                 }
             }
@@ -801,10 +801,10 @@ namespace Armory
                         ? new Color(0.66f, 0.84f, 0.95f)
                         : candidate.Ready ? new Color(0.7f, 0.9f, 0.7f) : new Color(1f, 0.8f, 0.42f);
 
-                    DrawCell(new Rect(32f, cursor, Mathf.Max(40f, width - 286f), 22f),
+                    DrawCell(new Rect(32f, cursor, Mathf.Max(40f, width - 366f), 22f),
                         candidate.Weapon.Label, TextAnchor.MiddleLeft);
-                    DrawCell(new Rect(width - 246f, cursor, 120f, 22f), status,
-                        TextAnchor.MiddleRight, GameFont.Small, statusColor);
+                    DrawCell(new Rect(width - 326f, cursor, 200f, 22f), status,
+                        TextAnchor.MiddleLeft, GameFont.Small, statusColor);
                     DrawCell(new Rect(width - 122f, cursor, 48f, 22f),
                         candidate.Score.ToString("0"), TextAnchor.MiddleRight);
                     DrawCell(new Rect(width - 70f, cursor, 66f, 22f),
@@ -1110,11 +1110,15 @@ namespace Armory
                 bool available = pawn.Available;
                 bool holdsIt = pawn.Current == row.Weapon.Thing;
                 float score = handCandidate != null ? handCandidate.Score : backupCandidate.Score;
+                float nameWidth = Mathf.Clamp(width * 0.28f, 100f, 190f);
+                float scoreX = 4f + nameWidth + 8f;
+                float statusX = scoreX + 52f + 8f;
+                float statusWidth = Mathf.Max(120f, width - statusX - 4f);
 
-                DrawCell(new Rect(4f, cursor, Mathf.Max(40f, width - 270f), 22f),
+                DrawCell(new Rect(4f, cursor, nameWidth, 22f),
                     pawn.Pawn.LabelShort + (holdsIt ? "  (holds it)" : string.Empty),
                     TextAnchor.MiddleLeft);
-                DrawCell(new Rect(width - 260f, cursor, 56f, 22f), score.ToString("0"),
+                DrawCell(new Rect(scoreX, cursor, 52f, 22f), score.ToString("0"),
                     TextAnchor.MiddleRight);
 
                 string status;
@@ -1146,7 +1150,7 @@ namespace Armory
                     status = ready ? "backup ready" : reason;
                     color = ready ? new Color(0.66f, 0.84f, 0.95f) : new Color(1f, 0.62f, 0.62f);
                 }
-                DrawCell(new Rect(width - 198f, cursor, 194f, 22f), status, TextAnchor.MiddleRight,
+                DrawCell(new Rect(statusX, cursor, statusWidth, 22f), status, TextAnchor.MiddleLeft,
                     GameFont.Small, color);
                 cursor += 22f;
             }

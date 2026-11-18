@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.6.5**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.6.6**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.6.5 are committed.
+Git repository on `main`; 0.2.3 through 0.6.6 are committed.
 
 ---
 
@@ -384,6 +384,25 @@ lists and Demand all show the clarified text. Build clean.
 
 ---
 
+## 0.6.6 — column widths for long reasons
+
+The longer blocker text exposed a layout problem in the Weapons detail's
+`Colonists by fit` list: the reason column was fixed at 194 px while the name
+column took everything else (`width - 270`), so `No free carrying capacity (...)`
+was truncated.
+
+- `Colonists by fit`: colonist name is now clamped to 100–190 px (28 % of the
+  pane), score 52 px, and the reason/status column takes the remaining width
+  (~380 px at the default detail width), left-aligned.
+- Pawn detail: hand and backup candidate status columns widened from 120 to
+  200 px (left-aligned); the `Incompatible with this pawn` reason column widened
+  from 156 to 200 px. Weapon-label columns shrank accordingly.
+- No text changed; this only reallocates space.
+
+Build clean.
+
+---
+
 ## Verified behavior
 
 ### Isolated quicktest (Core + Armory)
@@ -727,9 +746,13 @@ These are easy to break; keep them in mind.
 
 ---
 
-## Pending verification (0.6.5)
+## Pending verification (0.6.6)
 
 The immediate checks are:
+
+- Weapons detail, `Colonists by fit`: the full reason text is visible for long
+  blockers such as `No free carrying capacity (needs 2 kg, 0.7 kg free)`, and the
+  colonist name column is narrower.
 
 - A blocked backup shows `All sidearm slots are full` when SS's slot count is
   reached, and `No free carrying capacity (needs X kg, Y kg free)` when the
@@ -909,6 +932,7 @@ polish, not new core behaviour.
 | 0.6.3 | Narrow bonded-persona rule: only lock the hand while the bonded weapon is equipped; allow hand/backup management otherwise |
 | 0.6.4 | Clearer Log tab: Action before Weapon, readable spacing, `Equip hand`/`Equip backup` labels, `Reason` column with plain-language reasons |
 | 0.6.5 | Expand Simple Sidearms' `Slots full` / `No free space` into distinct explanations (`All sidearm slots are full`, `No free carrying capacity (needs X kg, Y kg free)`) |
+| 0.6.6 | Widen reason/status columns (Weapons `Colonists by fit`, pawn hand/backup/incompatible lists) so long blockers fit |
 
 ---
 

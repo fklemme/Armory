@@ -26,6 +26,7 @@ namespace Armory
         private Vector2 weaponDetailScroll;
         private Vector2 demandScroll;
         private Vector2 decisionScroll;
+        private ThingDef expandedDemandDef;
         private bool refreshRequested;
 
         private readonly List<Candidate> visibleRanked = new List<Candidate>();
@@ -1219,6 +1220,41 @@ namespace Armory
 
         // --------------------------------------------------------------- Demand
 
+        /// <summary>Fixed column layout shared by the Demand header and rows.</summary>
+        private struct DemandColumns
+        {
+            public const float SlotWidth = 150f;
+            public const float WantWidth = 52f;
+            public const float OwnedWidth = 100f;
+            public const float NeedWidth = 56f;
+            public const float GainWidth = 64f;
+            public const float SourceWidth = 190f;
+            private const float Gap = 8f;
+
+            public float WeaponX;
+            public float WeaponWidth;
+            public float SlotX;
+            public float WantX;
+            public float OwnedX;
+            public float NeedX;
+            public float GainX;
+            public float SourceX;
+
+            public static DemandColumns For(float rowWidth)
+            {
+                DemandColumns columns = new DemandColumns();
+                columns.SourceX = rowWidth - 4f - SourceWidth;
+                columns.GainX = columns.SourceX - Gap - GainWidth;
+                columns.NeedX = columns.GainX - Gap - NeedWidth;
+                columns.OwnedX = columns.NeedX - Gap - OwnedWidth;
+                columns.WantX = columns.OwnedX - Gap - WantWidth;
+                columns.SlotX = columns.WantX - Gap - SlotWidth;
+                columns.WeaponX = 4f;
+                columns.WeaponWidth = Mathf.Max(120f, columns.SlotX - Gap - columns.WeaponX);
+                return columns;
+            }
+        }
+
         private void DrawDemand(Rect area, ArmorySnapshot snapshot)
         {
             Widgets.DrawBoxSolid(area, new Color(0.12f, 0.12f, 0.12f));
@@ -1228,66 +1264,222 @@ namespace Armory
             Text.WordWrap = false;
             GUI.color = new Color(0.8f, 0.8f, 0.8f);
             Widgets.LabelEllipses(new Rect(inner.x, inner.y, inner.width, 22f),
-                "Hand and opposite-type backup needs per colonist vs loose stock. Forbidden stock must be unforbidden before building more.");
+                "Ideal loadout vs. what you own - build, buy, or research the gap. Forbidden stock only counts once unforbidden.");
             GUI.color = Color.white;
             Text.WordWrap = previousWrap;
+
+            if (snapshot.Demand.Count == 0)
+            {
+                string message = WeaponCatalog.HasObtainable
+                    ? "Every colonist already has their best obtainable weapon for each slot."
+                    : "No obtainable weapon defs were found. Run Armory > Log weapon snapshot and check the log.";
+                GUI.color = new Color(0.72f, 0.72f, 0.72f);
+                Widgets.Label(new Rect(inner.x, inner.y + 32f, inner.width, 24f), message);
+                GUI.color = Color.white;
+                return;
+            }
 
             float headerY = inner.y + 26f;
             Rect scrollRect = new Rect(inner.x, headerY + HeaderHeight, inner.width,
                 Mathf.Max(40f, inner.yMax - (headerY + HeaderHeight)));
             float rowWidth = scrollRect.width - 20f;
-            DrawDemandHeader(new Rect(inner.x, headerY, rowWidth, HeaderHeight));
-            Widgets.BeginScrollView(scrollRect, ref demandScroll,
-                new Rect(0f, 0f, rowWidth, snapshot.Demand.Count * RowHeight + 10f));
+            DemandColumns columns = DemandColumns.For(rowWidth);
+            DrawDemandHeader(new Rect(inner.x, headerY, rowWidth, HeaderHeight), columns);
 
+            float contentHeight = 0f;
+            DemandSection lastSection = (DemandSection)(-1);
             for (int i = 0; i < snapshot.Demand.Count; i++)
             {
                 DemandRow row = snapshot.Demand[i];
-                Rect rowRect = new Rect(0f, i * RowHeight, rowWidth, RowHeight);
-                Widgets.DrawHighlightIfMouseover(rowRect);
+                if (row.Section != lastSection)
+                {
+                    contentHeight += 28f;
+                    lastSection = row.Section;
+                }
+                contentHeight += RowHeight;
+                if (expandedDemandDef == row.Def)
+                {
+                    contentHeight += row.Wants.Count * 20f;
+                }
+            }
 
-                DrawCell(new Rect(4f, rowRect.y, rowWidth - 418f, rowRect.height), row.Label,
-                    TextAnchor.MiddleLeft);
-                DrawCell(new Rect(rowWidth - 414f, rowRect.y, 64f, rowRect.height), row.Uses,
-                    TextAnchor.MiddleLeft, GameFont.Small, new Color(0.72f, 0.82f, 0.92f));
-                DrawCell(new Rect(rowWidth - 346f, rowRect.y, 54f, rowRect.height), row.Wanted.ToString(),
-                    TextAnchor.MiddleRight);
-                DrawCell(new Rect(rowWidth - 286f, rowRect.y, 54f, rowRect.height), row.Blocked.ToString(),
-                    TextAnchor.MiddleRight, GameFont.Small,
-                    row.Blocked > 0 ? new Color(1f, 0.8f, 0.42f) : new Color(0.7f, 0.7f, 0.7f));
-                DrawCell(new Rect(rowWidth - 226f, rowRect.y, 54f, rowRect.height), row.Stock.ToString(),
-                    TextAnchor.MiddleRight);
-                DrawCell(new Rect(rowWidth - 166f, rowRect.y, 70f, rowRect.height), row.Forbidden.ToString(),
-                    TextAnchor.MiddleRight, GameFont.Small,
-                    row.Forbidden > 0 ? new Color(1f, 0.8f, 0.42f) : new Color(0.7f, 0.7f, 0.7f));
-                Color shortageColor = row.Shortage > 0
-                    ? new Color(1f, 0.65f, 0.5f)
-                    : new Color(0.7f, 0.9f, 0.7f);
-                DrawCell(new Rect(rowWidth - 92f, rowRect.y, 88f, rowRect.height),
-                    row.Shortage > 0 ? ("need " + row.Shortage) : "enough",
-                    TextAnchor.MiddleRight, GameFont.Small, shortageColor);
+            Widgets.BeginScrollView(scrollRect, ref demandScroll,
+                new Rect(0f, 0f, rowWidth, contentHeight + 4f));
+
+            float cursor = 0f;
+            lastSection = (DemandSection)(-1);
+            for (int i = 0; i < snapshot.Demand.Count; i++)
+            {
+                DemandRow row = snapshot.Demand[i];
+                if (row.Section != lastSection)
+                {
+                    SectionHeader(ref cursor, rowWidth, DemandSectionTitle(row.Section));
+                    lastSection = row.Section;
+                }
+
+                Rect rowRect = new Rect(0f, cursor, rowWidth, RowHeight);
+                Widgets.DrawHighlightIfMouseover(rowRect);
+                if (Widgets.ButtonInvisible(rowRect))
+                {
+                    expandedDemandDef = expandedDemandDef == row.Def ? null : row.Def;
+                }
+
+                Color needColor = row.Section == DemandSection.Build
+                    ? new Color(1f, 0.68f, 0.5f)
+                    : new Color(0.78f, 0.72f, 0.62f);
+
+                DrawCell(new Rect(columns.WeaponX, cursor, columns.WeaponWidth, RowHeight),
+                    row.Label, TextAnchor.MiddleLeft);
+                DrawCell(new Rect(columns.SlotX, cursor, DemandColumns.SlotWidth, RowHeight),
+                    row.Uses, TextAnchor.MiddleLeft, GameFont.Small,
+                    new Color(0.72f, 0.82f, 0.92f));
+                DrawCell(new Rect(columns.WantX, cursor, DemandColumns.WantWidth, RowHeight),
+                    row.Wanted.ToString(), TextAnchor.MiddleRight);
+                DrawCell(new Rect(columns.OwnedX, cursor, DemandColumns.OwnedWidth, RowHeight),
+                    OwnedText(row), TextAnchor.MiddleRight, GameFont.Small,
+                    row.Forbidden > 0 ? new Color(1f, 0.8f, 0.42f) : Color.white);
+                Rect needCell = new Rect(columns.NeedX, cursor, DemandColumns.NeedWidth, RowHeight);
+                DrawCell(needCell, row.Need.ToString(), TextAnchor.MiddleRight, GameFont.Small,
+                    needColor);
+                if (row.Forbidden > 0)
+                {
+                    int afterUnforbid = Mathf.Max(0, row.Wanted - row.Owned);
+                    string tip;
+                    if (afterUnforbid >= row.Need)
+                    {
+                        tip = string.Format(
+                            "{0} missing after counting owned copies; {1} of them are forbidden.",
+                            row.Need, row.Forbidden);
+                    }
+                    else if (afterUnforbid == 0)
+                    {
+                        tip = string.Format(
+                            "{0} missing while {1} owned {2} forbidden. Unforbid instead; no extra copies are needed.",
+                            row.Need, row.Forbidden,
+                            row.Forbidden == 1 ? "copy is" : "copies are");
+                    }
+                    else
+                    {
+                        tip = string.Format(
+                            "{0} missing while {1} owned {2} forbidden. Unforbid first; then only {3} more needed.",
+                            row.Need, row.Forbidden,
+                            row.Forbidden == 1 ? "copy is" : "copies are", afterUnforbid);
+                    }
+                    TooltipHandler.TipRegion(needCell, tip);
+                }
+                DrawCell(new Rect(columns.GainX, cursor, DemandColumns.GainWidth, RowHeight),
+                    GainText(row), TextAnchor.MiddleRight, GameFont.Small,
+                    new Color(0.72f, 0.9f, 0.72f));
+                DrawCell(new Rect(columns.SourceX, cursor, DemandColumns.SourceWidth, RowHeight),
+                    SourceText(row), TextAnchor.MiddleLeft, GameFont.Small, SourceColor(row));
+
+                cursor += RowHeight;
+
+                if (expandedDemandDef == row.Def)
+                {
+                    for (int j = 0; j < row.Wants.Count; j++)
+                    {
+                        DrawWantLine(row.Wants[j], cursor, rowWidth);
+                        cursor += 20f;
+                    }
+                }
             }
 
             Widgets.EndScrollView();
         }
 
-        private static void DrawDemandHeader(Rect rect)
+        private static void DrawDemandHeader(Rect rect, DemandColumns columns)
         {
             Color color = new Color(0.68f, 0.68f, 0.68f);
-            DrawCell(new Rect(rect.x, rect.y, rect.width - 418f, rect.height), "Weapon",
-                TextAnchor.MiddleLeft, GameFont.Tiny, color);
-            DrawCell(new Rect(rect.xMax - 414f, rect.y, 64f, rect.height), "For",
-                TextAnchor.MiddleLeft, GameFont.Tiny, color);
-            DrawCell(new Rect(rect.xMax - 346f, rect.y, 54f, rect.height), "Wanted",
-                TextAnchor.MiddleRight, GameFont.Tiny, color);
-            DrawCell(new Rect(rect.xMax - 286f, rect.y, 54f, rect.height), "Blocked",
-                TextAnchor.MiddleRight, GameFont.Tiny, color);
-            DrawCell(new Rect(rect.xMax - 226f, rect.y, 54f, rect.height), "Stock",
-                TextAnchor.MiddleRight, GameFont.Tiny, color);
-            DrawCell(new Rect(rect.xMax - 166f, rect.y, 70f, rect.height), "Forbidden",
-                TextAnchor.MiddleRight, GameFont.Tiny, color);
-            DrawCell(new Rect(rect.xMax - 92f, rect.y, 88f, rect.height), "Shortage",
-                TextAnchor.MiddleRight, GameFont.Tiny, color);
+            DrawCell(new Rect(rect.x + columns.WeaponX, rect.y, columns.WeaponWidth, rect.height),
+                "Weapon", TextAnchor.MiddleLeft, GameFont.Tiny, color);
+            DrawCell(new Rect(rect.x + columns.SlotX, rect.y, DemandColumns.SlotWidth, rect.height),
+                "Slot", TextAnchor.MiddleLeft, GameFont.Tiny, color);
+            DrawCell(new Rect(rect.x + columns.WantX, rect.y, DemandColumns.WantWidth, rect.height),
+                "Want", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            DrawCell(new Rect(rect.x + columns.OwnedX, rect.y, DemandColumns.OwnedWidth, rect.height),
+                "Owned", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            Rect needRect = new Rect(rect.x + columns.NeedX, rect.y, DemandColumns.NeedWidth,
+                rect.height);
+            DrawCell(needRect, "Need", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            TooltipHandler.TipRegion(needRect,
+                "Copies missing after counting owned weapons that are not forbidden. Unforbid stock before crafting more.");
+            Rect gainRect = new Rect(rect.x + columns.GainX, rect.y, DemandColumns.GainWidth,
+                rect.height);
+            DrawCell(gainRect, "Gain", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            TooltipHandler.TipRegion(gainRect,
+                "Improvement over the colonist's current weapon, assuming an ordinary normal-quality copy.");
+            DrawCell(new Rect(rect.x + columns.SourceX, rect.y, DemandColumns.SourceWidth,
+                    rect.height), "Source", TextAnchor.MiddleLeft, GameFont.Tiny, color);
+        }
+
+        private static string DemandSectionTitle(DemandSection section)
+        {
+            switch (section)
+            {
+                case DemandSection.Locked:
+                    return "Locked by research";
+                default:
+                    return "Build or buy";
+            }
+        }
+
+        private static string OwnedText(DemandRow row)
+        {
+            string text = row.Owned.ToString();
+            if (row.Forbidden > 0)
+            {
+                text += " · " + row.Forbidden + " forb.";
+            }
+            return text;
+        }
+
+        private static string GainText(DemandRow row)
+        {
+            if (row.NewCount == row.Wants.Count || row.KnownCount == 0)
+            {
+                return "new";
+            }
+            return FormatPct(row.AverageGain);
+        }
+
+        private static string SourceText(DemandRow row)
+        {
+            if (row.Section == DemandSection.Locked)
+            {
+                string research = row.MissingResearch ?? "locked";
+                if (row.Owned > 0 && row.Need > 0)
+                {
+                    // Some copies already exist; research only unlocks additional ones.
+                    research = "more: " + research;
+                }
+                return row.Buyable ? research + " · buy" : research;
+            }
+            if (row.CraftableNow)
+            {
+                return string.IsNullOrEmpty(row.BenchLabel) ? "craft" : "craft · " + row.BenchLabel;
+            }
+            return row.Buyable ? "buy" : "craft";
+        }
+
+        private static Color SourceColor(DemandRow row)
+        {
+            if (row.Section == DemandSection.Locked)
+            {
+                return new Color(0.95f, 0.78f, 0.5f);
+            }
+            return row.CraftableNow
+                ? new Color(0.7f, 0.85f, 0.95f)
+                : new Color(0.85f, 0.8f, 0.65f);
+        }
+
+        private static void DrawWantLine(DemandWant want, float cursor, float width)
+        {
+            string gain = want.IsNew ? "new" : FormatPct(want.Gain);
+            string text = string.Format("    {0} · {1} · {2} · now {3}",
+                want.Colonist, want.Hand ? "hand" : "backup", gain, want.CurrentLabel);
+            DrawCell(new Rect(8f, cursor, width - 16f, 20f), text, TextAnchor.MiddleLeft,
+                GameFont.Small, new Color(0.72f, 0.72f, 0.72f));
         }
 
         // ------------------------------------------------------------------ Log

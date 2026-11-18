@@ -6,10 +6,10 @@
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
-  <modVersion>0.6.7</modVersion>
+  <modVersion>0.7.0</modVersion>
   <description>Shows, for every colonist, which weapons they would prefer and why they are not carrying them.
 
-Armory ranks loose weapons for every colonist, split into a hand slot and an opposite-type backup, then shows the blockers: forbidden or outside the allowed area, unreachable, reserved, biocoded to someone else, role restrictions, and ideoligion dislike. A demand view turns unmet hand and backup needs into a shopping list.
+Armory ranks loose weapons for every colonist, split into a hand slot and an opposite-type backup, then shows the blockers: forbidden or outside the allowed area, unreachable, reserved, biocoded to someone else, role restrictions, and ideoligion dislike. The Demand tab compares each colonist's ideal loadout with what the colony owns and turns the gap into a build, buy, or research plan, including craftable weapons that are not in stock yet.
 
 Automatic equipping is opt-in. When enabled it queues Equip jobs for the best ready weapon, claims each weapon for one pawn, respects a swap cooldown, never unforbids or breaks persona bonds, and pauses for pawns whose weapon was changed manually. The Log tab shows each action with the reason it was taken.
 

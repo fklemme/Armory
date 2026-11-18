@@ -261,49 +261,91 @@ namespace Armory
         public readonly List<Candidate> PawnCandidates = new List<Candidate>();
     }
 
-    /// <summary>Aggregated unmet demand for one weapon def.</summary>
+    /// <summary>Where a demand row belongs in the tab.</summary>
+    public enum DemandSection
+    {
+        /// <summary>Craftable now or buyable from a trader.</summary>
+        Build = 0,
+
+        /// <summary>Not available yet, but an unfinished research project unlocks it.</summary>
+        Locked = 1
+    }
+
+    /// <summary>One colonist contributing to a demand row.</summary>
+    public sealed class DemandWant
+    {
+        public string Colonist;
+        public bool Hand;
+        public float Gain;
+
+        /// <summary>True when the pawn has no weapon for that slot, so there is no baseline.</summary>
+        public bool IsNew;
+
+        /// <summary>Weapon the pawn currently uses for that slot, or "nothing".</summary>
+        public string CurrentLabel;
+    }
+
+    /// <summary>
+    /// Ideal loadout minus owned copies for one weapon def. Wants are counted per colonist
+    /// and slot; owned copies include equipped, carried and loose weapons of the same def.
+    /// </summary>
     public sealed class DemandRow
     {
         public ThingDef Def;
         public string Label;
         public int WantedHand;
         public int WantedBackup;
-        public int BlockedHand;
-        public int BlockedBackup;
-        public int Stock;
+        public int Owned;
         public int Forbidden;
+        public DemandSection Section;
+
+        public bool CraftableNow;
+        public bool Buyable;
+        public string BenchLabel;
+        public string MissingResearch;
+
+        /// <summary>Sum of relative gains; used for ordering so count and size both matter.</summary>
+        public float TotalGain;
+
+        /// <summary>Sum of gains that have a baseline (weapons, not empty slots).</summary>
+        public float KnownGain;
+
+        public int KnownCount;
+        public int NewCount;
+
+        public readonly List<DemandWant> Wants = new List<DemandWant>();
 
         public int Wanted
         {
             get { return WantedHand + WantedBackup; }
         }
 
-        public int Blocked
+        /// <summary>Copies that can be used without player action; forbidden stock excluded.</summary>
+        public int Available
         {
-            get { return BlockedHand + BlockedBackup; }
+            get { return System.Math.Max(0, Owned - Forbidden); }
         }
 
-        public int Shortage
+        public int Need
         {
-            get { return System.Math.Max(0, Wanted - Stock); }
+            get { return System.Math.Max(0, Wanted - Available); }
         }
 
-        /// <summary>"hand", "backup", "both", or "-" for display.</summary>
+        public float AverageGain
+        {
+            get { return KnownCount > 0 ? KnownGain / KnownCount : 0f; }
+        }
+
+        /// <summary>"hand", "backup", or "2 hand · 1 backup" for display.</summary>
         public string Uses
         {
             get
             {
-                bool hand = WantedHand > 0 || BlockedHand > 0;
-                bool backup = WantedBackup > 0 || BlockedBackup > 0;
-                if (hand && backup)
+                if (WantedHand > 0 && WantedBackup > 0)
                 {
-                    return "both";
+                    return WantedHand + " hand · " + WantedBackup + " backup";
                 }
-                if (hand)
-                {
-                    return "hand";
-                }
-                return backup ? "backup" : "-";
+                return WantedHand > 0 ? "hand" : "backup";
             }
         }
     }

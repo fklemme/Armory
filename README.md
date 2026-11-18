@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.6.7** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.7.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -25,7 +25,7 @@ Four tabs: **Pawns**, **Weapons**, **Demand**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–4 complete; 5 (polish) next |
+| Current milestone | 0–4 complete; 5 (polish) underway; Demand build plan in 0.7.0 |
 
 ---
 
@@ -66,10 +66,47 @@ cannot be that pawn's primary; if SS's mass cap rejects it, it is
 `Backup blocked` with SS's reason.
 
 ### Demand
-Per weapon def: `For` (`hand`, `backup`, or `both`), `Wanted`, `Blocked`,
-`Stock`, `Forbidden`, `Shortage`.
-This distinguishes "build more" from "unforbid what you already own", and
-separates hand needs from opposite-type backup needs.
+The build plan: ideal loadout minus what the colony already owns, so the tab
+answers "what should we build, buy, or research next?" instead of "who would
+pick up the leftovers on the floor?"
+
+For every colonist and slot, Armory scores every weapon def the colony could
+obtain: craftable now, craftable after pending research, buyable from a trader,
+or already owned. A def is counted as `Want` when it is that colonist's best
+option in its group and beats their current weapon by the upgrade threshold.
+The research group only contributes when its best option is meaningfully better
+than the best build-now option. Owned copies (equipped, carried, or loose) are
+subtracted:
+
+```
+Need = max(0, Want - owned copies that are not forbidden)
+```
+
+Columns:
+
+- `Slot`: `hand`, `backup`, or how many of each;
+- `Want`: colonists whose ideal weapon for that slot is this def;
+- `Owned`: copies in the colony (`2 · 1 forb.` when some are forbidden);
+- `Need`: copies still missing;
+- `Gain`: average improvement over the current weapon, assuming a newly made
+  normal-quality copy; `new` when the pawn has nothing in that slot;
+- `Source`: `craft · bench`, `buy`, or the research project that unlocks it.
+
+Rows are grouped into **Build or buy** (actionable now) and **Locked by research**
+(needs a project; `· buy` when a trader can also supply it), sorted by total gain
+so the biggest improvement is first. Click a row to see the contributing
+colonists, their slot, gain, and current weapon. Defs with no gap are hidden.
+
+`Owned` includes forbidden copies; `Need` only counts usable ones, and its
+tooltip shows how many unforbidding would cover. A research-locked def you
+already own shows `more: <project>` when only extra copies need the research.
+
+Unlike the planner, Demand ignores transient state: a drafted, asleep, or
+full-bagged colonist still counts, because the plan is about what the colony
+should own, not what a job can do this second. Only permanent gates (age,
+violence incapability, manipulation) remove a colonist. Manual-use ranged
+weapons (such as a Molotov) are not offered as backups; biocoding and bonds do
+not apply to hypothetical new copies.
 
 ### Log
 Session-only decision log for the planner: time, colonist, action, weapon, and
@@ -313,7 +350,7 @@ migrations.
 Armory/
   About/About.xml
   About/Preview.png
-  Defs/MainButtonDefs.xml          MainButtonDef "Armory", order 65
+  Defs/MainButtonDefs.xml          MainButtonDef "Armory", order 35
   Assemblies/Armory.dll            build output
   Source/Armory/
     Armory.csproj
@@ -329,6 +366,7 @@ Armory/
     Model/ArmoryModels.cs          snapshot/candidate/pawn/weapon models
     Scoring/WeaponPower.cs         pawn-independent power + situational penalty
     Scoring/PawnFit.cs             pawn fit + optional ledger
+    Scoring/WeaponCatalog.cs       craftable/buyable defs + synthetic scoring probes
     Scoring/Eligibility.cs         soft/hard blockers
     UI/MainTabWindow_Armory.cs     Pawns/Weapons/Demand/Log tabs
     UI/TextUtil.cs                 rich-text safe measurement/truncation
@@ -402,6 +440,21 @@ Manual equivalent:
   shelves/stockpiles. Weapons inside transport pods or pawn inventory are not
   offered as hand candidates; pod occupants are still listed as unavailable
   pawns.
+- **Demand assumes normal quality and default stuff.** A hypothetical weapon is
+  scored as a normal-quality copy made from `GenStuff.DefaultStuffFor` (usually
+  the cheapest valid stuff), so a high-skill crafter's excellent or masterwork
+  output can beat the estimate, and a colony already holding masterwork gear can
+  show less demand than it really has. Owned copies are counted per def; their
+  individual quality only affects each colonist's current baseline, so owning one
+  awful copy also hides the need to craft a better copy of the same def.
+- **Demand is per def, not per item.** Each colonist contributes at most one
+  build-now want and one research-locked want per slot; there is no
+  second-choice wish list. `Need` covers the count.
+- **Demand does not create bills or buy anything.** `buy` comes from the def's
+  `tradeability`; it does not know whether a suitable trader is currently
+  available, and nothing is queued automatically.
+- **Weapons carried by colonists in caravans** are not part of owned supply,
+  because the snapshot only sees the current map.
 - **Combat Extended** ammo state is not scored beyond its stat effects.
 - **Other mods' forced weapons** are not read. Simple Sidearms forced states are;
   manual changes are detected heuristically and pause automation.
@@ -434,6 +487,8 @@ Manual equivalent:
    - SS slot/mass/selection checks on every candidate;
    - hand and backup shown separately, never in one cross-type ranking.
 3. **Milestone 5 — Polish**
+   - Demand as a build plan (0.7.0): ideal loadout vs owned, craftable/buyable
+     defs, research-locked section, normal-quality estimates;
    - exotic container scanning;
    - auto-haul dropped weapons;
    - raid arming;

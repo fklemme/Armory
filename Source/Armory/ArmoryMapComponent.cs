@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Armory.Compatibility;
 using RimWorld;
 using Verse;
@@ -135,6 +136,41 @@ namespace Armory
                             sidearm.UpgradeAfterDrop ? " [drop-first]" : string.Empty));
                     }
                 }
+            }
+
+            List<WeaponSource> catalog = WeaponCatalog.All;
+            int obtainable = 0;
+            for (int i = 0; i < catalog.Count; i++)
+            {
+                if (catalog[i].Obtainable)
+                {
+                    obtainable++;
+                }
+            }
+            Log.Message(string.Format(
+                "[Armory]   weapon catalog: {0} defs, {1} obtainable (craft/buy/research)",
+                catalog.Count, obtainable));
+            for (int i = 0; i < snapshot.Demand.Count && i < 10; i++)
+            {
+                DemandRow row = snapshot.Demand[i];
+                string gain = row.NewCount == row.Wants.Count
+                    ? "new"
+                    : row.AverageGain.ToString("0%");
+                Log.Message(string.Format(
+                    "[Armory]   demand {0}: {1} | want {2} | owned {3} ({4} forbidden) | need {5} | gain {6} | {7} | {8}",
+                    i + 1,
+                    row.Label,
+                    row.Uses,
+                    row.Owned,
+                    row.Forbidden,
+                    row.Need,
+                    gain,
+                    row.Section,
+                    row.Section == DemandSection.Locked
+                        ? (row.MissingResearch ?? "locked")
+                        : row.CraftableNow
+                            ? "craft " + row.BenchLabel
+                            : "buy"));
             }
         }
     }

@@ -569,189 +569,371 @@ namespace Armory
             }
         }
 
+        /// <summary>
+        /// Demand is an ideal loadout, not a snapshot of the floor: every colonist picks
+        /// their best hand and backup weapon from all obtainable defs (craftable, buyable,
+        /// or already owned), then the owned copies of that def are subtracted. That turns
+        /// the tab into a build/buy/research plan instead of a leftover-stock report.
+        /// </summary>
         private static void BuildDemand(ArmorySnapshot snapshot)
         {
-            Dictionary<ThingDef, int> wantedHand = new Dictionary<ThingDef, int>();
-            Dictionary<ThingDef, int> wantedBackup = new Dictionary<ThingDef, int>();
-            Dictionary<ThingDef, int> blockedHand = new Dictionary<ThingDef, int>();
-            Dictionary<ThingDef, int> blockedBackup = new Dictionary<ThingDef, int>();
-            Dictionary<ThingDef, int> stock = new Dictionary<ThingDef, int>();
+            Dictionary<ThingDef, int> owned = new Dictionary<ThingDef, int>();
             Dictionary<ThingDef, int> forbidden = new Dictionary<ThingDef, int>();
-
-            for (int i = 0; i < snapshot.Weapons.Count; i++)
-            {
-                WeaponInfo info = snapshot.Weapons[i];
-                ThingDef def = info.Thing.def;
-                int count;
-                stock.TryGetValue(def, out count);
-                stock[def] = count + 1;
-
-                if (info.Thing.IsForbidden(Faction.OfPlayer))
-                {
-                    forbidden.TryGetValue(def, out count);
-                    forbidden[def] = count + 1;
-                }
-            }
-
-            ArmorySettings settings = ArmoryMod.Settings;
-            float threshold = settings == null ? 0.1f : settings.upgradeThreshold;
-            bool upgradeBackups = settings == null || settings.replaceWorseSidearms;
 
             for (int i = 0; i < snapshot.Pawns.Count; i++)
             {
                 PawnAnalysis pawn = snapshot.Pawns[i];
-                if (!pawn.Available || pawn.AutomationBlocked)
+                AddCount(owned, DefOf(pawn.Current));
+                for (int j = 0; j < pawn.Sidearms.Count; j++)
                 {
-                    continue;
-                }
-
-                // Hand slot: the best hand candidate compared with the hand baseline.
-                if (!pawn.HandLocked)
-                {
-                    Candidate handTop = pawn.TopReady;
-                    bool handReady = handTop != null;
-                    if (handTop == null)
-                    {
-                        handTop = pawn.TopOverall;
-                    }
-                    if (handTop != null && handTop.Weapon.Thing != pawn.Current)
-                    {
-                        float baseline = pawn.HandBaselineScore;
-                        if (handTop.Score > baseline)
-                        {
-                            AddCount(handReady ? wantedHand : blockedHand, handTop.Weapon.Thing.def);
-                        }
-                    }
-                }
-
-                if (!pawn.HasRole)
-                {
-                    continue;
-                }
-
-                // Backup slot: add the missing opposite type, or upgrade the worst one.
-                int backupCount = 0;
-                float worstBackup = 0f;
-                for (int j = 0; j < pawn.CarriedSidearms.Count; j++)
-                {
-                    CarriedSidearm carried = pawn.CarriedSidearms[j];
-                    if (!pawn.IsBackupType(carried.Thing.def))
-                    {
-                        continue;
-                    }
-                    if (backupCount == 0 || carried.Score < worstBackup)
-                    {
-                        worstBackup = carried.Score;
-                    }
-                    backupCount++;
-                }
-
-                SidearmCandidate bestAddable = null;
-                SidearmCandidate bestUpgradeable = null;
-                SidearmCandidate bestAny = null;
-                for (int j = 0; j < pawn.SidearmCandidates.Count; j++)
-                {
-                    SidearmCandidate sidearm = pawn.SidearmCandidates[j];
-                    if (bestAny == null)
-                    {
-                        bestAny = sidearm;
-                    }
-                    if (sidearm.Ready && bestAddable == null)
-                    {
-                        bestAddable = sidearm;
-                    }
-                    if ((sidearm.Ready || sidearm.UpgradeAfterDrop) && bestUpgradeable == null)
-                    {
-                        bestUpgradeable = sidearm;
-                    }
-                }
-
-                if (backupCount == 0)
-                {
-                    if (bestAddable != null)
-                    {
-                        AddCount(wantedBackup, bestAddable.Weapon.Thing.def);
-                    }
-                    else if (bestAny != null)
-                    {
-                        AddCount(blockedBackup, bestAny.Weapon.Thing.def);
-                    }
-                }
-                else if (upgradeBackups)
-                {
-                    if (bestUpgradeable != null &&
-                        bestUpgradeable.Score > Mathf.Max(worstBackup, 0.01f) * (1f + threshold))
-                    {
-                        AddCount(wantedBackup, bestUpgradeable.Weapon.Thing.def);
-                    }
-                    else if (bestAny != null && bestAny.Score > worstBackup)
-                    {
-                        AddCount(blockedBackup, bestAny.Weapon.Thing.def);
-                    }
+                    AddCount(owned, DefOf(pawn.Sidearms[j]));
                 }
             }
 
-            HashSet<ThingDef> defs = new HashSet<ThingDef>(wantedHand.Keys);
-            defs.UnionWith(wantedBackup.Keys);
-            defs.UnionWith(blockedHand.Keys);
-            defs.UnionWith(blockedBackup.Keys);
-            defs.UnionWith(stock.Keys);
-
-            foreach (ThingDef def in defs)
+            for (int i = 0; i < snapshot.Weapons.Count; i++)
             {
-                int wantHand;
-                int wantBackup;
-                int blockHand;
-                int blockBackup;
-                int stockCount;
-                int forbiddenCount;
-                wantedHand.TryGetValue(def, out wantHand);
-                wantedBackup.TryGetValue(def, out wantBackup);
-                blockedHand.TryGetValue(def, out blockHand);
-                blockedBackup.TryGetValue(def, out blockBackup);
-                stock.TryGetValue(def, out stockCount);
-                forbidden.TryGetValue(def, out forbiddenCount);
-                if (wantHand + wantBackup + blockHand + blockBackup <= 0)
+                WeaponInfo info = snapshot.Weapons[i];
+                if (info == null || info.Thing == null)
                 {
                     continue;
                 }
-                snapshot.Demand.Add(new DemandRow
+                AddCount(owned, info.Thing.def);
+                if (info.Thing.IsForbidden(Faction.OfPlayer))
                 {
-                    Def = def,
-                    Label = def.LabelCap,
-                    WantedHand = wantHand,
-                    WantedBackup = wantBackup,
-                    BlockedHand = blockHand,
-                    BlockedBackup = blockBackup,
-                    Stock = stockCount,
-                    Forbidden = forbiddenCount
-                });
+                    AddCount(forbidden, info.Thing.def);
+                }
+            }
+
+            // Defs the colony owns belong in the candidate universe even without a recipe
+            // (persona weapons, quest rewards). Create them before reading the catalog.
+            List<ThingDef> ownedDefs = new List<ThingDef>(owned.Keys);
+            for (int i = 0; i < ownedDefs.Count; i++)
+            {
+                WeaponCatalog.GetOrCreate(ownedDefs[i]);
+            }
+            WeaponCatalog.RefreshAvailability();
+
+            List<WeaponSource> universe = WeaponCatalog.All;
+            ArmorySettings settings = ArmoryMod.Settings;
+            float threshold = settings == null ? 0.1f : settings.upgradeThreshold;
+            int minimumAge = settings == null ? 0 : settings.minimumAge;
+
+            // Two separate ideals: what the colony can make/buy now, and what research
+            // would unlock. A pawn can appear in both, because "build this now" and
+            // "research towards that later" are different plans.
+            List<WeaponSource> buildSources = new List<WeaponSource>();
+            List<WeaponSource> researchSources = new List<WeaponSource>();
+            for (int i = 0; i < universe.Count; i++)
+            {
+                WeaponSource source = universe[i];
+                if (source == null || source.Probe == null || source.ProbePower <= 0f ||
+                    !source.Obtainable)
+                {
+                    continue;
+                }
+
+                // A def the colony already owns is usable supply even when its recipe is
+                // still research-locked: the pawn would carry the copy we have, and the
+                // plan should say "unforbid/transfer it" rather than "craft a worse knife".
+                bool isOwned = owned.ContainsKey(source.Def);
+                if (source.AvailableNow || source.MissingResearch == null || isOwned)
+                {
+                    buildSources.Add(source);
+                }
+                else
+                {
+                    researchSources.Add(source);
+                }
+            }
+
+            Dictionary<ThingDef, DemandRow> rows = new Dictionary<ThingDef, DemandRow>();
+            for (int i = 0; i < snapshot.Pawns.Count; i++)
+            {
+                PawnAnalysis pawn = snapshot.Pawns[i];
+                if (!IsDemandEligible(pawn, minimumAge))
+                {
+                    continue;
+                }
+
+                PawnFitContext context = PawnFitContext.Create(pawn.Pawn);
+
+                if (!pawn.HandLocked)
+                {
+                    AddSlotWants(rows, pawn, context, buildSources, researchSources, true,
+                        pawn.HandBaselineScore, threshold, LabelOf(pawn.Current));
+                }
+
+                // Backups need SS's per-pawn memory; without it Armory has no typed slot.
+                if (!pawn.HasRole || pawn.SidearmState == null)
+                {
+                    continue;
+                }
+
+                // Match the planner: an upgrade replaces the *worst* carried backup, so a
+                // pawn with one good and one junk backup still creates demand.
+                float backupBaseline;
+                ThingWithComps worstBackup;
+                TryGetWorstBackup(pawn, out backupBaseline, out worstBackup);
+                AddSlotWants(rows, pawn, context, buildSources, researchSources, false,
+                    backupBaseline, threshold, LabelOf(worstBackup));
+            }
+
+            foreach (KeyValuePair<ThingDef, DemandRow> pair in rows)
+            {
+                DemandRow row = pair.Value;
+                row.Owned = CountOf(owned, row.Def);
+                row.Forbidden = CountOf(forbidden, row.Def);
+                if (row.Need <= 0)
+                {
+                    // Already covered by what the colony owns.
+                    continue;
+                }
+
+                WeaponSource source;
+                if (WeaponCatalog.TryGet(row.Def, out source) && source != null)
+                {
+                    row.CraftableNow = source.AvailableNow;
+                    row.Buyable = source.Buyable;
+                    row.BenchLabel = source.BenchLabel;
+                    row.MissingResearch = source.MissingResearch == null
+                        ? null
+                        : source.MissingResearch.LabelCap;
+                }
+
+                if (row.CraftableNow)
+                {
+                    row.Section = DemandSection.Build;
+                }
+                else if (row.MissingResearch != null)
+                {
+                    // Research is the blocker even when a trader could also supply it; the
+                    // Source cell appends "buy" so the row still reads as obtainable.
+                    row.Section = DemandSection.Locked;
+                }
+                else
+                {
+                    row.Section = DemandSection.Build;
+                }
+
+                snapshot.Demand.Add(row);
             }
 
             snapshot.Demand.Sort((a, b) =>
             {
-                int byShortage = b.Shortage.CompareTo(a.Shortage);
-                if (byShortage != 0)
+                int bySection = a.Section.CompareTo(b.Section);
+                if (bySection != 0)
                 {
-                    return byShortage;
+                    return bySection;
                 }
-                int byBlocked = b.Blocked.CompareTo(a.Blocked);
-                if (byBlocked != 0)
+                int byGain = b.TotalGain.CompareTo(a.TotalGain);
+                if (byGain != 0)
                 {
-                    return byBlocked;
+                    return byGain;
                 }
-                int byForbidden = b.Forbidden.CompareTo(a.Forbidden);
-                if (byForbidden != 0)
+                int byNeed = b.Need.CompareTo(a.Need);
+                if (byNeed != 0)
                 {
-                    return byForbidden;
+                    return byNeed;
                 }
-                int byWanted = b.Wanted.CompareTo(a.Wanted);
-                if (byWanted != 0)
-                {
-                    return byWanted;
-                }
-                return string.Compare(a.Label, b.Label, StringComparison.OrdinalIgnoreCase);
+                return string.Compare(a.Def.defName, b.Def.defName,
+                    StringComparison.OrdinalIgnoreCase);
             });
+        }
+
+        /// <summary>
+        /// Who counts toward the colony's ideal loadout. Transient states (drafted, downed,
+        /// asleep, mid-job) do not remove a colonist; permanent inability does.
+        /// </summary>
+        private static bool IsDemandEligible(PawnAnalysis analysis, int minimumAge)
+        {
+            if (analysis == null || !analysis.Available || analysis.Pawn == null ||
+                analysis.Pawn.Dead)
+            {
+                return false;
+            }
+
+            Pawn pawn = analysis.Pawn;
+            if (minimumAge > 0 &&
+                (pawn.ageTracker == null || pawn.ageTracker.AgeBiologicalYears < minimumAge))
+            {
+                return false;
+            }
+            if (pawn.WorkTagIsDisabled(WorkTags.Violent))
+            {
+                return false;
+            }
+            if (pawn.health == null ||
+                !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))
+            {
+                return false;
+            }
+            return pawn.jobs != null;
+        }
+
+        /// <summary>
+        /// Best obtainable weapon for one slot, ignoring stock and transient capacity.
+        /// Only def-level rules apply, so a pawn with a full bag still creates demand.
+        /// </summary>
+        private static WeaponSource PickBest(PawnAnalysis pawn, PawnFitContext context,
+            List<WeaponSource> universe, float baseline, float threshold, bool hand,
+            out float bestScore)
+        {
+            float required = baseline * (1f + threshold);
+            WeaponSource best = null;
+            bestScore = 0f;
+
+            for (int i = 0; i < universe.Count; i++)
+            {
+                WeaponSource source = universe[i];
+                if (source == null || source.Probe == null || source.ProbePower <= 0f ||
+                    !source.Obtainable)
+                {
+                    continue;
+                }
+
+                ThingDef def = source.Def;
+                if (hand ? !pawn.IsHandType(def) : !pawn.IsBackupType(def))
+                {
+                    continue;
+                }
+
+                if (!hand)
+                {
+                    // Def-level rules only: a hypothetical new weapon has no biocoding,
+                    // bond or inventory state, and transient slot/capacity rules must not
+                    // suppress demand.
+                    string reason;
+                    if (!IsUsableAsBackup(source.Probe) ||
+                        !SimpleSidearmsAdapter.IsValidSidearmForPawn(pawn.Pawn, source.Probe,
+                            out reason))
+                    {
+                        continue;
+                    }
+                }
+
+                float score = source.ProbePower * PawnFit.Compute(context, source.Probe);
+                if (score <= required || score <= bestScore)
+                {
+                    continue;
+                }
+                best = source;
+                bestScore = score;
+            }
+
+            return best;
+        }
+
+        /// <summary>
+        /// Adds the best build-now and the best research-locked pick for one slot. The
+        /// research pick is only kept when it is meaningfully better than the build pick,
+        /// so the two sections do not repeat the same advice.
+        /// </summary>
+        private static void AddSlotWants(Dictionary<ThingDef, DemandRow> rows,
+            PawnAnalysis pawn, PawnFitContext context, List<WeaponSource> buildSources,
+            List<WeaponSource> researchSources, bool hand, float baseline, float threshold,
+            string currentLabel)
+        {
+            float buildScore;
+            WeaponSource build = PickBest(pawn, context, buildSources, baseline, threshold, hand,
+                out buildScore);
+            if (build != null)
+            {
+                AddWant(rows, pawn, build, buildScore, hand, baseline, currentLabel);
+            }
+
+            float researchScore;
+            WeaponSource research = PickBest(pawn, context, researchSources, baseline, threshold,
+                hand, out researchScore);
+            if (research == null)
+            {
+                return;
+            }
+            if (build != null && researchScore <= buildScore * (1f + threshold))
+            {
+                return;
+            }
+            AddWant(rows, pawn, research, researchScore, hand, baseline, currentLabel);
+        }
+
+        private static void AddWant(Dictionary<ThingDef, DemandRow> rows, PawnAnalysis pawn,
+            WeaponSource source, float score, bool hand, float baseline, string currentLabel)
+        {
+            DemandRow row;
+            if (!rows.TryGetValue(source.Def, out row))
+            {
+                row = new DemandRow
+                {
+                    Def = source.Def,
+                    Label = source.Def.LabelCap
+                };
+                rows[source.Def] = row;
+            }
+
+            bool isNew = baseline <= 0.01f;
+            float gain = isNew ? 0f : score / baseline - 1f;
+
+            if (hand)
+            {
+                row.WantedHand++;
+            }
+            else
+            {
+                row.WantedBackup++;
+            }
+
+            row.Wants.Add(new DemandWant
+            {
+                Colonist = pawn.Pawn.LabelShort,
+                Hand = hand,
+                Gain = gain,
+                IsNew = isNew,
+                CurrentLabel = currentLabel
+            });
+
+            row.KnownCount += isNew ? 0 : 1;
+            row.NewCount += isNew ? 1 : 0;
+            row.KnownGain += isNew ? 0f : gain;
+            row.TotalGain += isNew ? 1f : gain;
+        }
+
+        private static ThingDef DefOf(ThingWithComps thing)
+        {
+            return thing == null ? null : thing.def;
+        }
+
+        /// <summary>Worst opposite-type backup, matching the planner's replace-worst rule.</summary>
+        private static bool TryGetWorstBackup(PawnAnalysis pawn, out float score,
+            out ThingWithComps thing)
+        {
+            score = 0f;
+            thing = null;
+            bool found = false;
+            for (int i = 0; i < pawn.CarriedSidearms.Count; i++)
+            {
+                CarriedSidearm carried = pawn.CarriedSidearms[i];
+                if (!pawn.IsBackupType(carried.Thing.def))
+                {
+                    continue;
+                }
+                if (!found || carried.Score < score)
+                {
+                    score = carried.Score;
+                    thing = carried.Thing;
+                }
+                found = true;
+            }
+            return found;
+        }
+
+        private static string LabelOf(ThingWithComps thing)
+        {
+            return thing == null ? "nothing" : thing.LabelCap;
+        }
+
+        private static int CountOf(Dictionary<ThingDef, int> counts, ThingDef def)
+        {
+            int count;
+            return def != null && counts.TryGetValue(def, out count) ? count : 0;
         }
 
         private static void AddCount(Dictionary<ThingDef, int> counts, ThingDef def)

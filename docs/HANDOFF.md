@@ -1,8 +1,9 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.6.7**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.7.0**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.6.7 are committed.
+Git repository on `main`; 0.2.3 through 0.7.0 are committed; `v0.6.7-stable`
+tags the last pre-Demand-rework build.
 
 ---
 
@@ -22,8 +23,9 @@ Milestones 0–4 are implemented:
   upgrades; add-first or drop-first depending on SS slots; separate Hand/Backup
   rankings and Weapons/Demand status.
 
-**Next:** milestone 5, polish (container scanning, auto-haul, raid arming,
-automation-skip reasons, localization, Workshop prep).
+**Next:** milestone 5, polish. 0.7.0 replaced the stock-gap Demand tab with an
+ideal-loadout build plan; remaining polish is container scanning, auto-haul,
+raid arming, localization, and Workshop prep.
 
 ---
 
@@ -753,7 +755,8 @@ These are easy to break; keep them in mind.
     one if SS still refuses. This is the only place Armory removes a weapon.
 33. **Carried backup scores** come from `PawnAnalysis.CarriedSidearms` (combat
     weapons only). `BestCarriedBackup` is the highest-scoring one and is used for
-    display/demand, not as a hard gate.
+    display. Demand uses the **worst** carried backup as its baseline, matching
+    the planner's replace-worst rule.
 34. **Drop targets exclude** persona weapons (`CompBladelinkWeapon`) and
     `destroyOnDrop` items. The worst same-type backup is chosen; the equipped
     hand weapon is never a drop target.
@@ -769,12 +772,122 @@ These are easy to break; keep them in mind.
     removed.
 37. **Do not force-close the user's running game for quicktests.** The isolated
     test script refuses by default; pass `-Force` only with explicit permission.
+38. **Demand does not use `AutomationBlocked`.** That flag includes transient
+    pauses (drafted, downed, mental state, cooldowns, an equip job running) which
+    must not remove a colonist from the loadout plan. `IsDemandEligible` applies
+    only permanent gates: on the map, alive, minimum age, violence-capable, can
+    manipulate, has a job tracker.
+39. **Hypothetical weapons are normal quality with default stuff.** Probes are
+    unspawned `ThingWithComps` created once per def; never spawn them and never
+    save them. Only the pawn's current-weapon baseline is instance-accurate.
+40. **Research takes precedence over buying in the Demand sectioning.** Vanilla
+    weapons mostly default to `Tradeability.All`, so "buyable" cannot exclude a
+    research-locked def or the Locked section would always be empty. Locked rows
+    append `· buy` when the trader route also exists.
+41. **Owned defs must be added to the catalog before reading `All`.** Owned-only
+    defs (persona weapons, quest rewards) are supply, but `Obtainable` keeps
+    them out of the pick, so they never become build advice. An owned def whose
+    recipe is research-locked still joins the build-now universe, otherwise a
+    colony holding a forbidden rifle would be told to craft a knife. The row
+    still renders under Locked, with `more: <project>` when only additional
+    copies need research.
 
 ---
 
-## Pending verification (0.6.7)
+## 0.7.0 — Demand becomes a build plan
+
+The old tab aggregated loose stock: one row per def, `Wanted` counted only
+colonists whose best *available* weapon was that def, and `Blocked` mixed SS
+refusals into the same list. With the good weapons already equipped, "best
+available" meant leftovers, so the tab recommended mediocre weapons; seven pawns
+blocked from a 2 kg monosword appeared as demand for monoswords.
+
+Demand now computes an ideal loadout first:
+
+1. **Candidate universe** — every weapon def the colony can obtain:
+   - craftable now (recipe available, research finished);
+   - craftable after unfinished research (still scored, shown as locked);
+   - buyable from traders (`ThingDef.tradeability`);
+   - already owned, even without a recipe (persona weapons, quest rewards).
+
+   `Scoring/WeaponCatalog.cs` builds this once per session and creates one
+   unspawned probe instance per def at **normal quality** with
+   `GenStuff.DefaultStuffFor`, caching `WeaponPower`. It scans
+   `DefDatabase<RecipeDef>.AllDefsListForReading` products, so recipes generated
+   from `ThingDef.recipeMaker` (vanilla melee weapons) and modded recipes are
+   included.
+2. **Pick** — for each colonist and slot, take the highest-scoring obtainable def
+   that beats the current baseline by `upgradeThreshold`. Hand uses
+   `HandBaselineScore`; backup uses the **worst** carried opposite-type backup,
+   matching the planner's replace-worst rule. Manual-only ranged weapons are
+   excluded; SS def-level type/mass/pacifist rules are checked on the probe.
+   Biocoding, bonds, slot counts and free capacity are deliberately ignored:
+   they belong to instances and to "can I do it this second", not to demand.
+
+   Two universes are evaluated separately: **build-now** (available, buyable, or
+   no research gate) and **research** (missing prerequisite). A pawn can appear
+   in both. The research pick is kept only when it beats the build-now pick by
+   another `upgradeThreshold`, so "build this now" and "research towards that
+   later" stay distinct and do not repeat the same advice.
+3. **Net** — `Owned` counts equipped + carried + loose copies.
+   `Need = max(0, Want - (Owned - Forbidden))`. Rows with `Need <= 0` are hidden.
+4. **Section** — `Build` when craftable now or buyable; otherwise `Locked` with
+   the missing research project. Research takes precedence because it is the
+   actionable path; `Source` appends `· buy` when the trader route also exists
+   (vanilla weapons mostly default to `Tradeability.All`, so the other order
+   would make the Locked section permanently empty).
+
+Transient state is ignored: drafted, downed, asleep, mid-job and full-bag pawns
+still count. Permanent gates (minimum age, violence incapability, manipulation,
+not on the map) exclude them.
+
+UI: fixed columns `Weapon | Slot | Want | Owned | Need | Gain | Source`, section
+headers (`Build or buy`, `Locked by research`), sorting by summed gain, and
+click-to-expand per-colonist lines (`Kei · hand · +24% · now charge rifle`).
+`Gain` is the average relative improvement over the current weapon; `new` means
+the slot is empty. Header tooltips explain `Need` and the normal-quality
+assumption.
+
+Model: `DemandSection`, `DemandWant`, and the extended `DemandRow` (`Owned`,
+`Available`, `Need`, `AverageGain`, `Wants`). The old `Blocked`, `Stock`, and
+`Shortage` fields are gone. `Armory → Log weapon snapshot` now also logs the
+catalog size and the first ten demand rows.
+
+Verified in the isolated Core+Armory quicktest: the catalog built **30 defs, 30
+obtainable**, demand rows were produced, and there were no Armory exceptions.
+That run also caught a real bug: research-locked defs that the colony already
+owned were excluded from the build-now universe, so the plan recommended knives
+while a forbidden bolt-action rifle sat on the ground. Owned defs now always join
+the build-now pass (their row still renders under Locked, with `more: <project>`
+when only extra copies need research).
+
+Not yet verified: the tab's rendering, and the live Simple Sidearms save. The
+quicktest map has no SS and the harness never opens the Demand tab.
+
+---
+
+## Pending verification (0.7.0)
 
 The immediate checks are:
+
+- Demand renders at the default window size: header/column alignment, section
+  dividers, no overlapping columns, readable `Source` text.
+- Demand is non-empty on the live save and no longer recommends weapons just
+  because they are the best leftovers. Rows should reflect missing copies of
+  good defs even when the existing copies are equipped.
+- `Locked by research` is populated with the next research project(s); a
+  research-locked but buyable def shows `· buy` after the project name, and an
+  already-owned def shows `more: <project>`.
+- The seven pawns who were `blocked` on the monosword no longer create monosword
+  demand (the probe is too heavy for their SS backup cap).
+- Clicking a row expands the contributing colonists; the expanded lines show
+  slot, gain and current weapon.
+- `Armory → Log weapon snapshot` reports a non-zero catalog size and prints
+  demand rows with sane `owned` / `need` numbers.
+- If the catalog is empty or tiny, the likely cause is recipe enumeration or
+  probe construction failing; the log line is the first thing to check.
+
+Still open from 0.6.7:
 
 - Weapons detail, `Colonists by fit`: the full reason text is visible for long
   blockers such as `Can't carry (0.85 kg, 0.3 kg free)`, and the colonist name
@@ -961,6 +1074,7 @@ polish, not new core behaviour.
 | 0.6.5 | Expand Simple Sidearms' `Slots full` / `No free space` into distinct explanations (`All sidearm slots are full`, `No free carrying capacity (needs X kg, Y kg free)`) |
 | 0.6.6 | Widen reason/status columns (Weapons `Colonists by fit`, pawn hand/backup/incompatible lists) so long blockers fit |
 | 0.6.7 | Shorten weight blocker to `Can't carry (...)`, number the backup list, white section headers with dividers, move the main tab next to Assign |
+| 0.7.0 | Demand rework: ideal loadout vs owned copies over all craftable/buyable/owned defs, normal-quality scoring probes, `Build`/`Locked by research` sections, `Owned`/`Need`/`Gain`/`Source`, expandable per-colonist detail |
 
 ---
 
@@ -973,7 +1087,7 @@ polish, not new core behaviour.
 | `docs/HANDOFF.md` | This file |
 | `Source/Armory/ArmoryPlanner.cs` | Automation decisions and job issuing |
 | `Source/Armory/ArmorySnapshotBuilder.cs` | Ranking, pod lookup, weapon filter, demand |
-| `Source/Armory/Scoring/*` | Power, fit, blockers |
+| `Source/Armory/Scoring/*` | Power, fit, blockers, weapon catalog/probes |
 | `Source/Armory/UI/MainTabWindow_Armory.cs` | All tabs and layout |
 | `Source/Armory/ArmorySettings.cs` | Settings + migration + scroll UI |
 | `Source/Armory/ArmoryGameComponent.cs` | Session log, planner reset |

@@ -555,14 +555,33 @@ namespace Armory
             if (pawn.SidearmState != null)
             {
                 bool veto = pawn.SidearmState.AutomationVeto && SimpleSidearmsAdapter.RespectEnabled;
-                string text = "Simple Sidearms: " + pawn.SidearmState.Summary();
+                string summary = pawn.SidearmState.Summary();
+                string first = summary;
+                string second = null;
+                int split = summary.IndexOf(" | ");
+                if (split >= 0)
+                {
+                    first = summary.Substring(0, split);
+                    second = summary.Substring(split + 3);
+                }
                 if (veto)
                 {
-                    text += "  -  automation stays out";
+                    first += "  -  automation stays out";
                 }
-                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f), text,
-                    veto ? new Color(1f, 0.8f, 0.42f) : new Color(0.72f, 0.82f, 0.92f));
+
+                Color sidearmColor = veto
+                    ? new Color(1f, 0.8f, 0.42f)
+                    : new Color(0.72f, 0.82f, 0.92f);
+                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
+                    "Simple Sidearms: " + first, sidearmColor);
                 y += 22f;
+
+                if (second != null)
+                {
+                    DrawColoredLine(new Rect(rect.x + 14f, y, rect.width - 14f, 22f),
+                        second, sidearmColor);
+                    y += 22f;
+                }
 
                 if (pawn.BestCarriedPrimary != null && pawn.BestCarriedPrimary != pawn.Current)
                 {
@@ -762,15 +781,18 @@ namespace Armory
                     cursor += 18f;
                 }
 
+                string backupRule = !manageBackups
+                    ? "Backup management is off (Settings > Armory)."
+                    : replaceWorse
+                        ? "Upgrades replace the worst same-type backup."
+                        : "Backups are added but never upgraded.";
                 DrawCell(new Rect(4f, cursor, width - 8f, 18f),
-                    string.Format("Carried: {0}    target: 1 {1} backup    {2}",
-                        CarriedBackupText(pawn), backupType,
-                        !manageBackups
-                            ? "Backup management is off (Settings > Armory)."
-                            : replaceWorse
-                                ? "Upgrades replace the worst same-type backup."
-                                : "Backups are added but never upgraded."),
+                    string.Format("Carried: {0}    target: 1 {1} backup",
+                        CarriedBackupText(pawn), backupType),
                     TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.72f, 0.72f, 0.72f));
+                cursor += 18f;
+                DrawCell(new Rect(4f, cursor, width - 8f, 18f), backupRule,
+                    TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.68f, 0.68f, 0.68f));
                 cursor += 18f;
 
                 if (pawn.SidearmCandidates.Count == 0)
@@ -880,7 +902,7 @@ namespace Armory
             if (pawn.HasRole)
             {
                 int backupCount = Mathf.Min(pawn.SidearmCandidates.Count, SidearmDisplayLimit);
-                height += 8f + 26f + 18f + backupCount * 22f;
+                height += 8f + 26f + 18f + 18f + backupCount * 22f;
                 if (SidearmWaitReason(pawn) != null)
                 {
                     height += 18f;

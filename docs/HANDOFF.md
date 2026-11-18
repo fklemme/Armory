@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.7.9**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.7.10**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.7.9 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.7.10 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -1172,11 +1172,12 @@ taken, so the pawn reset with no weapon and the bill retried forever.
 - `DemandCrafting` now uses `RecipeDef.MakeNewBill()`, the same factory the
   vanilla bills tab uses. It returns `Bill_ProductionWithUft` when the recipe
   needs a UFT, and `Bill_Production` otherwise.
-- `RepairMalformedBills` finds any plain `Bill_Production` on a player work table
-  whose recipe uses an unfinished thing and replaces it with `MakeNewBill()`,
+- `RepairMalformedBills` found any plain `Bill_Production` on a player work table
+  whose recipe used an unfinished thing and replaced it with `MakeNewBill()`,
   copying repeat mode, count, search radius, skill range, restrictions and store
-  settings. It runs once per map in `ArmoryMapComponent.MapComponentTick`, so
-  saves already broken by 0.7.8 repair themselves on load.
+  settings. It ran once per map in `ArmoryMapComponent.MapComponentTick`. This was
+  a one-time migration and was **removed in 0.7.10** after the affected save was
+  fixed; the permanent fix is `RecipeDef.MakeNewBill()`.
 - Ingredients already lost are not restored; the old bill's job may end on the
   replacement tick.
 
@@ -1190,10 +1191,37 @@ Verified live on New Tribe8: injecting a plain `Bill_Production` produced
 
 - With a recurve bow bill, the pawn carries wood to the crafting spot, starts
   work and produces a bow instead of losing the ingredients.
-- An existing malformed bill is repaired on load (log:
-  `repaired N malformed unfinished-thing bill(s)`), and can be completed.
 - Recipes without an unfinished thing still get a normal `Bill_Production`.
-- Repair preserves repeat count, skill range, restrictions and store mode.
+- The one-time malformed-bill repair was removed in 0.7.10; it was only for saves
+  broken by 0.7.8 and had already repaired the affected save.
+
+---
+
+## 0.7.10 — two-line pawn detail, temporary migration removed
+
+- The Pawn detail used to draw `Simple Sidearms: primary ... | SS default ...`
+  as one line, which was always truncated. It now draws the role summary on one
+  line and the SS preference/veto on an indented second line.
+- The backup summary is also split into `Carried / target` and the upgrade-rule
+  line, so `Upgrades replace the worst same-type backup` is no longer clipped.
+  `PawnDetailHeight` accounts for the extra line.
+- Removed the temporary malformed-bill repair from `DemandCrafting` and
+  `ArmoryMapComponent`; new Craft bills still use `RecipeDef.MakeNewBill()`.
+
+Verified live on New Tribe8: `Simple Sidearms: primary by skill (ranged)` and
+`SS default ranged: Pila (carried)` render on separate lines, and the backup
+`Carried` / rule lines both fit. Build clean.
+
+---
+
+## Pending verification (0.7.10)
+
+- Pawn detail shows the SS preference on its own indented line, with no
+  ellipsis at 1600×900.
+- Backup `Carried` and upgrade-rule lines are separate and the lower panels are
+  still reachable.
+- A forced/blocked SS state also wraps onto the second line.
+- No `LiveTestScaffold` or repair-migration code remains in `Source/`.
 
 Still worth a look:
 
@@ -1406,6 +1434,7 @@ polish, not new core behaviour.
 | 0.7.7 | Show the real sort key as a `Score` column, align expanded per-colonist `Score`/`Slot`/`Gain` under the headers, and rename `Want`/`Need` to `Wanted by`/`Needed` |
 | 0.7.8 | Show the best built/unlocked bench instead of an arbitrary recipe user, and add a `Craft` button that queues one bill at that bench |
 | 0.7.9 | Use `RecipeDef.MakeNewBill()` so unfinished-thing recipes get `Bill_ProductionWithUft`, and repair bills created by 0.7.8 on load |
+| 0.7.10 | Split the SS preference and backup-rule text across lines; remove the temporary malformed-bill migration |
 
 ---
 

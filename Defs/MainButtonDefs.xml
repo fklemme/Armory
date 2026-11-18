@@ -5,7 +5,7 @@
     <label>Armory</label>
     <description>Inspect weapon preferences and blockers for every colonist.</description>
     <tabWindowClass>Armory.MainTabWindow_Armory</tabWindowClass>
-    <order>65</order>
+    <order>35</order>
     <validWithoutMap>false</validWithoutMap>
   </MainButtonDef>
 </Defs>

@@ -434,8 +434,7 @@ namespace Armory.Compatibility
                 // ignored) with the pawn's free inventory capacity.
                 float mass = weapon.def.GetStatValueAbstract(StatDefOf.Mass);
                 float free = MassUtility.FreeSpace(pawn);
-                return string.Format(
-                    "No free carrying capacity (needs {0:0.##} kg, {1:0.##} kg free)", mass, free);
+                return string.Format("Can't carry ({0:0.##} kg, {1:0.##} kg free)", mass, free);
             }
 
             if (MatchesTranslation(ssReason, "SidearmPickupFail_AllSlotsFull"))

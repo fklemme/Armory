@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.6.6** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.6.7** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -257,8 +257,8 @@ Simple Sidearms reports two different capacity failures with terse text. Armory
 expands them so they cannot be confused:
 
 - `All sidearm slots are full` — the SS slot **count** limit is reached;
-- `No free carrying capacity (needs X kg, Y kg free)` — the weapon does not fit
-  in the pawn's remaining inventory **weight**, even when a slot is free.
+- `Can't carry (X kg, Y kg free)` - the weapon does not fit in the pawn's
+  remaining inventory **weight**, even when a slot is free.
 
 SS's mass limits still matter. The **Basic** preset caps a melee sidearm at
 1.9 kg and a ranged sidearm at 2.7 kg, with 3 total slots **including the

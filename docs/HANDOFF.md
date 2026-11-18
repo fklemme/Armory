@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.6.6**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.6.7**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.6.6 are committed.
+Git repository on `main`; 0.2.3 through 0.6.7 are committed.
 
 ---
 
@@ -403,6 +403,32 @@ Build clean.
 
 ---
 
+## 0.6.7 — fit the long reason, section headers, numbering, tab position
+
+Follow-up polish after seeing 0.6.6 on the live save:
+
+- The weight failure is now the compact `Can't carry (0.85 kg, 0.3 kg free)`
+  instead of `No free carrying capacity (needs 0.85 kg, 0.3 kg free)`. It fits
+  the widened by-fit column without losing the two numbers.
+- `Colonists by fit`: the name column is clamped to 100–170 px (was 190), so the
+  reason column gets the rest.
+- Pawn detail backup list: removed the trailing `melee`/`ranged` column, which
+  only repeated the section header, and moved the score to the right edge. The
+  weapon labels and the reason column both gained room.
+- Hand list: the status column is 170 px (labels recovered 40 px).
+- Both slot lists are now numbered (`1.`, `2.`, ...); the backup list was not.
+- `SectionHeader` draws a translucent full-width divider and pure white text, so
+  `Hand slot (...)` / `Backup slot (...)` / `Colonists by fit` read as table
+  headers instead of body text.
+- `MainButtonDefs.xml`: `order` 65 → 35. Vanilla orders are Architect 1, Work 10,
+  Schedule 20, Assign 30, Animals 40, ...; 65 put Armory next to Quests, and 35
+  puts it between Assign and Animals.
+
+Build clean. Layout-only plus one Def order change; no planner or ranking
+behaviour changed.
+
+---
+
 ## Verified behavior
 
 ### Isolated quicktest (Core + Armory)
@@ -746,18 +772,19 @@ These are easy to break; keep them in mind.
 
 ---
 
-## Pending verification (0.6.6)
+## Pending verification (0.6.7)
 
 The immediate checks are:
 
 - Weapons detail, `Colonists by fit`: the full reason text is visible for long
-  blockers such as `No free carrying capacity (needs 2 kg, 0.7 kg free)`, and the
-  colonist name column is narrower.
-
+  blockers such as `Can't carry (0.85 kg, 0.3 kg free)`, and the colonist name
+  column is narrower.
+- The hand and backup lists are both numbered; `Hand slot (...)` /
+  `Backup slot (...)` headers are white with a divider above them.
+- The Armory button sits between `Assign` and `Animals` on the bottom bar.
 - A blocked backup shows `All sidearm slots are full` when SS's slot count is
-  reached, and `No free carrying capacity (needs X kg, Y kg free)` when the
-  pawn's inventory weight is the limit. The two must never be used
-  interchangeably.
+  reached, and `Can't carry (X kg, Y kg free)` when the pawn's inventory weight
+  is the limit. The two must never be used interchangeably.
 
 - The Log header reads `Ago | Colonist | Action | Weapon | Reason`; actions are
   `Equip hand` / `Equip backup`, and reasons read as sentences
@@ -933,6 +960,7 @@ polish, not new core behaviour.
 | 0.6.4 | Clearer Log tab: Action before Weapon, readable spacing, `Equip hand`/`Equip backup` labels, `Reason` column with plain-language reasons |
 | 0.6.5 | Expand Simple Sidearms' `Slots full` / `No free space` into distinct explanations (`All sidearm slots are full`, `No free carrying capacity (needs X kg, Y kg free)`) |
 | 0.6.6 | Widen reason/status columns (Weapons `Colonists by fit`, pawn hand/backup/incompatible lists) so long blockers fit |
+| 0.6.7 | Shorten weight blocker to `Can't carry (...)`, number the backup list, white section headers with dividers, move the main tab next to Assign |
 
 ---
 

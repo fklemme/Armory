@@ -707,9 +707,9 @@ namespace Armory
                 }
 
                 DrawCell(new Rect(4f, cursor, 24f, 22f), (i + 1) + ".", TextAnchor.MiddleRight);
-                DrawCell(new Rect(32f, cursor, Mathf.Max(40f, width - 366f), 22f),
+                DrawCell(new Rect(32f, cursor, Mathf.Max(40f, width - 332f), 22f),
                     candidate.Weapon.Label, TextAnchor.MiddleLeft);
-                DrawCell(new Rect(width - 326f, cursor, 200f, 22f),
+                DrawCell(new Rect(width - 292f, cursor, 170f, 22f),
                     candidate.Ready ? "ready" : candidate.Blocker, TextAnchor.MiddleLeft,
                     GameFont.Small, StatusColor(candidate));
                 DrawCell(new Rect(width - 122f, cursor, 48f, 22f), candidate.Score.ToString("0"),
@@ -801,14 +801,13 @@ namespace Armory
                         ? new Color(0.66f, 0.84f, 0.95f)
                         : candidate.Ready ? new Color(0.7f, 0.9f, 0.7f) : new Color(1f, 0.8f, 0.42f);
 
-                    DrawCell(new Rect(32f, cursor, Mathf.Max(40f, width - 366f), 22f),
+                    DrawCell(new Rect(4f, cursor, 24f, 22f), (i + 1) + ".", TextAnchor.MiddleRight);
+                    DrawCell(new Rect(32f, cursor, Mathf.Max(40f, width - 304f), 22f),
                         candidate.Weapon.Label, TextAnchor.MiddleLeft);
-                    DrawCell(new Rect(width - 326f, cursor, 200f, 22f), status,
+                    DrawCell(new Rect(width - 264f, cursor, 200f, 22f), status,
                         TextAnchor.MiddleLeft, GameFont.Small, statusColor);
-                    DrawCell(new Rect(width - 122f, cursor, 48f, 22f),
+                    DrawCell(new Rect(width - 56f, cursor, 48f, 22f),
                         candidate.Score.ToString("0"), TextAnchor.MiddleRight);
-                    DrawCell(new Rect(width - 70f, cursor, 66f, 22f),
-                        candidate.Weapon.IsRanged ? "ranged" : "melee", TextAnchor.MiddleRight);
                     cursor += 22f;
                 }
 
@@ -1110,7 +1109,7 @@ namespace Armory
                 bool available = pawn.Available;
                 bool holdsIt = pawn.Current == row.Weapon.Thing;
                 float score = handCandidate != null ? handCandidate.Score : backupCandidate.Score;
-                float nameWidth = Mathf.Clamp(width * 0.28f, 100f, 190f);
+                float nameWidth = Mathf.Clamp(width * 0.26f, 100f, 170f);
                 float scoreX = 4f + nameWidth + 8f;
                 float statusX = scoreX + 52f + 8f;
                 float statusWidth = Mathf.Max(120f, width - statusX - 4f);
@@ -1435,10 +1434,12 @@ namespace Armory
 
         private static void SectionHeader(ref float cursor, float width, string label)
         {
-            GUI.color = new Color(0.72f, 0.8f, 0.88f);
-            DrawCell(new Rect(0f, cursor, width, 24f), label, TextAnchor.MiddleLeft, GameFont.Small);
-            GUI.color = Color.white;
-            cursor += 26f;
+            // Draw a full-width divider plus white text so slot sections read as table
+            // headers rather than as another body line.
+            Widgets.DrawBoxSolid(new Rect(0f, cursor, width, 1f), new Color(1f, 1f, 1f, 0.22f));
+            DrawCell(new Rect(0f, cursor + 3f, width, 22f), label, TextAnchor.MiddleLeft,
+                GameFont.Small, Color.white);
+            cursor += 28f;
         }
 
         private static void DrawColoredLine(Rect rect, string text, Color color)

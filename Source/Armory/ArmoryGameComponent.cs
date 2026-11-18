@@ -3,6 +3,17 @@ using Verse;
 
 namespace Armory
 {
+    /// <summary>What the automation did; the Log tab maps this to a label and colour.</summary>
+    public enum DecisionKind
+    {
+        EquipHand,
+        EquipBackup,
+        SkipUpgrade,
+        DropBackup,
+        DropFailed,
+        RestoreBackup
+    }
+
     /// <summary>Session-only decision log for the automation tab.</summary>
     public class ArmoryGameComponent : GameComponent
     {
@@ -11,8 +22,8 @@ namespace Armory
             public int Tick;
             public string Colonist;
             public string Weapon;
-            public string Action;
-            public string Detail;
+            public DecisionKind Kind;
+            public string Reason;
         }
 
         public static ArmoryGameComponent Instance;
@@ -30,7 +41,8 @@ namespace Armory
             get { return Instance == null ? null : Instance.decisions; }
         }
 
-        public static void Record(int tick, Pawn pawn, ThingWithComps weapon, string action, string detail)
+        public static void Record(int tick, Pawn pawn, ThingWithComps weapon, DecisionKind kind,
+            string reason)
         {
             if (Instance == null)
             {
@@ -41,8 +53,8 @@ namespace Armory
                 Tick = tick,
                 Colonist = pawn == null ? "?" : pawn.LabelShort,
                 Weapon = weapon == null ? "?" : weapon.LabelCap,
-                Action = action,
-                Detail = detail
+                Kind = kind,
+                Reason = reason
             });
             if (Instance.decisions.Count > 300)
             {

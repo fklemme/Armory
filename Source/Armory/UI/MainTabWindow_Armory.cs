@@ -1324,7 +1324,7 @@ namespace Armory
             {
                 GUI.color = new Color(0.72f, 0.72f, 0.72f);
                 Widgets.Label(new Rect(inner.x, inner.y + 36f, inner.width, 24f),
-                    "No automatic decisions yet. Queued equip jobs and their reasons will appear here.");
+                    "No automatic decisions yet. Hand and backup equips, drops and skips appear here with the reason.");
                 GUI.color = Color.white;
                 return;
             }
@@ -1333,20 +1333,32 @@ namespace Armory
             Rect scrollRect = new Rect(inner.x, headerY + HeaderHeight, inner.width,
                 Mathf.Max(40f, inner.yMax - (headerY + HeaderHeight)));
             float rowWidth = scrollRect.width - 20f;
-            float labelWidth = Mathf.Max(40f, rowWidth - 702f);
+
+            // Column layout: Ago | Colonist | Action | Weapon | Reason. The action comes
+            // before the weapon so "Equip hand" / "Equip backup" reads as a sentence with
+            // the weapon, and the reason gets the widest column.
+            const float agoWidth = 60f;
+            const float colonistX = 72f;
+            const float colonistWidth = 120f;
+            const float actionX = 204f;
+            const float actionWidth = 140f;
+            float weaponX = actionX + actionWidth + 12f;
+            float reasonWidth = Mathf.Clamp(rowWidth - weaponX - 92f, 160f, 420f);
+            float reasonX = rowWidth - 8f - reasonWidth;
+            float weaponWidth = Mathf.Max(80f, reasonX - 12f - weaponX);
+
             Rect header = new Rect(inner.x, headerY, rowWidth, HeaderHeight);
             Color headerColor = new Color(0.68f, 0.68f, 0.68f);
-            float headerLabelWidth = Mathf.Max(40f, header.width - 702f);
-            DrawCell(new Rect(header.x, header.y, 60f, header.height), "Ago",
+            DrawCell(new Rect(header.x, header.y, agoWidth, header.height), "Ago",
                 TextAnchor.MiddleRight, GameFont.Tiny, headerColor);
-            DrawCell(new Rect(header.x + 72f, header.y, 120f, header.height), "Colonist",
-                TextAnchor.MiddleLeft, GameFont.Tiny, headerColor);
-            DrawCell(new Rect(header.x + 196f, header.y, headerLabelWidth, header.height), "Weapon",
-                TextAnchor.MiddleLeft, GameFont.Tiny, headerColor);
-            DrawCell(new Rect(header.xMax - 502f, header.y, 120f, header.height), "Action",
-                TextAnchor.MiddleRight, GameFont.Tiny, headerColor);
-            DrawCell(new Rect(header.xMax - 378f, header.y, 374f, header.height), "Detail",
-                TextAnchor.MiddleLeft, GameFont.Tiny, headerColor);
+            DrawCell(new Rect(header.x + colonistX, header.y, colonistWidth, header.height),
+                "Colonist", TextAnchor.MiddleLeft, GameFont.Tiny, headerColor);
+            DrawCell(new Rect(header.x + actionX, header.y, actionWidth, header.height),
+                "Action", TextAnchor.MiddleLeft, GameFont.Tiny, headerColor);
+            DrawCell(new Rect(header.x + weaponX, header.y, weaponWidth, header.height),
+                "Weapon", TextAnchor.MiddleLeft, GameFont.Tiny, headerColor);
+            DrawCell(new Rect(header.x + reasonX, header.y, reasonWidth, header.height),
+                "Reason", TextAnchor.MiddleLeft, GameFont.Tiny, headerColor);
 
             int now = Find.TickManager.TicksGame;
             Widgets.BeginScrollView(scrollRect, ref decisionScroll,
@@ -1363,17 +1375,56 @@ namespace Armory
                 {
                     age = 0;
                 }
-                DrawCell(new Rect(0f, row.y, 60f, row.height), (age / 60f).ToString("0") + "s",
+                DrawCell(new Rect(0f, row.y, agoWidth, row.height), (age / 60f).ToString("0") + "s",
                     TextAnchor.MiddleRight);
-                DrawCell(new Rect(72f, row.y, 120f, row.height), decision.Colonist, TextAnchor.MiddleLeft);
-                DrawCell(new Rect(196f, row.y, labelWidth, row.height), decision.Weapon, TextAnchor.MiddleLeft);
-                DrawCell(new Rect(rowWidth - 502f, row.y, 120f, row.height), decision.Action,
-                    TextAnchor.MiddleRight, GameFont.Small, new Color(0.72f, 0.92f, 0.72f));
-                DrawCell(new Rect(rowWidth - 378f, row.y, 374f, row.height), decision.Detail,
+                DrawCell(new Rect(colonistX, row.y, colonistWidth, row.height), decision.Colonist,
+                    TextAnchor.MiddleLeft);
+                DrawCell(new Rect(actionX, row.y, actionWidth, row.height),
+                    DecisionLabel(decision.Kind), TextAnchor.MiddleLeft, GameFont.Small,
+                    DecisionColor(decision.Kind));
+                DrawCell(new Rect(weaponX, row.y, weaponWidth, row.height), decision.Weapon,
+                    TextAnchor.MiddleLeft);
+                DrawCell(new Rect(reasonX, row.y, reasonWidth, row.height), decision.Reason,
                     TextAnchor.MiddleLeft);
             }
 
             Widgets.EndScrollView();
+        }
+
+        /// <summary>Log-tab action label for a recorded decision.</summary>
+        private static string DecisionLabel(DecisionKind kind)
+        {
+            switch (kind)
+            {
+                case DecisionKind.EquipHand:
+                    return "Equip hand";
+                case DecisionKind.EquipBackup:
+                    return "Equip backup";
+                case DecisionKind.SkipUpgrade:
+                    return "Skip upgrade";
+                case DecisionKind.DropBackup:
+                    return "Drop backup";
+                case DecisionKind.DropFailed:
+                    return "Drop failed";
+                case DecisionKind.RestoreBackup:
+                    return "Restore backup";
+                default:
+                    return kind.ToString();
+            }
+        }
+
+        private static Color DecisionColor(DecisionKind kind)
+        {
+            switch (kind)
+            {
+                case DecisionKind.EquipHand:
+                case DecisionKind.EquipBackup:
+                    return new Color(0.72f, 0.92f, 0.72f);
+                case DecisionKind.DropBackup:
+                    return new Color(0.7f, 0.8f, 0.9f);
+                default:
+                    return new Color(1f, 0.78f, 0.45f);
+            }
         }
 
         // -------------------------------------------------------------- Helpers

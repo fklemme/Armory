@@ -166,24 +166,37 @@ namespace Armory
                     string detail;
                     if (baselineScore <= 0.01f)
                     {
-                        detail = "unarmed";
+                        if (analysis.Current == null || !analysis.HasRole)
+                        {
+                            detail = "No hand weapon equipped";
+                        }
+                        else
+                        {
+                            // The pawn holds the other type (SS has not switched yet).
+                            detail = analysis.RoleIsRanged.Value
+                                ? "No ranged hand weapon equipped"
+                                : "No melee hand weapon equipped";
+                        }
                     }
                     else
                     {
                         string baselineLabel = analysis.Current == null
                             ? "unarmed"
                             : analysis.Current.LabelCap;
+                        bool carried = false;
                         if (analysis.BestCarriedPrimary != null &&
                             analysis.BestCarriedPrimary != analysis.Current &&
                             analysis.BestCarriedPrimaryScore >= analysis.HandBaselineScore)
                         {
-                            baselineLabel = analysis.BestCarriedPrimary.LabelCap + " (carried)";
+                            baselineLabel = analysis.BestCarriedPrimary.LabelCap;
+                            carried = true;
                         }
-                        detail = string.Format("+{0}% over {1}",
+                        detail = string.Format("{0}% better than {1}{2}",
                             Mathf.RoundToInt((candidate.Score / baselineScore - 1f) * 100f),
+                            carried ? "carried " : "equipped ",
                             baselineLabel);
                     }
-                    ArmoryGameComponent.Record(now, pawn, weapon, "Queued", detail);
+                    ArmoryGameComponent.Record(now, pawn, weapon, DecisionKind.EquipHand, detail);
 
                     if (settings.debugLogging)
                     {
@@ -366,9 +379,9 @@ namespace Armory
                         {
                             failedDropUntil[dropKey] = now + FailedDropMemoryTicks;
                             RestoreBackup(pawn, worst, jobDef, now, false);
-                            ArmoryGameComponent.Record(now, pawn, weapon, "Upgrade skipped",
-                                "SS: " + postReason + "; dropped " + worst.Thing.LabelCap +
-                                " and restored it");
+                            ArmoryGameComponent.Record(now, pawn, weapon, DecisionKind.SkipUpgrade,
+                                "Simple Sidearms refused it: " + postReason +
+                                "; the old backup was restored");
                             break;
                         }
                     }
@@ -400,16 +413,16 @@ namespace Armory
                     string detail;
                     if (worst == null)
                     {
-                        detail = "first " + slot + " backup";
+                        detail = "No " + slot + " backup carried";
                     }
                     else
                     {
-                        detail = string.Format("replacing {0} (+{1}%){2}",
-                            worst.Thing.LabelCap,
+                        detail = string.Format("{0}% better than carried {1}{2}",
                             Mathf.RoundToInt(gain),
-                            dropFirst ? ", old one dropped first" : string.Empty);
+                            worst.Thing.LabelCap,
+                            dropFirst ? " (old one dropped first)" : string.Empty);
                     }
-                    ArmoryGameComponent.Record(now, pawn, weapon, "Queued backup", detail);
+                    ArmoryGameComponent.Record(now, pawn, weapon, DecisionKind.EquipBackup, detail);
 
                     if (settings.debugLogging)
                     {
@@ -421,8 +434,8 @@ namespace Armory
                     {
                         if (DropBackup(pawn, worst, now))
                         {
-                            ArmoryGameComponent.Record(now, pawn, worst.Thing, "Dropped backup",
-                                "replaced by " + weapon.LabelCap);
+                            ArmoryGameComponent.Record(now, pawn, worst.Thing,
+                                DecisionKind.DropBackup, "Replaced by " + weapon.LabelCap);
                         }
                     }
                     break;
@@ -451,8 +464,8 @@ namespace Armory
             bool dropped = SimpleSidearmsAdapter.DropSidearm(pawn, backup.Thing, true, true);
             if (!dropped)
             {
-                ArmoryGameComponent.Record(now, pawn, backup.Thing, "Backup drop failed",
-                    "Simple Sidearms drop was unavailable");
+                ArmoryGameComponent.Record(now, pawn, backup.Thing, DecisionKind.DropFailed,
+                    "Simple Sidearms drop unavailable");
             }
             return dropped;
         }
@@ -476,8 +489,8 @@ namespace Armory
                 };
                 if (record)
                 {
-                    ArmoryGameComponent.Record(now, pawn, backup.Thing, "Restored backup",
-                        "upgrade could not be completed");
+                    ArmoryGameComponent.Record(now, pawn, backup.Thing, DecisionKind.RestoreBackup,
+                        "Upgrade job could not be queued");
                 }
             }
             else

@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.6.3** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.6.4** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -72,8 +72,10 @@ This distinguishes "build more" from "unforbid what you already own", and
 separates hand needs from opposite-type backup needs.
 
 ### Log
-Session-only decision log for the planner: time, colonist, weapon, action,
-detail. Newest first, clearable.
+Session-only decision log for the planner: time, colonist, action, weapon, and
+the reason the action was taken. Actions are `Equip hand`, `Equip backup`,
+`Drop backup`, `Skip upgrade`, `Drop failed`, and `Restore backup`. Newest first,
+clearable.
 
 ---
 
@@ -399,7 +401,8 @@ Manual equivalent:
 - **No auto-unforbid**, by design.
 - **Dropped weapons** stay on the ground; no auto-haul yet.
 - **No raid behaviour** yet (e.g., arm everyone when a raid starts).
-- **Decision log is session-only** and records queued jobs, not every skip.
+- **Decision log is session-only** and records hand/backup equips, drops, and
+  aborted upgrades, not every skip.
   Pawn automation pauses/blocks are shown in the Pawns tab and pawn detail.
 - **English strings are hardcoded**; localization not started.
 - **Workshop packaging** not started.

@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.6.3**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.6.4**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.6.3 are committed.
+Git repository on `main`; 0.2.3 through 0.6.4 are committed.
 
 ---
 
@@ -325,6 +325,34 @@ locks again and backups remain managed.
 
 ---
 
+## 0.6.4 — clearer decision log
+
+The Log tab's Action and Detail columns read as one run-on phrase
+(`Queued unarmed`, `Queued backup first melee backup`) because Action was
+right-aligned against Detail. The log now says what happened and why:
+
+- columns are `Ago | Colonist | Action | Weapon | Reason`;
+- actions are `Equip hand`, `Equip backup`, `Drop backup`, `Skip upgrade`,
+  `Drop failed`, `Restore backup`;
+- reasons are short English statements instead of codes:
+  `No hand weapon equipped`, `36% better than equipped Carbine (excellent)`,
+  `No melee backup carried`, `38% better than carried Steel mace (good)`,
+  `... (old one dropped first)`, `Replaced by Chain shotgun (good)`,
+  `Simple Sidearms refused it: <reason>; the old backup was restored`;
+- equip actions are green, `Drop backup` is blue-grey, failures/skips are amber;
+- `DecisionKind` replaces the free-form action string, so labels and colours are
+  mapped in one place (`MainTabWindow_Armory.DecisionLabel/DecisionColor`).
+
+No planner behaviour changed. Build clean.
+
+Observation from the user's live log: the same pawn could be re-queued every
+~41 s (the 2500-tick swap cooldown) when the queued job had not been taken yet
+(pawns sleeping/busy, or a job the pawn cannot start). That is expected retry
+behaviour, not a swap loop; if it persists while a pawn is idle and awake, the
+next suspect is Simple Sidearms re-promoting its remembered primary.
+
+---
+
 ## Verified behavior
 
 ### Isolated quicktest (Core + Armory)
@@ -492,8 +520,9 @@ Behaviour:
    `Hand`, `Backup`, `Hand blocked`, `Backup blocked`, `No user`; per-colonist
    status is `hand ready`, `hand (equipped)`, `backup ready`. Demand has a `For`
    column. Settings expose manage and upgrade only.
-8. **Log**: `Queued backup` (first backup or `replacing X`), `Dropped backup`,
-   `Restored backup` if a drop-first upgrade is aborted.
+8. **Log**: `Equip hand` / `Equip backup` (with the reason it is better or why
+   it is needed), `Drop backup`, and `Skip upgrade` / `Drop failed` /
+   `Restore backup` when a drop-first upgrade is aborted.
 
 Known gaps: no second backup; a bag full of extras can block the first backup
 because Armory will not drop a hand-type extra to make room; no exact free-slot
@@ -667,15 +696,19 @@ These are easy to break; keep them in mind.
 
 ---
 
-## Pending verification (0.6.3)
+## Pending verification (0.6.4)
 
 The immediate checks are:
 
-- On the reset save, unarmed pawns that are not being armed should show a
-  `paused:` or `blocked:` reason in the Pawns list and an `Automation:` line in
-  the detail. If it is `manual weapon change (Ns)`, that is the 250-second pause
-  from dropping weapons through the Simple Sidearms gizmo; wait it out or lower
-  the pause in Settings.
+- The Log header reads `Ago | Colonist | Action | Weapon | Reason`; actions are
+  `Equip hand` / `Equip backup`, and reasons read as sentences
+  (`No hand weapon equipped`, `No melee backup carried`,
+  `36% better than equipped ...`).
+- On the reset save, unarmed pawns that are not being armed show a `paused:` or
+  `blocked:` reason in the Pawns list and an `Automation:` line in the detail.
+  If it is `manual weapon change (Ns)`, that is the 250-second pause from
+  dropping weapons through the Simple Sidearms gizmo; wait it out or lower the
+  pause in Settings.
 - If it is `drafted`, enable **Equip drafted colonists** or undraft.
 - A bonded persona weapon is no longer a blanket block. If it is the equipped
   hand, the pawn shows `hand locked: bonded ...` but backups are still managed.
@@ -692,9 +725,10 @@ The immediate checks are:
   Monosword's best user unless it is a valid melee backup; the status should be
   `Hand` for a melee pawn or `Backup blocked` for a ranged pawn.
 - With a free SS slot, a better same-type backup is picked up first and the old
-  one dropped after. The Log shows `Queued backup` and `Dropped backup`.
-- At SS's slot cap, the Log shows `replacing X (+N%, old one dropped first)`;
-  `Restored backup` only appears if SS genuinely refuses the replacement.
+  one dropped after. The Log shows `Equip backup` and `Drop backup`.
+- At SS's slot cap, the Log shows `Equip backup` with
+  `... (old one dropped first)`; `Restore backup` only appears if SS genuinely
+  refuses the replacement.
 - A too-heavy candidate (Monosword under Basic) shows `Too heavy...` and does
   **not** produce drop/restore entries. The Log should stay quiet for it.
 - The old backup stays on the ground and is not immediately retrieved by SS.
@@ -837,6 +871,7 @@ polish, not new core behaviour.
 | 0.6.1 | Fix drop-first pre-check (SS `isValidSidearm` ignores RelativeWeight; pacifist tools); remember failed drop-first attempts; clearer log |
 | 0.6.2 | Show automation-skip reasons (`paused:`/`blocked:`) in Pawns and detail; demand ignores hard-blocked pawns |
 | 0.6.3 | Narrow bonded-persona rule: only lock the hand while the bonded weapon is equipped; allow hand/backup management otherwise |
+| 0.6.4 | Clearer Log tab: Action before Weapon, readable spacing, `Equip hand`/`Equip backup` labels, `Reason` column with plain-language reasons |
 
 ---
 

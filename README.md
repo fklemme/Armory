@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.7.3** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.7.4** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -109,6 +109,8 @@ their slot, gain, and current weapon. Defs with no gap are otherwise hidden.
 `Owned` includes forbidden copies; `Need` only counts usable ones, and its
 tooltip shows how many unforbidding would cover. A research-locked def you
 already own shows `more: <project>` when only extra copies need the research.
+A pawn is never offered a second copy of a weapon def they already carry as a
+backup; hand swaps of the same def are still allowed for quality upgrades.
 
 Unlike the planner, Demand ignores transient state: a drafted, asleep, or
 full-bagged colonist still counts, because the plan is about what the colony
@@ -458,6 +460,11 @@ Full procedure, switches, pitfalls and cleanup:
   not compute exact mass/weight budgets itself; SS's `CanPickupSidearmInstance`
   is checked per candidate. Remembered weapons the pawn no longer carries are not
   used as candidates.
+- **No duplicate backup types are added.** The planner and Demand skip a backup
+  def the pawn already carries in the hand or bag, so a gladius is never followed
+  by a second gladius. Existing duplicates are not removed automatically: the
+  planner never drops a weapon without a replacement, so drop one manually, or it
+  may be replaced if a better different def is available.
 - **Drop-first upgrades have a brief gap.** At SS's slot cap Armory drops the old
   backup before queueing the new one, and restores the old weapon if SS still
   rejects the replacement. The dropped weapon is on the ground in the meantime.

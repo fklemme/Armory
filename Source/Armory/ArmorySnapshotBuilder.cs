@@ -88,6 +88,12 @@ namespace Armory
                 for (int i = 0; i < analysis.SidearmCandidates.Count; i++)
                 {
                     SidearmCandidate sidearm = analysis.SidearmCandidates[i];
+                    if (sidearm.AlreadyCarried)
+                    {
+                        // A duplicate of a weapon the pawn already carries is not a real
+                        // candidate, so it should not make a loose weapon look "wanted".
+                        continue;
+                    }
                     WeaponAnalysis row = rows[sidearm.Weapon];
 
                     if (sidearm.Score > row.BestAnyBackupScore)
@@ -470,13 +476,15 @@ namespace Armory
                     continue;
                 }
 
+                bool alreadyCarried = analysis.AlreadyCarries(info.Thing.def);
                 SidearmCandidate candidate = new SidearmCandidate
                 {
                     Weapon = info,
                     Score = info.Power * PawnFit.Compute(context, info.Thing),
-                    Blocker = reason
+                    Blocker = alreadyCarried ? Eligibility.AlreadyCarried : reason,
+                    AlreadyCarried = alreadyCarried
                 };
-                if (!candidate.Ready && analysis.Available &&
+                if (!alreadyCarried && !candidate.Ready && analysis.Available &&
                     SimpleSidearmsAdapter.CanCheckSidearmType &&
                     SimpleSidearmsAdapter.CanCheckSidearmUse &&
                     SimpleSidearmsAdapter.CanCheckRelativeLimits)
@@ -874,6 +882,12 @@ namespace Armory
             ThingDef def = source.Def;
             if (hand ? !pawn.IsHandType(def) : !pawn.IsBackupType(def))
             {
+                return false;
+            }
+
+            if (!hand && pawn.AlreadyCarries(def))
+            {
+                // Do not propose a second copy of a weapon the pawn already carries.
                 return false;
             }
 

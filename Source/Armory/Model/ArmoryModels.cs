@@ -59,6 +59,12 @@ namespace Armory
         /// </summary>
         public bool UpgradeAfterDrop;
 
+        /// <summary>
+        /// True when the pawn already has this weapon def in the hand or inventory.
+        /// Armory must not add a second copy of the same weapon type.
+        /// </summary>
+        public bool AlreadyCarried;
+
         public bool Ready
         {
             get { return string.IsNullOrEmpty(Blocker); }
@@ -160,6 +166,31 @@ namespace Armory
                 return false;
             }
             return RoleIsRanged.Value ? def.IsMeleeWeapon : def.IsRangedWeapon;
+        }
+
+        /// <summary>
+        /// True when the equipped hand or any carried weapon already uses this def.
+        /// Used to stop the planner and Demand from adding a second gladius/axe/etc.
+        /// </summary>
+        public bool AlreadyCarries(ThingDef def)
+        {
+            if (def == null)
+            {
+                return false;
+            }
+            if (Current != null && Current.def == def)
+            {
+                return true;
+            }
+            for (int i = 0; i < CarriedSidearms.Count; i++)
+            {
+                ThingWithComps thing = CarriedSidearms[i].Thing;
+                if (thing != null && thing.def == def)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>Weapons this pawn could use in the hand slot, best first. May still be blocked.</summary>

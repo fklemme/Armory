@@ -12,6 +12,7 @@ namespace Armory
         public const string OutsideArea = "Outside area";
         public const string Unreachable = "Unreachable";
         public const string Reserved = "Reserved";
+        public const string AlreadyCarried = "Already carried";
 
         /// <param name="deep">
         /// Adds reachability and reservation checks. These are relatively expensive, so bulk

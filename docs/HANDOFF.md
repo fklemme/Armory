@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.7.3**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.7.4**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.7.3 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.7.4 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -986,7 +986,51 @@ crossed swords at the neighbours' visual weight. Build clean.
 
 ---
 
-## Pending verification (0.7.2)
+## 0.7.4 — no duplicate backup weapon types
+
+Rathat had a gladius and an axe as melee sidearms. The planner upgraded the axe
+to another gladius, leaving two good gladiuses; the second sword added no
+capability.
+
+Cause: `BuildSidearmCandidates` only skipped `info.Thing == analysis.Current`
+(the equipped hand). A loose weapon of a def already **carried in the bag** was
+still a valid high-score backup candidate, and `RunSidearms` selected it.
+
+Fix:
+
+- `PawnAnalysis.AlreadyCarries(def)` is true when the def is the equipped hand or
+  any `CarriedSidearms` entry.
+- `SidearmCandidate.AlreadyCarried`; the builder marks such candidates with the
+  soft blocker `Already carried` and clears `UpgradeAfterDrop`.
+- `RunSidearms` skips `AlreadyCarried` candidates, so it chooses the best
+  **different** backup or leaves the current one alone.
+- Demand's backup scoring (`TryScoreCandidate`) also skips defs the pawn already
+  carries, so the ideal never suggests a duplicate.
+- The Weapons tab ignores duplicate candidates when computing "best backup user",
+  so a loose gladius is not shown as wanted by a pawn who already has one.
+
+Hand swaps of the **same def** remain allowed (for example normal → excellent);
+that replaces the hand weapon rather than adding a second copy.
+
+Existing duplicates are not auto-dropped: the planner's rule is never remove a
+backup without a replacement. The pair stays until one is dropped manually or the
+planner finds a better different def. Verified in the live save snapshot: loose
+`Steel gladius` candidates for pawns already carrying one now read
+`Already carried`.
+
+Build clean.
+
+---
+
+## Pending verification (0.7.4)
+
+- A pawn carrying a gladius and an axe should no longer upgrade the axe to a
+  second gladius; a loose gladius should show `Already carried` in the backup
+  list and be skipped by the planner.
+- Rathat's existing pair is not auto-removed. Drop one manually; the planner must
+  not add a third.
+- The hand list still allows a same-def quality upgrade (normal → excellent);
+  only the backup slot is deduplicated.
 
 Verified live on the real save:
 
@@ -1204,6 +1248,7 @@ polish, not new core behaviour.
 | 0.7.1 | Demand lists every upgrade as an independent option (overlapping wants), white/grey best-vs-alternative markers, and Craft / Research / Buy sections in action order |
 | 0.7.2 | Keep the best option visible when already covered (`enough` in green), so owned ideals and white backup rows no longer disappear behind grey alternatives |
 | 0.7.3 | Add a crossed-swords main-tab icon matching the Vanilla Textures Expanded button set |
+| 0.7.4 | Never add a second backup of a weapon def the pawn already carries (soft `Already carried` blocker; planner, Demand and Weapons tab all skip it) |
 
 ---
 

@@ -300,6 +300,13 @@ namespace Armory
                     {
                         break; // sorted by score
                     }
+                    if (chosen.AlreadyCarried)
+                    {
+                        // The pawn already has this weapon def in the hand or bag. Adding
+                        // another gladius/axe is not an upgrade, even if this instance
+                        // happens to have a slightly better score.
+                        continue;
+                    }
 
                     ThingWithComps weapon = chosen.Weapon.Thing;
                     if (weapon == null || !weapon.Spawned || weapon.Map != map)

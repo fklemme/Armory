@@ -79,7 +79,9 @@ namespace Armory
             string sidearmReason;
             if (!SimpleSidearmsAdapter.CanPickupSidearm(pawn, weapon, out sidearmReason))
             {
-                reason = string.IsNullOrEmpty(sidearmReason) ? "SS: cannot carry sidearm" : sidearmReason;
+                // SS reports terse localized keys ("Slots full", "No free space"); rewrite
+                // the capacity failures so the UI says which limit was hit and why.
+                reason = SimpleSidearmsAdapter.ExplainPickupFailure(pawn, weapon, sidearmReason);
                 return false;
             }
 

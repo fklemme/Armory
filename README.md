@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.6.4** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.6.5** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -193,7 +193,7 @@ Off by default. When enabled:
 - if Auto Arm or Equipment Manager is loaded, automation stays paused unless
   `overrideCompetitor` is enabled.
 
-Every queued job goes to the **Log** tab.
+Every hand and backup action, with its reason, goes to the **Log** tab.
 
 ### Simple Sidearms coexistence
 
@@ -252,6 +252,13 @@ Armory does not add a second backup. Extra same-type weapons the player or SS
 already carries are left alone. If the bag is full of extras, a missing backup
 may have no free slot; Armory reports the blocker rather than dropping a
 hand-type extra.
+
+Simple Sidearms reports two different capacity failures with terse text. Armory
+expands them so they cannot be confused:
+
+- `All sidearm slots are full` — the SS slot **count** limit is reached;
+- `No free carrying capacity (needs X kg, Y kg free)` — the weapon does not fit
+  in the pawn's remaining inventory **weight**, even when a slot is free.
 
 SS's mass limits still matter. The **Basic** preset caps a melee sidearm at
 1.9 kg and a ranged sidearm at 2.7 kg, with 3 total slots **including the

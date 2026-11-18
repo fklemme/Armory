@@ -413,12 +413,59 @@ namespace Armory.Compatibility
         }
 
         /// <summary>
+        /// Rewrites Simple Sidearms' terse pickup failures into Armory's own wording.
+        /// SS returns localized text, so the same translation keys are resolved through
+        /// <see cref="Translator"/> and compared; anything unrecognized passes through.
+        /// </summary>
+        public static string ExplainPickupFailure(Pawn pawn, ThingWithComps weapon, string ssReason)
+        {
+            if (string.IsNullOrEmpty(ssReason))
+            {
+                return "Simple Sidearms will not allow this sidearm";
+            }
+
+            if (MatchesTranslation(ssReason, "SidearmPickupFail_NoFreeSpace"))
+            {
+                if (pawn == null || weapon == null || weapon.def == null)
+                {
+                    return "No free carrying capacity";
+                }
+                // Match SS's own numbers: it compares the def's abstract mass (stuff is
+                // ignored) with the pawn's free inventory capacity.
+                float mass = weapon.def.GetStatValueAbstract(StatDefOf.Mass);
+                float free = MassUtility.FreeSpace(pawn);
+                return string.Format(
+                    "No free carrying capacity (needs {0:0.##} kg, {1:0.##} kg free)", mass, free);
+            }
+
+            if (MatchesTranslation(ssReason, "SidearmPickupFail_AllSlotsFull"))
+            {
+                return "All sidearm slots are full";
+            }
+            if (MatchesTranslation(ssReason, "SidearmPickupFail_MeleeSlotsFull"))
+            {
+                return "All melee sidearm slots are full";
+            }
+            if (MatchesTranslation(ssReason, "SidearmPickupFail_RangedSlotsFull"))
+            {
+                return "All ranged sidearm slots are full";
+            }
+            return ssReason;
+        }
+
+        private static bool MatchesTranslation(string text, string key)
+        {
+            string translated = Translator.Translate(key);
+            return !string.IsNullOrEmpty(translated) &&
+                   string.Equals(text, translated, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
         /// SS's per-instance usability rule (biocoding, bonds, ideology role), without the
         /// slot/mass limits. Used to rule out drop-first upgrades that would still be denied.
         /// Returns true when the check is unavailable.
         /// </summary>
-        public static bool CanUseSidearm(Pawn pawn, ThingWithComps weapon, out string reason)
-        {
+        public static bool CanUseSidearm(Pawn pawn, ThingWithComps weapon, out string reason)        {
             reason = null;
             EnsureInitialized();
             if (!active || canUseSidearmMethod == null || pawn == null || weapon == null)

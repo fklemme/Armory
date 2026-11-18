@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.6.4**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.6.5**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.6.4 are committed.
+Git repository on `main`; 0.2.3 through 0.6.5 are committed.
 
 ---
 
@@ -353,6 +353,37 @@ next suspect is Simple Sidearms re-promoting its remembered primary.
 
 ---
 
+## 0.6.5 — explain Simple Sidearms' capacity blockers
+
+The Weapons tab showed SS's raw, terse failures side by side — `Slots full` and
+`No free space` — and they read like the same thing.
+
+They are not:
+
+- `SidearmPickupFail_AllSlotsFull` / `MeleeSlotsFull` / `RangedSlotsFull` — SS's
+  **slot count** limit (`LimitModeAmount* == Slots`) is reached.
+- `SidearmPickupFail_NoFreeSpace` — `MassUtility.FreeSpace(pawn)` is smaller
+  than or equal to the weapon's abstract mass. This is the pawn's inventory
+  **weight** capacity, not map space and not slots. SS checks this **before**
+  counting slots, so a pawn can be at the slot cap and still report only the
+  weight failure.
+
+`SimpleSidearmsAdapter.ExplainPickupFailure` rewrites the recognized keys:
+
+- `All sidearm slots are full` (or `All melee/ranged sidearm slots are full`);
+- `No free carrying capacity (needs X kg, Y kg free)`, using the same abstract
+  def mass and `MassUtility.FreeSpace` that SS compares, so the numbers match
+  SS's own check.
+
+Localization-safe: the comparison resolves SS's keys through `Translator` and
+compares the localized text, so it works in any language. Unknown reasons pass
+through unchanged. Display only; SS remains the authority for decisions.
+
+Used by `Eligibility.CheckSidearmRules`, so the Pawns/Weapons detail, `By fit`
+lists and Demand all show the clarified text. Build clean.
+
+---
+
 ## Verified behavior
 
 ### Isolated quicktest (Core + Armory)
@@ -696,9 +727,14 @@ These are easy to break; keep them in mind.
 
 ---
 
-## Pending verification (0.6.4)
+## Pending verification (0.6.5)
 
 The immediate checks are:
+
+- A blocked backup shows `All sidearm slots are full` when SS's slot count is
+  reached, and `No free carrying capacity (needs X kg, Y kg free)` when the
+  pawn's inventory weight is the limit. The two must never be used
+  interchangeably.
 
 - The Log header reads `Ago | Colonist | Action | Weapon | Reason`; actions are
   `Equip hand` / `Equip backup`, and reasons read as sentences
@@ -872,6 +908,7 @@ polish, not new core behaviour.
 | 0.6.2 | Show automation-skip reasons (`paused:`/`blocked:`) in Pawns and detail; demand ignores hard-blocked pawns |
 | 0.6.3 | Narrow bonded-persona rule: only lock the hand while the bonded weapon is equipped; allow hand/backup management otherwise |
 | 0.6.4 | Clearer Log tab: Action before Weapon, readable spacing, `Equip hand`/`Equip backup` labels, `Reason` column with plain-language reasons |
+| 0.6.5 | Expand Simple Sidearms' `Slots full` / `No free space` into distinct explanations (`All sidearm slots are full`, `No free carrying capacity (needs X kg, Y kg free)`) |
 
 ---
 

@@ -1230,6 +1230,7 @@ namespace Armory
             public const float NeedWidth = 56f;
             public const float GainWidth = 64f;
             public const float SourceWidth = 190f;
+            public const float BestMarkerWidth = 20f;
             private const float Gap = 8f;
 
             public float WeaponX;
@@ -1334,8 +1335,13 @@ namespace Armory
                         : new Color(0.78f, 0.72f, 0.62f);
 
                 Rect weaponCell = new Rect(columns.WeaponX, cursor, columns.WeaponWidth, RowHeight);
-                DrawCell(weaponCell, row.Label, TextAnchor.MiddleLeft, GameFont.Small,
-                    row.BestCount > 0 ? Color.white : new Color(0.72f, 0.72f, 0.72f));
+                if (row.BestCount > 0)
+                {
+                    DrawBestStar(new Rect(columns.WeaponX + 2f, cursor + 5f, 16f, 16f));
+                }
+                DrawCell(new Rect(columns.WeaponX + DemandColumns.BestMarkerWidth, cursor,
+                        columns.WeaponWidth - DemandColumns.BestMarkerWidth, RowHeight),
+                    row.Label, TextAnchor.MiddleLeft, GameFont.Small, Color.white);
                 if (row.BestCount > 0)
                 {
                     TooltipHandler.TipRegion(weaponCell, string.Format(
@@ -1413,10 +1419,38 @@ namespace Armory
             Widgets.EndScrollView();
         }
 
+        private static Texture2D bestStar;
+
+        private static Texture2D BestStar
+        {
+            get
+            {
+                if (bestStar == null)
+                {
+                    bestStar = ContentFinder<Texture2D>.Get("UI/Icons/ArmoryBestStar", false);
+                }
+                return bestStar;
+            }
+        }
+
+        private static void DrawBestStar(Rect rect)
+        {
+            Texture2D star = BestStar;
+            if (star == null)
+            {
+                return;
+            }
+            Color previous = GUI.color;
+            GUI.color = Color.white;
+            GUI.DrawTexture(rect, star, ScaleMode.ScaleToFit, true);
+            GUI.color = previous;
+        }
+
         private static void DrawDemandHeader(Rect rect, DemandColumns columns)
         {
             Color color = new Color(0.68f, 0.68f, 0.68f);
-            DrawCell(new Rect(rect.x + columns.WeaponX, rect.y, columns.WeaponWidth, rect.height),
+            DrawCell(new Rect(rect.x + columns.WeaponX + DemandColumns.BestMarkerWidth, rect.y,
+                    columns.WeaponWidth - DemandColumns.BestMarkerWidth, rect.height),
                 "Weapon", TextAnchor.MiddleLeft, GameFont.Tiny, color);
             Rect powerRect = new Rect(rect.x + columns.PowerX, rect.y, DemandColumns.PowerWidth,
                 rect.height);

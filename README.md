@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.7.5** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.7.6** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -74,8 +74,8 @@ For every colonist and slot, Armory scores every weapon def the colony could
 obtain: craftable now, craftable after pending research, buyable from a trader,
 or already owned. **Every** def that beats the current weapon by the upgrade
 threshold is listed. Rows are independent options, so one colonist can appear in
-several of them; a white weapon name means the def is the best option in its
-section for at least one colonist, while grey rows are alternatives.
+several of them. A gold star before the name marks the def as the best option in
+its section for at least one colonist; all weapon names are white.
 
 Research options must also beat the best currently obtainable option by the
 threshold, so research never advertises a weapon that is worse than something
@@ -108,8 +108,9 @@ helps only one. The `Power` column makes that trade-off visible, and it keeps a
 weak starter bow below stronger options even when it is somebody's current best.
 
 Rows that are the best option for someone stay visible even when the requirement
-is already covered; those show `enough` in green. White weapon names are the best
-option in their section for at least one colonist; grey names are alternatives.
+is already covered; those show `enough` in green. A gold star before the name
+marks the best option in its section for at least one colonist; all names are
+white, so the star is the only distinction.
 Without that, an owned ideal (for example the hatchet a colonist already carries)
 would disappear. Click a row to see the contributing colonists, their slot, gain,
 and current weapon. Defs with no gap are otherwise hidden.
@@ -371,6 +372,7 @@ Armory/
   About/Preview.png
   Defs/MainButtonDefs.xml          MainButtonDef "Armory", order 35
   Textures/UI/Buttons/MainButtons/IconArmory.png  main-tab icon
+  Textures/UI/Icons/ArmoryBestStar.png  Demand best-option star
   Assemblies/Armory.dll            build output
   Source/Armory/
     Armory.csproj

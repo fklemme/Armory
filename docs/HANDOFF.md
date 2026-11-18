@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.7.5**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.7.6**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.7.5 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.7.6 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -1049,18 +1049,35 @@ Build clean.
 
 ---
 
-## Pending verification (0.7.5)
+## 0.7.6 — gold star for best rows
 
-- With an unarmed colonist (every weapon is "new"), Heavy/Charge blaster should
-  be near the top and Short bow far below; the `Power` column should descend
-  sensibly within a section.
-- White best rows are no longer forced to the top. Check that the colour and the
-  "best option in this section" tooltip still make the plan easy to spot.
-- A medium weapon that suits many colonists may outrank a slightly stronger one
-  that suits only one; verify that the `Power`, `Want` and `Gain` columns make
-  that understandable.
-- Same-def hand quality upgrades remain allowed; backup duplicates remain
-  blocked.
+White versus grey weapon names were too subtle. All weapon names are now white;
+the best option in each section gets a **gold star** in a fixed gutter before the
+name.
+
+- `Textures/UI/Icons/ArmoryBestStar.png`: 24×24, transparent, gold five-point
+  star, drawn at 16×16.
+- `DrawBestStar` loads it through `ContentFinder`; if the texture is missing the
+  row still renders, without a marker.
+- The `Weapon` header is indented to match the labels. Non-best rows keep the
+  empty gutter so the table stays aligned.
+- The weapon-cell tooltip still distinguishes “best option in this section for N
+  colonists” from an alternative. The ordering logic is unchanged.
+
+Verified live: the `Heavy charge blaster` row shows the star at the top and all
+names are white. Build clean.
+
+---
+
+## Pending verification (0.7.6)
+
+- Best rows show a gold star; all weapon names are white, and the name column
+  stays aligned whether or not a star is present.
+- Multiple best rows (for example after stripping a pawn) each show a star.
+- A weak best-for-someone row (e.g. Short bow for an unarmed pawn) can still sit
+  lower by total score; the star marks it as that pawn's best.
+- The star texture loads from `UI/Icons/ArmoryBestStar` with no missing-texture
+  log spam.
 
 Verified live on the real save:
 
@@ -1280,6 +1297,7 @@ polish, not new core behaviour.
 | 0.7.3 | Add a crossed-swords main-tab icon matching the Vanilla Textures Expanded button set |
 | 0.7.4 | Never add a second backup of a weapon def the pawn already carries (soft `Already carried` blocker; planner, Demand and Weapons tab all skip it) |
 | 0.7.5 | Order Demand by total expected score (power × fit across colonists), add a `Power` column, and stop forcing best-for-someone rows above stronger alternatives |
+| 0.7.6 | Make all Demand weapon names white; mark best-in-section rows with a gold star in a fixed left gutter |
 
 ---
 

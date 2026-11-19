@@ -27,6 +27,9 @@ Milestones 0–4 are implemented:
 ideal-loadout build plan; remaining polish is container scanning, auto-haul,
 raid arming, localization, and Workshop prep.
 
+A range/role scoring pass is planned next. Research, reference-mod behaviour and
+the proposed model are in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+
 ---
 
 ## 0.4.1 hotfix — over-strict SS preference block

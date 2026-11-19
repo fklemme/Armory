@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.9.1**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.9.2**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.9.1 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.9.2 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -25,15 +25,16 @@ Milestones 0–4 are implemented:
 
 **Next:** milestone 5, polish and release prep. 0.7.0 turned the Upgrades view
 into an ideal-loadout build plan; remaining polish is container scanning,
-auto-haul, raid arming, localization, and Workshop prep. 0.9.0 aligns the
-release text, banner and default automation for the first public build.
+auto-haul, raid arming, localization, and Workshop prep. 0.9.2 is staged for the
+first private Steam Workshop upload.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
 0.8.3, the Colonists/Upgrades tab rename in 0.8.4, the icon/tab-order pass in
 0.8.5, the simplified crossed-weapons icon in 0.8.6, the release text, banner and
-default-automation pass in 0.9.0, and colonist-bar ordering in 0.9.1. Research,
-reference-mod behaviour, the shipped model and remaining decisions are in
+default-automation pass in 0.9.0, colonist-bar ordering in 0.9.1, and release
+staging plus the `Best vs current` column in 0.9.2. Research, reference-mod
+behaviour, the shipped model and remaining decisions are in
 [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
 
 ---
@@ -1323,6 +1324,47 @@ Demand showed the Range column and range-aware ordering; no Armory errors.
 
 ---
 
+## 0.9.2 — release staging, refreshed icon/banner, Best vs current
+
+First private Workshop release candidate. Do **not** publish as 1.0.
+
+- Refreshed the crossed-weapons artwork: the rifle is now the foreground weapon
+  with a readable stepped stock, grip, magazine, trigger guard and scope; the
+  sword sits behind it. The tab glyph, `ModIcon.png` and `About/Preview.png` were
+  regenerated from the same scripts, and the banner icon is aligned with the
+  text block.
+- Renamed the Colonists list header from `vs current` to **`Best vs current`**
+  and widened that column slightly so the label fits at 1280x720. The value is
+  still the best available hand candidate compared with the current hand weapon;
+  negative means the current weapon is better.
+- Added `tools/Publish-Armory.ps1`:
+  - `-Prepare` builds Release, stages only runtime files in
+    `C:\Users\mail\Projects\Rimworld Mods\ArmoryRelease\Armory`, removes the
+    development junction from `RimWorld\Mods`, and installs the clean release
+    copy for the in-game uploader.
+  - `-Restore` removes the release copy and recreates the development junction.
+  - It preserves `PublishedFileId.txt` and can seed it from
+    `docs/workshop-id.txt` on future releases.
+- Added `docs/WORKSHOP.md` with the exact upload workflow, private-test checklist,
+  release-folder contents, and a Steam-ready Workshop description.
+- Current machine state: `RimWorld\Mods\Armory` is the **clean release copy**
+  with no `PublishedFileId.txt` yet; the development junction is removed. The
+  real `Prefs.xml` currently has Dev Mode off, so enable it before uploading.
+  Run `Publish-Armory.ps1 -Restore` after the upload to return to development.
+
+Verified: Release build clean; the icon, ModIcon and banner are reproducible from
+their scripts. Pending: the private Steam upload, PublishedFileId capture, and a
+clean subscriber test.
+
+### Pending verification (0.9.2)
+
+- Upload 0.9.2 from the clean release copy with visibility Hidden/Private.
+- Copy the generated `About/PublishedFileId.txt` into `docs/workshop-id.txt`.
+- Test the subscribed Workshop copy with and without Simple Sidearms.
+- Set the item to Public when the private test passes.
+
+---
+
 ## 0.9.1 — Colonists list follows the colonist bar
 
 The Colonists tab sorted by `LabelShort`, which did not match the portraits at
@@ -1824,6 +1866,7 @@ polish, not new core behaviour.
 | 0.8.6 | Remove the seal/star, rebalance crossed sword and rifle, and make `ModIcon.png` a transparent backdrop-free glyph |
 | 0.9.0 | Release text and banner pass: default-on auto-equip and backups, new tagline/icon banner, Upgrades naming, reproducible banner generator |
 | 0.9.1 | Colonists list follows the colonist-bar display order (join order by default) instead of alphabetical name order |
+| 0.9.2 | Refreshed icon/banner, `Best vs current` column, clean release staging and the first private Workshop upload checklist |
 
 ---
 
@@ -1836,10 +1879,12 @@ polish, not new core behaviour.
 | `docs/RANGE_AND_ROLES.md` | Range/role research, shipped model and pending decisions |
 | `docs/HANDOFF.md` | This file |
 | `docs/TESTING.md` | Quick harness + live-save procedure, pitfalls, cleanup |
+| `docs/WORKSHOP.md` | Clean release contents, private upload checklist and Workshop page copy |
 | `tools/Setup-LiveTest.ps1` | Copies a real save/config into an isolated folder |
 | `tools/LiveTestScaffold.cs.txt` | Temporary load/screenshot scaffold template |
 | `tools/Generate-ArmoryIcon.ps1` | Regenerates the 64px tab glyph and transparent ModIcon |
 | `tools/Generate-ArmoryBanner.ps1` | Regenerates `About/Preview.png` from the ModIcon |
+| `tools/Publish-Armory.ps1` | Stages a clean Workshop copy and swaps/restores the dev junction |
 | `Source/Armory/ArmoryPlanner.cs` | Automation decisions and job issuing |
 | `Source/Armory/ArmorySnapshotBuilder.cs` | Ranking, pod lookup, weapon filter, demand |
 | `Source/Armory/Scoring/*` | Range profile, roles, power, fit, blockers, weapon catalog/probes |

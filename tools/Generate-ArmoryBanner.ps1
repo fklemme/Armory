@@ -88,13 +88,15 @@ $g.DrawString("RimWorld 1.6", $footerFont, $faint,
     [System.Drawing.RectangleF]::new(0, 322, 591, 22), $footerFormat)
 $footerFormat.Dispose()
 
-# Icon: same transparent artwork as About/ModIcon.png.
+# Icon: same transparent artwork as About/ModIcon.png. The destination accounts
+# for the artwork's transparent inset, aligning its visible pixels with the
+# title's top (78) and the second subtitle line's bottom (232).
 if (-not (Test-Path $Icon))
 {
     throw "Missing icon: $Icon. Run tools/Generate-ArmoryIcon.ps1 first."
 }
 $iconImage = [System.Drawing.Image]::FromFile((Resolve-Path $Icon).Path)
-$g.DrawImage($iconImage, 408, 70, 208, 208)
+$g.DrawImage($iconImage, 421, 64, 182, 182)
 $iconImage.Dispose()
 
 $titleFont.Dispose()

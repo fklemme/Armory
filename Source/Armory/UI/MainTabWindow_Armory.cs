@@ -257,10 +257,10 @@ namespace Armory
         {
             float width = row.width;
             name = new Rect(row.x, row.y, width * 0.12f, row.height);
-            current = new Rect(row.x + width * 0.12f, row.y, width * 0.25f, row.height);
-            backup = new Rect(row.x + width * 0.37f, row.y, width * 0.25f, row.height);
-            status = new Rect(row.x + width * 0.62f, row.y, width * 0.26f, row.height);
-            delta = new Rect(row.x + width * 0.88f, row.y, width * 0.12f, row.height);
+            current = new Rect(row.x + width * 0.12f, row.y, width * 0.24f, row.height);
+            backup = new Rect(row.x + width * 0.36f, row.y, width * 0.24f, row.height);
+            status = new Rect(row.x + width * 0.60f, row.y, width * 0.26f, row.height);
+            delta = new Rect(row.x + width * 0.86f, row.y, width * 0.14f, row.height);
         }
 
         private static void WeaponColumns(Rect row, out Rect label, out Rect power, out Rect range,
@@ -290,7 +290,7 @@ namespace Armory
             DrawCell(current, "Hand", TextAnchor.MiddleLeft, GameFont.Tiny, color);
             DrawCell(backup, "Backup", TextAnchor.MiddleLeft, GameFont.Tiny, color);
             DrawCell(status, "Status", TextAnchor.MiddleLeft, GameFont.Tiny, color);
-            DrawCell(delta, "vs current", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            DrawCell(delta, "Best vs current", TextAnchor.MiddleRight, GameFont.Tiny, color);
 
             TooltipHandler.TipRegion(current,
                 "The weapon currently equipped in this colonist's hand.");

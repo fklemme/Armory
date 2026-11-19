@@ -2,7 +2,7 @@
 
 **The right weapon, in the right hands.**
 
-**Version 0.9.1** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.9.2** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and automatic manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -27,7 +27,7 @@ Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1 |
+| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2 |
 
 ---
 
@@ -41,6 +41,8 @@ as the portraits, which defaults to join order. Drag a portrait to reorder both
 the bar and this list.
 
 - current hand weapon and its score;
+- a **`Best vs current`** column comparing the best available hand candidate
+  with the current hand weapon; negative means the current weapon is still better;
 - a **hand slot** ranking of the colonist's Simple Sidearms type
   (`ranged` or `melee`), with the best available upgrade and how it compares
   with the current hand weapon;
@@ -218,6 +220,14 @@ cmd /c mklink /J "C:\Program Files (x86)\Steam\steamapps\common\RimWorld\Mods\Ar
 In RimWorld: enable **Armory** in the mod list, restart, open the **Armory** tab.
 
 > Close RimWorld before rebuilding. Windows locks the loaded `Armory.dll`.
+
+### Publishing to Steam Workshop
+
+`tools/Publish-Armory.ps1 -Prepare` builds a clean release copy and swaps it
+into `RimWorld/Mods/Armory`; upload from RimWorld's Mods screen in Dev Mode.
+`-Restore` removes the release copy and recreates the development junction.
+The full checklist, release-folder contents and Workshop page copy are in
+[`docs/WORKSHOP.md`](docs/WORKSHOP.md).
 
 ---
 
@@ -457,11 +467,13 @@ Armory/
   docs/RANGE_AND_ROLES.md          range/role research, design and decisions
   docs/HANDOFF.md                  exact state and next-step plan
   docs/TESTING.md                  quick + live-save testing procedure
+  docs/WORKSHOP.md                 Steam Workshop copy + release checklist
   tools/Quicktest-Armory.ps1       isolated quicktest harness
   tools/Setup-LiveTest.ps1         copies a real save into an isolated folder
   tools/LiveTestScaffold.cs.txt    temporary auto-load/screenshot scaffold
   tools/Generate-ArmoryIcon.ps1    regenerates the tab glyph and ModIcon
   tools/Generate-ArmoryBanner.ps1  regenerates About/Preview.png from the ModIcon
+  tools/Publish-Armory.ps1         stages a clean Workshop copy and swaps the dev junction
 ```
 
 ---
@@ -577,7 +589,8 @@ Full procedure, switches, pitfalls and cleanup:
   aborted upgrades, not every skip.
   Pawn automation pauses/blocks are shown in the Colonists tab and pawn detail.
 - **English strings are hardcoded**; localization not started.
-- **Workshop packaging** not started.
+- **Steam Workshop publishing** is staged but the item is not published yet;
+  see [`docs/WORKSHOP.md`](docs/WORKSHOP.md).
 - **RimWorld 1.7** (Waylith/.NET 10) not targeted; the structure is ready for a
   `LoadFolders.xml` split later.
 - Minor alignment imperfections in the tab remain.
@@ -619,3 +632,5 @@ Full procedure, switches, pitfalls and cleanup:
   next steps, open questions.
 - [`docs/TESTING.md`](docs/TESTING.md) — quick harness and live-save testing,
   including the isolated copy + temporary scaffold procedure.
+- [`docs/WORKSHOP.md`](docs/WORKSHOP.md) — clean release contents, upload
+  checklist, private-test steps and Workshop page copy.

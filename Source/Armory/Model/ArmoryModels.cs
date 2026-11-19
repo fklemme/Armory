@@ -106,7 +106,7 @@ namespace Armory
 
         /// <summary>
         /// Why automation is not acting on this pawn, or null when it may act. Shown in
-        /// the pawn list/detail so "hand ready" is never unexplained.
+        /// the colonist list/detail so the status is never unexplained.
         /// </summary>
         public string AutomationNote;
 

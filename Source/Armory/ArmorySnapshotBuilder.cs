@@ -54,7 +54,7 @@ namespace Armory
                 rows[info] = new WeaponAnalysis
                 {
                     Weapon = info,
-                    Status = "Unused"
+                    Status = "No colonist can use it"
                 };
             }
 
@@ -127,15 +127,15 @@ namespace Armory
                 }
                 else if (row.BestAnyHandPawn != null)
                 {
-                    row.Status = "Hand blocked";
+                    row.Status = "Hand (blocked)";
                 }
                 else if (row.BestAnyBackupPawn != null)
                 {
-                    row.Status = "Backup blocked";
+                    row.Status = "Backup (blocked)";
                 }
                 else
                 {
-                    row.Status = "No user";
+                    row.Status = "No colonist can use it";
                 }
                 snapshot.WeaponRows.Add(row);
             }
@@ -275,7 +275,7 @@ namespace Armory
                 pawn.equipment.Primary == pawn.equipment.bondedWeapon)
             {
                 analysis.HandLocked = true;
-                analysis.HandLockReason = "bonded persona weapon in hand";
+                analysis.HandLockReason = "bonded persona weapon";
             }
             ResolveRole(analysis, context);
             ResolveBestCarriedBackup(analysis);
@@ -370,7 +370,7 @@ namespace Armory
             if (analysis.SidearmState != null && analysis.SidearmState.PreferredPrimaryIsRanged.HasValue)
             {
                 analysis.RoleIsRanged = analysis.SidearmState.PreferredPrimaryIsRanged.Value;
-                analysis.RoleSource = "SS mode";
+                analysis.RoleSource = "Simple Sidearms mode";
                 return;
             }
 
@@ -379,19 +379,19 @@ namespace Armory
                 if (analysis.Current.def.IsRangedWeapon)
                 {
                     analysis.RoleIsRanged = true;
-                    analysis.RoleSource = "current weapon";
+                    analysis.RoleSource = "from current weapon";
                     return;
                 }
                 if (analysis.Current.def.IsMeleeWeapon)
                 {
                     analysis.RoleIsRanged = false;
-                    analysis.RoleSource = "current weapon";
+                    analysis.RoleSource = "from current weapon";
                     return;
                 }
             }
 
             analysis.RoleIsRanged = context.Shooting >= context.Melee;
-            analysis.RoleSource = "combat skill";
+            analysis.RoleSource = "from combat skill";
         }
 
         private static void ResolveBestCarriedHand(PawnAnalysis analysis, PawnFitContext context,
@@ -561,7 +561,7 @@ namespace Armory
                     Thing = weapon,
                     Score = score
                 });
-                labels.Add(string.Format("{0} ({1:0})", weapon.LabelCap, score));
+                labels.Add(string.Format("{0} · score {1:0}", weapon.LabelCap, score));
             }
             analysis.SidearmText = labels.Count == 0 ? "none" : string.Join(", ", labels);
         }

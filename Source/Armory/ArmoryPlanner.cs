@@ -651,7 +651,7 @@ namespace Armory
                 if (manualUntil.TryGetValue(pawn.thingIDNumber, out until) && now < until)
                 {
                     int seconds = Mathf.Max(1, (until - now + 59) / 60);
-                    return string.Format("manual weapon change ({0}s)", seconds);
+                    return string.Format("manual change {0}s", seconds);
                 }
             }
 
@@ -660,7 +660,7 @@ namespace Armory
             if (elapsed < settings.swapCooldownTicks)
             {
                 int seconds = Mathf.Max(1, (settings.swapCooldownTicks - elapsed + 59) / 60);
-                return string.Format("swap cooldown ({0}s)", seconds);
+                return string.Format("swap cooldown {0}s", seconds);
             }
             return null;
         }

@@ -45,10 +45,10 @@ namespace Armory.Compatibility
             public string PreferredPairLabel;
             public string PreferredPairReason;
 
-            /// <summary>"ranged", "melee", "by skill (ranged)", "by generated", ...</summary>
+            /// <summary>"always ranged", "always melee", "by best skill (ranged)", "chosen when generated", ...</summary>
             public string PrimaryModeLabel = "unknown";
 
-            /// <summary>Effective preferred primary type. Null when SS has no opinion (by generated).</summary>
+            /// <summary>Effective preferred primary type. Null when Simple Sidearms has no opinion (chosen when generated).</summary>
             public bool? PreferredPrimaryIsRanged;
 
             /// <summary>True when the pawn carries a weapon of the preferred type, so SS would switch back.</summary>
@@ -64,7 +64,7 @@ namespace Armory.Compatibility
 
             public string Summary()
             {
-                string text = "primary " + PrimaryModeLabel;
+                string text = "primary mode: " + PrimaryModeLabel;
                 if (AutomationVeto)
                 {
                     text += " | " + VetoReason;
@@ -75,7 +75,7 @@ namespace Armory.Compatibility
                 }
                 else if (CarriesPreferredPrimary)
                 {
-                    text += " | carries preferred type";
+                    text += " | carries the preferred type";
                 }
                 return text;
             }
@@ -236,7 +236,7 @@ namespace Armory.Compatibility
 
             if (state.ForcedUnarmed)
             {
-                reason = state.VetoReason ?? "SS: forced unarmed";
+                reason = state.VetoReason ?? "Forced unarmed";
                 return true;
             }
 
@@ -244,7 +244,7 @@ namespace Armory.Compatibility
             {
                 if (!Matches(weapon, state.ForcedWeaponDef, state.ForcedWeaponStuff))
                 {
-                    reason = "SS: forced " + state.ForcedWeaponLabel;
+                    reason = "Forced weapon: " + state.ForcedWeaponLabel;
                     return true;
                 }
                 return false;
@@ -252,7 +252,7 @@ namespace Armory.Compatibility
 
             if (state.PrefersUnarmed)
             {
-                reason = state.VetoReason ?? "SS: prefers unarmed";
+                reason = state.VetoReason ?? "Prefers unarmed";
                 return true;
             }
 
@@ -266,8 +266,8 @@ namespace Armory.Compatibility
                 !MatchesPrimaryType(weapon.def, state.PreferredPrimaryIsRanged.Value))
             {
                 reason = state.PreferredPrimaryIsRanged.Value
-                    ? "Melee blocked: SS ranged"
-                    : "Ranged blocked: SS melee";
+                    ? "Requires a ranged hand"
+                    : "Requires a melee hand";
                 return true;
             }
 
@@ -340,15 +340,15 @@ namespace Armory.Compatibility
                 }
 
                 state.VetoReason = state.ForcedUnarmed
-                    ? "SS: forced unarmed"
+                    ? "Forced unarmed"
                     : state.ForcedWeaponDef != null
-                        ? "SS: forced " + state.ForcedWeaponLabel
+                        ? "Forced weapon: " + state.ForcedWeaponLabel
                         : null;
 
                 state.PrefersUnarmed = ReadBool(preferredUnarmedProperty, comp);
                 if (state.PrefersUnarmed && state.VetoReason == null)
                 {
-                    state.VetoReason = "SS: prefers unarmed";
+                    state.VetoReason = "Prefers unarmed";
                 }
 
                 ResolvePrimaryMode(pawn, comp, state);
@@ -370,8 +370,8 @@ namespace Armory.Compatibility
                             state.PreferredPairStuff = stuff;
                             state.PreferredPairLabel = PairLabel(def, stuff);
                             state.PreferredPairReason = state.PreferredPrimaryIsRanged.Value
-                                ? "SS default ranged: " + state.PreferredPairLabel + " (carried)"
-                                : "SS preferred melee: " + state.PreferredPairLabel + " (carried)";
+                                ? "Default ranged weapon: " + state.PreferredPairLabel + " (carried)"
+                                : "Preferred melee weapon: " + state.PreferredPairLabel + " (carried)";
                         }
                     }
                 }
@@ -456,7 +456,7 @@ namespace Armory.Compatibility
                 {
                     // Simple Sidearms compares CodedPawn (null) with the pawn and reports
                     // "bonded to someone else" for an unbonded persona weapon.
-                    return "Unbonded persona: equip manually to bond";
+                    return "Persona: bond manually";
                 }
                 return blade != null && !string.IsNullOrEmpty(blade.CodedPawnLabel)
                     ? "Bonded to " + blade.CodedPawnLabel
@@ -521,7 +521,7 @@ namespace Armory.Compatibility
             if ((pawn.CombinedDisabledWorkTags & WorkTags.Violent) != 0 &&
                 !IsTool(weapon.def))
             {
-                reason = "Pacifist: not a tool";
+                reason = "Pacifist: only tools allowed";
                 return false;
             }
 
@@ -688,32 +688,32 @@ namespace Armory.Compatibility
             switch (mode)
             {
                 case 0: // Ranged
-                    state.PrimaryModeLabel = "ranged";
+                    state.PrimaryModeLabel = "always ranged";
                     state.PreferredPrimaryIsRanged = true;
                     break;
                 case 1: // Melee
-                    state.PrimaryModeLabel = "melee";
+                    state.PrimaryModeLabel = "always melee";
                     state.PreferredPrimaryIsRanged = false;
                     break;
                 case 2: // BySkill: Simple Sidearms resolves this per pawn at runtime
                     int preference = ReadSkillPreference(pawn);
                     if (preference == 0)
                     {
-                        state.PrimaryModeLabel = "by skill (ranged)";
+                        state.PrimaryModeLabel = "by best skill (ranged)";
                         state.PreferredPrimaryIsRanged = true;
                     }
                     else if (preference == 1)
                     {
-                        state.PrimaryModeLabel = "by skill (melee)";
+                        state.PrimaryModeLabel = "by best skill (melee)";
                         state.PreferredPrimaryIsRanged = false;
                     }
                     else
                     {
-                        state.PrimaryModeLabel = "by skill";
+                        state.PrimaryModeLabel = "by best skill";
                     }
                     break;
                 case 3: // ByGenerated: no stable preference to respect
-                    state.PrimaryModeLabel = "by generated";
+                    state.PrimaryModeLabel = "chosen when generated";
                     break;
                 default:
                     state.PrimaryModeLabel = "unknown";

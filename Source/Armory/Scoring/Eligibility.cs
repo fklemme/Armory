@@ -9,9 +9,9 @@ namespace Armory
     public static class Eligibility
     {
         public const string Forbidden = "Forbidden";
-        public const string OutsideArea = "Outside area";
-        public const string Unreachable = "Unreachable";
-        public const string Reserved = "Reserved";
+        public const string OutsideArea = "Outside allowed area";
+        public const string Unreachable = "No path to weapon";
+        public const string Reserved = "Reserved by another job";
         public const string AlreadyCarried = "Already carried";
 
         /// <param name="deep">
@@ -111,7 +111,7 @@ namespace Armory
             {
                 // Bonding is permanent. Let the player choose the pawn and equip it
                 // manually instead of having the planner create a bond as a side effect.
-                reason = "Unbonded persona: equip manually to bond";
+                reason = "Persona: bond manually";
                 return false;
             }
 

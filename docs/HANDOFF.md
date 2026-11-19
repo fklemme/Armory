@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.8.2**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.8.3**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.8.2 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.8.3 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -28,9 +28,9 @@ ideal-loadout build plan; remaining polish is container scanning, auto-haul,
 raid arming, localization, and Workshop prep.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
-0.8.1 and a Source-column encoding fix in 0.8.2. Research, reference-mod
-behaviour, the shipped model and remaining decisions are in
-[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+0.8.1, a Source-column encoding fix in 0.8.2 and an interface wording pass in
+0.8.3. Research, reference-mod behaviour, the shipped model and remaining
+decisions are in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
 
 ---
 
@@ -1319,6 +1319,95 @@ Demand showed the Range column and range-aware ordering; no Armory errors.
 
 ---
 
+## 0.8.3 — interface wording and status clarity
+
+A read-through of every visible label found several broad or internal terms. The
+pass changes wording and adds tooltips; it does not change planning, scoring or
+eligibility.
+
+**Pawns**
+
+- `Status: ok` is now `Fully equipped`.
+- `hand ready` / `hand upgrade` / `add backup` / `backup upgrade` became
+  `Hand weapon available`, `Hand upgrade available`, `Backup available` and
+  `Backup upgrade available`.
+- `backup blocked` became `No usable backup`; `no backup candidate` became
+  `No backup weapon`; `backup carried` became `Backup carried (not managed)`;
+  `No hand upgrade` became `No worthwhile upgrade`.
+- `blocked: ...` / `paused: ...` became `Cannot automate: ...` /
+  `Paused: ...`; swap and manual-change notes lost their redundant parentheses.
+- The `Delta` column is now `vs current`, shows `new slot` instead of `+100%`,
+  and has a tooltip explaining the comparison.
+- `Role:` is now `Hand type:`, with `<type> (Simple Sidearms mode)` and explicit
+  sources (`from current weapon`, `from combat skill`).
+- The role button reads `Change role`; menu labels use `Close quarters` instead
+  of `CQB`.
+- The hand and backup candidate tables now have `Weapon` / `Status` / `Score`
+  (`vs current`) headers. `ready` became `Can equip`.
+- `Best usable` became `Best available`; `Best hand overall` became
+  `Highest-scoring hand weapon`; `Incompatible` became `Cannot equip`.
+- The keep-current line now states whether the best alternative is worse, or
+  only a small improvement below the required gain.
+- Hand, backup, status and delta cells have hover tooltips, so quality names and
+  long blockers are readable when a column truncates them.
+- Tab buttons explain what each view contains; the snapshot age reads
+  `updated 1s ago` / `updated just now`.
+
+**Weapons**
+
+- The `Status` column is now `Best use`: `Hand`, `Backup`, `Hand (blocked)`,
+  `Backup (blocked)`, `No colonist can use it`.
+- `Best hand use` became `Best hand fit ... (x% vs current)`; backup text is a
+  single sentence.
+- `Colonists by score` has column headers, and its statuses read `Equipped in
+  hand`, `Can equip in hand` and `Can carry as backup`.
+- The `(holds it)` suffix is gone; the status carries that information.
+
+**Demand**
+
+- The caption is two lines and says `compared with the weapons you own`,
+  `Sections: Craft, Research, Buy` and `counts only after you unforbid it`.
+- `new` in `Gain` is now `new slot`.
+- `forb.` became `forbidden`; owned and gain cells have explanatory tooltips.
+
+**Settings and Log**
+
+- `Upgrade threshold` -> `Minimum upgrade gain`; `Ranged preference` / `Melee
+  preference` -> `Ranged score weight` / `Melee score weight`.
+- `Hand weapons shown per pawn` -> `Hand candidates shown per colonist` (and the
+  backup equivalent); `Show blocked weapons` -> `Show blocked candidates`.
+- `only ready weapons` -> `weapons it can use now`.
+- Log actions read `Equip hand weapon`; the ON banner explains that the log is
+  cleared when the game closes or a save loads.
+
+**Supporting text**
+
+- `Outside area` -> `Outside allowed area`; `Unreachable` -> `No path to
+  weapon`; `Reserved` -> `Reserved by another job`.
+- `Unbonded persona: equip manually to bond` -> `Persona: bond manually`.
+- `SS: forced ...` became `Forced unarmed` / `Forced weapon: X` / `Prefers
+  unarmed`; `SS mode` became `Simple Sidearms mode`.
+- Simple Sidearms primary modes now read `always ranged`, `always melee`,
+  `by best skill (ranged)`, `chosen when generated`.
+
+Verified live at 1600x900 on `Northwestern Esora Humanlike Confederacy`: the
+Pawns list shows `Fully equipped` / `Hand upgrade available`, `Hand type:
+ranged (Simple Sidearms mode)`, candidate headers, `Can equip` and `Persona:
+bond manually`. The Weapons tab shows `Best use` with `Backup (blocked)` and
+`Colonists by score`; the Demand caption wraps correctly and `craft · bench`
+remains intact. The Settings dialog renders the new labels and descriptions
+without overlap. Build clean.
+
+### Pending verification (0.8.3)
+
+- `vs current` values are readable at the default window size and the status
+  column still fits `Backup upgrade available (hand locked)`.
+- The `forbidden` suffix fits the Owned column on a row with forbidden stock.
+- Hovering a truncated hand, backup, status or weapon cell shows the full text.
+- The Settings scroll still reaches Diagnostics after the new descriptive lines.
+
+---
+
 ## 0.8.2 — Source column no longer shows a replacement glyph
 
 The Demand tab's Source column rendered `craft ♦ Fabrication bench`: three
@@ -1575,6 +1664,7 @@ polish, not new core behaviour.
 | 0.8.0 | Range-aware combat scores, auto/override roles, squad variety and a Range column |
 | 0.8.1 | Unbonded persona weapons are manual-only; loose-weapons note; clearer SS persona blocker |
 | 0.8.2 | Restore middle-dot separators in the Demand Source column (U+FFFD fix) |
+| 0.8.3 | Interface wording pass: explicit statuses, hand type, vs current, candidate headers and tooltips |
 
 ---
 

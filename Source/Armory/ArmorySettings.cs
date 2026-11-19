@@ -119,15 +119,16 @@ namespace Armory
             if (ArmoryMod.CompetitorLoaded)
             {
                 listing.CheckboxLabeled("Run anyway while another weapon manager is loaded", ref overrideCompetitor);
-                listing.Label("Two managers issuing equip jobs can fight over the same pawn. Enable only one unless you are testing.");
+                listing.Label("Two managers issuing equip jobs can fight over the same colonist. Enable only one unless you are testing.");
             }
 
             if (autoEquipEnabled)
             {
-                listing.Label(string.Format("Planner interval: {0} ticks", plannerIntervalTicks));
+                listing.Label(string.Format("Check for upgrades every {0} ticks ({1:0.0}s)",
+                    plannerIntervalTicks, plannerIntervalTicks / 60f));
                 plannerIntervalTicks = Mathf.RoundToInt(listing.Slider(plannerIntervalTicks, 120f, 600f));
 
-                listing.Label(string.Format("Swap cooldown: {0} ticks ({1:0}s)",
+                listing.Label(string.Format("Wait after a weapon swap: {0} ticks ({1:0}s)",
                     swapCooldownTicks, swapCooldownTicks / 60f));
                 swapCooldownTicks = Mathf.RoundToInt(listing.Slider(swapCooldownTicks, 600f, 10000f));
 
@@ -138,11 +139,11 @@ namespace Armory
                 listing.CheckboxLabeled("Respect manual weapon changes", ref respectManualEquip);
                 if (respectManualEquip)
                 {
-                    listing.Label(string.Format("Manual-change pause: {0}s", manualCooldownTicks / 60));
+                    listing.Label(string.Format("Pause after a manual weapon change: {0}s", manualCooldownTicks / 60));
                     manualCooldownTicks = Mathf.RoundToInt(listing.Slider(manualCooldownTicks, 2500f, 30000f));
                 }
 
-                listing.Label("Only ready weapons are used. Armory never unforbids automatically.");
+                listing.Label("Armory only equips weapons it can use now. It never unforbids anything automatically.");
             }
 
             listing.GapLine();
@@ -150,17 +151,17 @@ namespace Armory
             listing.GapLine();
             if (ArmoryMod.SimpleSidearmsLoaded)
             {
-                listing.CheckboxLabeled("Respect Simple Sidearms hand role and forced weapons",
+                listing.CheckboxLabeled("Respect Simple Sidearms hand type and forced weapons",
                     ref respectSimpleSidearms);
                 listing.Label(respectSimpleSidearms
-                    ? "Armory follows the pawn's SS hand type, leaves forced weapons alone, and will not equip the other type while the pawn carries the role type. Backups are managed separately."
-                    : "Armory ignores SS's hand type and forced states. Expect the two mods to fight over the hand weapon.");
-                listing.Label("Simple Sidearms' primary mode is per pawn. Changing SS's default only affects newly generated pawns; use the SS gizmo on an existing colonist to switch that pawn to melee or by-skill.");
+                    ? "Armory follows the colonist's Simple Sidearms hand type, leaves forced weapons alone, and will not equip the other type while the colonist carries the hand type. Backups are managed separately."
+                    : "Armory ignores Simple Sidearms' hand type and forced states. Expect the two mods to fight over the hand weapon.");
+                listing.Label("Simple Sidearms' primary mode is per colonist. Changing the mod's default only affects newly generated colonists; use the Simple Sidearms gizmo on an existing colonist to switch that colonist to melee or by skill.");
 
                 listing.CheckboxLabeled("Manage backup weapons (one opposite-type weapon)", ref manageSidearms);
                 if (manageSidearms)
                 {
-                    listing.Label("Armory keeps one hand weapon (the pawn's Simple Sidearms type) and one opposite-type backup. Ranged pawns get a melee backup; melee pawns get a ranged backup.");
+                    listing.Label("Armory keeps one hand weapon (the colonist's Simple Sidearms type) and one opposite-type backup. Ranged colonists get a melee backup; melee colonists get a ranged backup.");
                     listing.CheckboxLabeled("Upgrade a backup when a better valid one is available",
                         ref replaceWorseSidearms);
                     listing.Label("Upgrades replace only the worst carried weapon of the same type, never the only weapon of a type and never across types. If Simple Sidearms has a free slot, the new weapon is picked up first and the old one dropped after. If slots are full, the old one is dropped first and restored if the new one cannot be added. Dropped weapons stay on the ground.");
@@ -168,21 +169,23 @@ namespace Armory
             }
             else
             {
-                listing.Label("Simple Sidearms is not loaded. Primary coexistence and sidearm management are inactive.");
+                listing.Label("Simple Sidearms is not loaded. Hand-type coexistence and backup management are inactive.");
             }
 
             listing.GapLine();
             listing.Label("Ranking");
             listing.GapLine();
 
-            listing.Label(string.Format("Upgrade threshold: {0}%", Mathf.RoundToInt(upgradeThreshold * 100f)));
+            listing.Label(string.Format("Minimum upgrade gain: {0}%", Mathf.RoundToInt(upgradeThreshold * 100f)));
             upgradeThreshold = listing.Slider(upgradeThreshold, 0f, 0.5f);
+            listing.Label("A weapon must be at least this much better before Armory recommends or equips it.");
 
-            listing.Label(string.Format("Ranged preference: x{0:0.00}", rangedWeight));
+            listing.Label(string.Format("Ranged score weight: x{0:0.00}", rangedWeight));
             rangedWeight = listing.Slider(rangedWeight, 0.5f, 2f);
 
-            listing.Label(string.Format("Melee preference: x{0:0.00}", meleeWeight));
+            listing.Label(string.Format("Melee score weight: x{0:0.00}", meleeWeight));
             meleeWeight = listing.Slider(meleeWeight, 0.5f, 2f);
+            listing.Label("Weights multiply the final score. 1.00 is neutral; raise one to favour that weapon class.");
 
             string bias = engagementOffset > 0 ? "+" + engagementOffset : engagementOffset.ToString();
             listing.Label(string.Format("Combat distance bias: {0} tiles", bias));
@@ -191,23 +194,24 @@ namespace Armory
 
             listing.Label(string.Format("Squad variety: {0}%", Mathf.RoundToInt(varietyStrength * 100f)));
             varietyStrength = listing.Slider(varietyStrength, 0f, 1f);
-            listing.Label("Adds a small per-pawn weapon preference and makes duplicate top choices less attractive. Set to 0% to disable both.");
+            listing.Label("Adds a small per-colonist weapon preference and makes duplicate top choices less attractive. Set to 0% to disable both.");
 
-            listing.Label(string.Format("Hand weapons shown per pawn: {0}", maxCandidates));
+            listing.Label(string.Format("Hand candidates shown per colonist: {0}", maxCandidates));
             maxCandidates = Mathf.RoundToInt(listing.Slider(maxCandidates, 5f, 100f));
-            listing.Label(string.Format("Backup weapons shown per pawn: {0}", maxSidearmCandidates));
+            listing.Label(string.Format("Backup candidates shown per colonist: {0}", maxSidearmCandidates));
             maxSidearmCandidates = Mathf.RoundToInt(listing.Slider(maxSidearmCandidates, 1f, 50f));
 
-            listing.CheckboxLabeled("Show blocked weapons by default", ref showBlocked);
+            listing.CheckboxLabeled("Show blocked candidates by default", ref showBlocked);
 
             listing.GapLine();
             listing.Label("Performance");
-            listing.Label(string.Format("Rescan interval: {0} ticks ({1:0.0}s)", scanIntervalTicks, scanIntervalTicks / 60f));
+            listing.Label(string.Format("Snapshot refresh interval: {0} ticks ({1:0.0}s)", scanIntervalTicks, scanIntervalTicks / 60f));
             scanIntervalTicks = Mathf.RoundToInt(listing.Slider(scanIntervalTicks, 30f, 600f));
+            listing.Label("How often Armory recalculates the lists while its window is open.");
 
             listing.GapLine();
             listing.Label("Diagnostics");
-            listing.CheckboxLabeled("Log snapshot summary on map load", ref debugLogging);
+            listing.CheckboxLabeled("Write a snapshot summary to the log when a map loads", ref debugLogging);
 
             float measuredHeight = listing.CurHeight;
             listing.End();

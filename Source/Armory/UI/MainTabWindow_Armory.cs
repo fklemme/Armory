@@ -1641,7 +1641,7 @@ namespace Armory
             string text = row.Owned.ToString();
             if (row.Forbidden > 0)
             {
-                text += " � " + row.Forbidden + " forb.";
+                text += " · " + row.Forbidden + " forb.";
             }
             return text;
         }
@@ -1666,14 +1666,14 @@ namespace Armory
                         // Some copies already exist; research only unlocks additional ones.
                         research = "more: " + research;
                     }
-                    return row.Buyable ? research + " � buy" : research;
+                    return row.Buyable ? research + " · buy" : research;
                 case DemandSection.Buy:
                     return "buy";
                 default:
                     return row.CraftableNow
                         ? (string.IsNullOrEmpty(row.BenchLabel)
                             ? "craft"
-                            : "craft � " + row.BenchLabel)
+                            : "craft · " + row.BenchLabel)
                         : "buy";
             }
         }

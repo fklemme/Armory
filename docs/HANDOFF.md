@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.8.1**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.8.2**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.8.1 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.8.2 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -28,8 +28,9 @@ ideal-loadout build plan; remaining polish is container scanning, auto-haul,
 raid arming, localization, and Workshop prep.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
-0.8.1. Research, reference-mod behaviour, the shipped model and remaining
-decisions are in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+0.8.1 and a Source-column encoding fix in 0.8.2. Research, reference-mod
+behaviour, the shipped model and remaining decisions are in
+[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
 
 ---
 
@@ -1318,6 +1319,22 @@ Demand showed the Range column and range-aware ordering; no Armory errors.
 
 ---
 
+## 0.8.2 — Source column no longer shows a replacement glyph
+
+The Demand tab's Source column rendered `craft ♦ Fabrication bench`: three
+separator strings contained U+FFFD (the Unicode replacement character) instead
+of the intended middle dot. The corrupted bytes came from an earlier edit, not
+from the game font.
+
+- Restored `craft · <bench>`, `more: <research> · buy`, and `<n> · <n> forb.`
+  to U+00B7 separators.
+- Scanned all source, docs and metadata for U+FFFD; no other occurrences remain.
+
+Verified live at 1600x900: the Demand tab now reads
+`craft · Fabrication bench` and `craft · Machining table`. Build clean.
+
+---
+
 ## 0.8.1 — unbonded persona weapons are manual-only
 
 A quest dropped a second persona monosword. The loose copy was in the Weapons
@@ -1557,6 +1574,7 @@ polish, not new core behaviour.
 | 0.7.11 | Separate hand/backup list limits: default 10 hand and 5 backup, with independent sliders |
 | 0.8.0 | Range-aware combat scores, auto/override roles, squad variety and a Range column |
 | 0.8.1 | Unbonded persona weapons are manual-only; loose-weapons note; clearer SS persona blocker |
+| 0.8.2 | Restore middle-dot separators in the Demand Source column (U+FFFD fix) |
 
 ---
 

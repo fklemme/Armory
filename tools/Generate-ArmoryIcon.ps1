@@ -1,20 +1,23 @@
-# Generates the Armory main-tab icon.
+# Generates the Armory main-tab icon and ModIcon.
 #
-# Final design: a round armory seal with a star and a crossed sword and rifle.
-# The rifle points left before rotation, so its scope stays above the barrel and
-# its magazine below; rotating a right-pointing rifle by 180+35 degrees makes it
-# read upside-down.
+# Final design: a crossed sword and rifle, with no frame or background. The
+# rifle points left before rotation, so its magazine stays below the barrel;
+# rotating a right-pointing rifle by 180+35 degrees makes it read upside-down.
+# The sword is scaled larger than before so the two weapons have comparable
+# visual weight.
 #
-# The matching 512px ModIcon for the mod list/loading screen lives at
-# About/ModIcon.png. This script keeps the 64px tab glyph in sync with that
-# design:
+# The 512px transparent glyph is written to About/ModIcon.png for the mod list
+# and loading screen; the 64px tab icon is the same artwork downsampled.
 #
 #   powershell -ExecutionPolicy Bypass -File .\tools\Generate-ArmoryIcon.ps1
 #
-# Output: Textures/UI/Buttons/MainButtons/IconArmory.png
+# Outputs:
+#   Textures/UI/Buttons/MainButtons/IconArmory.png
+#   About/ModIcon.png
 
 param(
     [string]$Out = (Join-Path (Split-Path -Parent $PSScriptRoot) "Textures\UI\Buttons\MainButtons\IconArmory.png"),
+    [string]$ModIconOut = (Join-Path (Split-Path -Parent $PSScriptRoot) "About\ModIcon.png"),
     [string]$Fill = "#BBBBBB"
 )
 
@@ -31,7 +34,7 @@ function New-SwordPath
     $p = New-Object System.Drawing.Drawing2D.GraphicsPath
     $p.AddPolygon([System.Drawing.PointF[]]@(
         [System.Drawing.PointF]::new(0, -88),
-        [System.Drawing.PointF]::new(9, 34),
+        [System.Drawing.PointF]::new(12, 34),
         [System.Drawing.PointF]::new(32, 34),
         [System.Drawing.PointF]::new(32, 44),
         [System.Drawing.PointF]::new(8, 44),
@@ -43,7 +46,7 @@ function New-SwordPath
         [System.Drawing.PointF]::new(-8, 44),
         [System.Drawing.PointF]::new(-32, 44),
         [System.Drawing.PointF]::new(-32, 34),
-        [System.Drawing.PointF]::new(-9, 34)
+        [System.Drawing.PointF]::new(-12, 34)
     ))
     $p.CloseFigure()
     return $p
@@ -142,34 +145,13 @@ $g.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuali
 $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
 $g.Clear([System.Drawing.Color]::Transparent)
 
-# Round seal and star.
-$ringPen = New-Object System.Drawing.Pen($color, 24)
-$g.DrawEllipse($ringPen, 50, 50, 412, 412)
-$ringPen.Dispose()
+# Crossed weapons, no frame. The larger sword scale balances the rifle mass.
+Draw-SimpleRifleLeft $g 1.8 35 256 256 $color
 
-$star = New-Object System.Drawing.SolidBrush($color)
-$g.FillPolygon($star, [System.Drawing.PointF[]]@(
-    [System.Drawing.PointF]::new(256, 78),
-    [System.Drawing.PointF]::new(267, 101),
-    [System.Drawing.PointF]::new(292, 105),
-    [System.Drawing.PointF]::new(274, 123),
-    [System.Drawing.PointF]::new(279, 148),
-    [System.Drawing.PointF]::new(256, 136),
-    [System.Drawing.PointF]::new(233, 148),
-    [System.Drawing.PointF]::new(238, 123),
-    [System.Drawing.PointF]::new(220, 105),
-    [System.Drawing.PointF]::new(245, 101)
-))
-$star.Dispose()
-
-# Left-pointing rifle, rotated 35 degrees: barrel up-left, magazine down-left.
-Draw-SimpleRifleLeft $g 1.65 35 260 258 $color
-
-# Sword on top, with a transparent separation gap so the cross reads at 64px.
 $sword = New-SwordPath
-Move-Path $sword 1.55 35 248 252
+Move-Path $sword 2.35 35 256 256
 $gap = $sword.Clone()
-$gapPen = New-Object System.Drawing.Pen([System.Drawing.Color]::Black, 18)
+$gapPen = New-Object System.Drawing.Pen([System.Drawing.Color]::Black, 30)
 $gap.Widen($gapPen)
 $gapPen.Dispose()
 $g.CompositingMode = [System.Drawing.Drawing2D.CompositingMode]::SourceCopy
@@ -184,6 +166,13 @@ $g.FillPath($swordBrush, $sword)
 $swordBrush.Dispose()
 $sword.Dispose()
 $g.Dispose()
+
+$modDir = Split-Path -Parent $ModIconOut
+if (-not (Test-Path $modDir))
+{
+    New-Item -ItemType Directory -Force -Path $modDir | Out-Null
+}
+$bmp.Save($ModIconOut, [System.Drawing.Imaging.ImageFormat]::Png)
 
 $small = New-Object System.Drawing.Bitmap(64, 64, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
 $sg = [System.Drawing.Graphics]::FromImage($small)
@@ -201,4 +190,5 @@ if (-not (Test-Path $outDir))
 $small.Save($Out, [System.Drawing.Imaging.ImageFormat]::Png)
 $small.Dispose()
 
+Write-Host "Wrote $ModIconOut" -ForegroundColor Green
 Write-Host "Wrote $Out" -ForegroundColor Green

@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.8.5** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.8.6** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -25,7 +25,7 @@ Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon and tab-order pass in 0.8.5 |
+| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified backdrop-free icon in 0.8.6 |
 
 ---
 
@@ -421,9 +421,9 @@ and range/variety migrations.
 Armory/
   About/About.xml
   About/Preview.png                mod-list banner
-  About/ModIcon.png                512x512 mod-list/loading icon
+  About/ModIcon.png                512x512 transparent mod-list/loading icon
   Defs/MainButtonDefs.xml          MainButtonDef "Armory", order 25
-  Textures/UI/Buttons/MainButtons/IconArmory.png  64x64 round-seal tab glyph
+  Textures/UI/Buttons/MainButtons/IconArmory.png  64x64 crossed-weapons tab glyph
   Textures/UI/Icons/ArmoryBestStar.png  Upgrades best-option star
   Assemblies/Armory.dll            build output
   Source/Armory/
@@ -452,7 +452,7 @@ Armory/
   tools/Quicktest-Armory.ps1       isolated quicktest harness
   tools/Setup-LiveTest.ps1         copies a real save into an isolated folder
   tools/LiveTestScaffold.cs.txt    temporary auto-load/screenshot scaffold
-  tools/Generate-ArmoryIcon.ps1    regenerates the 64px tab glyph
+  tools/Generate-ArmoryIcon.ps1    regenerates the tab glyph and ModIcon
 ```
 
 ---

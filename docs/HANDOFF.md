@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.8.5**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.8.6**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.8.5 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.8.6 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -29,9 +29,10 @@ raid arming, localization, and Workshop prep.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
-0.8.3, the Colonists/Upgrades tab rename in 0.8.4 and the seal icon in 0.8.5.
-Research, reference-mod behaviour, the shipped model and remaining decisions
-are in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+0.8.3, the Colonists/Upgrades tab rename in 0.8.4, the icon/tab-order pass in
+0.8.5 and the simplified crossed-weapons icon in 0.8.6. Research, reference-mod
+behaviour, the shipped model and remaining decisions are in
+[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
 
 ---
 
@@ -1320,6 +1321,36 @@ Demand showed the Range column and range-aware ordering; no Armory errors.
 
 ---
 
+## 0.8.6 — simpler crossed-weapons icon, no background
+
+The seal and star were more frame than icon at tab size, and the 512px ModIcon's
+dark rounded square did not match the transparent logos in the mod list.
+
+- The tab glyph is now only the crossed sword and rifle. No ring, no star, no
+  badge background.
+- The sword was scaled up and its blade widened so it no longer reads as the
+  smaller weapon next to the rifle. The rifle uses the simplified silhouette
+  (stock, receiver, barrel, handguard, magazine) and stays correctly oriented:
+  left-pointing before its 35-degree rotation, so the magazine is below the
+  barrel.
+- The two-weapon composition is centered and fills the tab button; the
+  transparent separation gap around the sword still makes the cross legible at
+  64px.
+- `About/ModIcon.png` is now the same 512px transparent glyph with no background,
+  matching the other mod logos.
+- `tools/Generate-ArmoryIcon.ps1` now writes both outputs from one drawing:
+  `About/ModIcon.png` and the 64px tab icon.
+
+Verified live at 1600x900: the crossed sword/rifle glyph appears in the bottom
+bar at the intended size and position; no Armory errors. The tab icon is 64x64
+and the ModIcon is a 512x512 transparent PNG.
+
+### Pending verification (0.8.6)
+
+- The transparent ModIcon appears correctly in the mod list after a restart.
+
+---
+
 ## 0.8.5 — Armory seal icon, ModIcon and tab order
 
 The Armory identity is now a round armory seal: a riveted brass ring, star, and
@@ -1730,6 +1761,7 @@ polish, not new core behaviour.
 | 0.8.3 | Interface wording pass: explicit statuses, hand type, vs current, candidate headers and tooltips |
 | 0.8.4 | Narrow the Upgrades `Slot` column to `hand`/`backup`/`both`, widen current-weapon text, and finish the tab rename |
 | 0.8.5 | Round-seal Armory icon, `About/ModIcon.png`, `MainButtonDef` order 25, and reproducible tab-glyph generator |
+| 0.8.6 | Remove the seal/star, rebalance crossed sword and rifle, and make `ModIcon.png` a transparent backdrop-free glyph |
 
 ---
 

@@ -6,10 +6,10 @@
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
-  <modVersion>0.7.11</modVersion>
+  <modVersion>0.8.0</modVersion>
   <description>Shows, for every colonist, which weapons they would prefer and why they are not carrying them.
 
-Armory ranks loose weapons for every colonist, split into a hand slot and an opposite-type backup, then shows the blockers: forbidden or outside the allowed area, unreachable, reserved, biocoded to someone else, role restrictions, and ideoligion dislike. The Demand tab lists every weapon that would improve a colonist, grouped into craft, research, and buy, and compares those options with what the colony already owns.
+Armory ranks loose weapons for every colonist, split into a hand slot and an opposite-type backup, then shows the blockers: forbidden or outside the allowed area, unreachable, reserved, biocoded to someone else, role restrictions, and ideoligion dislike. Ranged weapons are scored at each pawn's preferred engagement distance using the game's real accuracy curve, so range, skill and genes matter. Each pawn gets a combat role (CQB, Assault, Line or Marksman) that can be overridden. The Demand tab lists every weapon that would improve a colonist, grouped into craft, research, and buy, and compares those options with what the colony already owns.
 
 Automatic equipping is opt-in. When enabled it queues Equip jobs for the best ready weapon, claims each weapon for one pawn, respects a swap cooldown, never unforbids or breaks persona bonds, and pauses for pawns whose weapon was changed manually. The Log tab shows each action with the reason it was taken.
 

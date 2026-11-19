@@ -1,9 +1,10 @@
 # Range, roles and weapon variety
 
-Research notes for the next scoring pass. This is a design document, not an
-implementation. The goal is to stop every ranged pawn from converging on the
-chain shotgun and to make range, skill, genes and character preference visible
-in Armory's advice.
+Research notes for the range/role scoring pass. **Implemented in 0.8.0**; see
+the end of this document for what shipped and where it differs from the first
+proposal. The goal was to stop every ranged pawn from converging on the chain
+shotgun and to make range, skill, genes and character preference visible in
+Armory's advice.
 
 ## 1. What RimWorld actually does
 
@@ -231,8 +232,7 @@ Examples:
 | Nearsighted, Shooting 7 | ~19 | ~11 | CQB: chain shotgun, heavy SMG |
 | Normal, Shooting 7 | ~24 | ~16 | Assault: charge rifle, SMG |
 | Normal, Shooting 10 | ~33 | ~25 | Line: assault rifle, charge rifle |
-| Normal, Shooting 15 | ~40 | ~32 | Marksman: sniper, bolt-action |
-| Nearsighted, Shooting 15 | ~23 | ~15 | Assault, not marksman |
+| Normal, Shooting 15 | ~40 | ~32 | Marksman: sniper, bolt-action || Nearsighted, Shooting 15 | ~23 | ~15 | Assault, not marksman |
 
 This is the cleanest way to make skill and genes matter without hardcoding
 "skill > 12 means sniper".
@@ -413,7 +413,29 @@ What should change:
 5. **SS range ladder.** Keep one opposite-type backup for now, or make a second
    ranged backup part of the next milestone?
 
-## 9. References
+## 9. What shipped in 0.8.0
+
+The first implementation follows the recommended path with a few concrete
+choices:
+
+- `CombatScoring` uses `ShotReport.HitFactorFromShooter` for the pawn curve and
+  `VerbProperties.GetHitChanceFactor` for the weapon curve.
+- Auto preferred distance is `reach - 8 + engagementOffset`, clamped 8–34.
+- Role centers are CQB 10, Assault 17, Line 25 and Marksman 34. The marksman
+  center is farther than the first proposal so a manual Marksman override
+  actually prefers weapons that can reach past 31 tiles.
+- Per-pawn overrides are stored in `ArmoryGameComponent` and saved with the
+  colony; `Auto` removes the override.
+- `Squad variety` defaults to 50% and controls both the ±5% personal affinity
+  and the sequential duplicate top-choice penalty (Demand and the planner).
+  0% disables both.
+- Support weapons (`burstShotCount >= 6`) get a 0.75 support multiplier.
+- Demand and Weapons show a `Range` column; Demand detail lines show the role
+  on hover; the pawn detail shows a `Change` menu.
+- The one-hand + opposite-type backup model is unchanged. A second ranged
+  backup for SS remains the next milestone (option F).
+
+## 10. References
 
 - RimWorld wiki, `Weapons#Accuracy`: accuracy anchors, interpolation and the
   per-tile shooting accuracy formula.

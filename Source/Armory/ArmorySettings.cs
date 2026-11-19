@@ -13,6 +13,8 @@ namespace Armory
         public bool debugLogging;
         public float rangedWeight = 1f;
         public float meleeWeight = 1f;
+        public int engagementOffset;
+        public float varietyStrength = 0.5f;
 
         public bool autoEquipEnabled;
         public bool overrideCompetitor;
@@ -25,7 +27,7 @@ namespace Armory
         public bool manageSidearms;
         public bool replaceWorseSidearms = true;
         public int manualCooldownTicks = 15000;
-        public int settingsVersion = 3;
+        public int settingsVersion = 4;
 
         private Vector2 scrollPosition;
         private float contentHeight = 1200f;
@@ -41,6 +43,8 @@ namespace Armory
             Scribe_Values.Look(ref debugLogging, "debugLogging", false);
             Scribe_Values.Look(ref rangedWeight, "rangedWeight", 1f);
             Scribe_Values.Look(ref meleeWeight, "meleeWeight", 1f);
+            Scribe_Values.Look(ref engagementOffset, "engagementOffset", 0);
+            Scribe_Values.Look(ref varietyStrength, "varietyStrength", 0.5f);
 
             Scribe_Values.Look(ref autoEquipEnabled, "autoEquipEnabled", false);
             Scribe_Values.Look(ref overrideCompetitor, "overrideCompetitor", false);
@@ -85,6 +89,13 @@ namespace Armory
                 }
                 maxSidearmCandidates = 5;
                 settingsVersion = 3;
+            }
+
+            if (Scribe.mode == LoadSaveMode.PostLoadInit && settingsVersion < 4)
+            {
+                // 0.8.0 adds range-aware scoring and variety. The field defaults are
+                // intentional for existing colonies, so no value translation is needed.
+                settingsVersion = 4;
             }
         }
 
@@ -172,6 +183,15 @@ namespace Armory
 
             listing.Label(string.Format("Melee preference: x{0:0.00}", meleeWeight));
             meleeWeight = listing.Slider(meleeWeight, 0.5f, 2f);
+
+            string bias = engagementOffset > 0 ? "+" + engagementOffset : engagementOffset.ToString();
+            listing.Label(string.Format("Combat distance bias: {0} tiles", bias));
+            engagementOffset = Mathf.RoundToInt(listing.Slider(engagementOffset, -5f, 5f));
+            listing.Label("Negative prefers closer fights (killbox), positive prefers longer fights (open field). Default 0 is balanced.");
+
+            listing.Label(string.Format("Squad variety: {0}%", Mathf.RoundToInt(varietyStrength * 100f)));
+            varietyStrength = listing.Slider(varietyStrength, 0f, 1f);
+            listing.Label("Adds a small per-pawn weapon preference and makes duplicate top choices less attractive. Set to 0% to disable both.");
 
             listing.Label(string.Format("Hand weapons shown per pawn: {0}", maxCandidates));
             maxCandidates = Mathf.RoundToInt(listing.Slider(maxCandidates, 5f, 100f));

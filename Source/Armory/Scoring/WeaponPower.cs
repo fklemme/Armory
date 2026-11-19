@@ -15,6 +15,28 @@ namespace Armory
         private static bool meleeArmorPenResolved;
         private const float DisplayScale = 10f;
 
+        /// <summary>Ranged numbers shared by the display power and the range profile.</summary>
+        public sealed class RangedMetrics
+        {
+            public VerbProperties Verb;
+            public float Damage;
+            public int Burst;
+            public float Gap;
+            public float Warmup;
+            public float Cooldown;
+            public float Range;
+            public float MinRange;
+            public float ArmorPen;
+            public float Situational;
+
+            public float RawDps(float aimFactor)
+            {
+                float warmup = Warmup * Mathf.Max(0.1f, aimFactor);
+                float cycle = Mathf.Max(0.1f, warmup + (Burst - 1f) * Gap + Cooldown);
+                return Damage * Burst / cycle;
+            }
+        }
+
         public static float Get(ThingWithComps weapon, Dictionary<int, float> cache)
         {
             if (weapon == null)
@@ -55,22 +77,14 @@ namespace Armory
                 return 0f;
             }
 
-            VerbProperties verb = PrimaryVerb(def, weapon);
-            if (verb == null || verb.defaultProjectile == null || verb.defaultProjectile.projectile == null)
+            RangedMetrics metrics;
+            if (!TryGetRangedMetrics(weapon, out metrics))
             {
                 return 0f;
             }
 
-            ProjectileProperties projectile = verb.defaultProjectile.projectile;
-            float damage = projectile.GetDamageAmount(weapon, null);
-            float burst = Mathf.Max(1, verb.burstShotCount);
-            float gap = Mathf.Max(0, verb.ticksBetweenBurstShots) / 60f;
-            float warmup = Mathf.Max(0f, verb.warmupTime) *
-                           StatDefOf.RangedWeapon_WarmupMultiplier.Worker.GetValue(request, true);
-            float cooldown = StatDefOf.RangedWeapon_Cooldown.Worker.GetValue(request, true);
-            float cycle = Mathf.Max(0.1f, warmup + (burst - 1f) * gap + cooldown);
-            float dps = damage * burst / cycle;
-
+            // Display-only blend, kept for continuity with earlier versions. The
+            // range-aware combat score deliberately does not use this value.
             float accuracy = 0.2f * StatValue(request, StatDefOf.AccuracyShort)
                              + 0.3f * StatValue(request, StatDefOf.AccuracyMedium)
                              + 0.5f * StatValue(request, StatDefOf.AccuracyLong);
@@ -79,10 +93,52 @@ namespace Armory
                 accuracy = 0.5f;
             }
 
-            float armorPen = projectile.GetArmorPenetration(null, null) *
-                             StatValue(request, StatDefOf.RangedWeapon_ArmorPenetrationMultiplier);
+            return metrics.RawDps(1f) * accuracy * (1f + metrics.ArmorPen) *
+                   metrics.Situational * DisplayScale;
+        }
 
-            return dps * accuracy * (1f + armorPen) * SituationalMultiplier(projectile) * DisplayScale;
+        /// <summary>Fills the ranged metrics used by both display and range scoring.</summary>
+        public static bool TryGetRangedMetrics(ThingWithComps weapon, out RangedMetrics metrics)
+        {
+            metrics = null;
+            ThingDef def = weapon == null ? null : weapon.def;
+            if (def == null || !def.IsRangedWeapon)
+            {
+                return false;
+            }
+
+            VerbProperties verb = PrimaryVerb(def, weapon);
+            if (verb == null || verb.defaultProjectile == null ||
+                verb.defaultProjectile.projectile == null)
+            {
+                return false;
+            }
+
+            ProjectileProperties projectile = verb.defaultProjectile.projectile;
+            StatRequest request = StatRequest.For(weapon);
+            metrics = new RangedMetrics
+            {
+                Verb = verb,
+                Damage = projectile.GetDamageAmount(weapon, null),
+                Burst = Mathf.Max(1, verb.burstShotCount),
+                Gap = Mathf.Max(0, verb.ticksBetweenBurstShots) / 60f,
+                Warmup = Mathf.Max(0f, verb.warmupTime) *
+                         StatDefOf.RangedWeapon_WarmupMultiplier.Worker.GetValue(request, true),
+                Cooldown = StatDefOf.RangedWeapon_Cooldown.Worker.GetValue(request, true),
+                Range = verb.range,
+                MinRange = verb.minRange,
+                ArmorPen = projectile.GetArmorPenetration(null, null) *
+                           StatValue(request, StatDefOf.RangedWeapon_ArmorPenetrationMultiplier),
+                Situational = SituationalMultiplier(projectile)
+            };
+            return true;
+        }
+
+        /// <summary>Maximum range for display; zero for melee or invalid ranged weapons.</summary>
+        public static float GetRange(ThingWithComps weapon)
+        {
+            RangedMetrics metrics;
+            return TryGetRangedMetrics(weapon, out metrics) ? metrics.Range : 0f;
         }
 
         /// <summary>

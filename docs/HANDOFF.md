@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.7.11**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.8.0**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.7.11 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.8.0 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -27,8 +27,9 @@ Milestones 0–4 are implemented:
 ideal-loadout build plan; remaining polish is container scanning, auto-haul,
 raid arming, localization, and Workshop prep.
 
-A range/role scoring pass is planned next. Research, reference-mod behaviour and
-the proposed model are in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+A range/role scoring pass shipped in 0.8.0. Research, reference-mod behaviour,
+the shipped model and remaining decisions are in
+[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
 
 ---
 
@@ -1273,6 +1274,48 @@ Still worth a look:
 - If the catalog is empty or tiny, the likely cause is recipe enumeration or
   probe construction failing; the log line is the first thing to check.
 
+---
+
+## 0.8.0 — range-aware scoring, combat roles and squad variety
+
+This replaces the pawn-independent `Power × PawnFit` score with a range-aware
+combat score. The old blend sampled short/medium/long accuracy even when a weapon
+could not reach those distances; it also ignored RimWorld's range-specific
+`ShootingAccuracyFactor_*` stats, so the Biotech `Nearsighted` gene had no effect
+on advice.
+
+- `CombatScoring` samples effective DPS at 3–45 tiles using
+  `ShotReport.HitFactorFromShooter` and `VerbProperties.GetHitChanceFactor`.
+  The weapon's own range gates every sample; weapon quality and pawn genes/traits
+  are included automatically.
+- Each pawn gets an effective reach: the farthest distance where aim is still
+  half its 10-tile value. Auto preferred range is `reach - 8`, clamped 8–34,
+  with a colony-wide `Combat distance bias` of -5..+5.
+- Roles are `CQB` (≤12), `Assault` (13–22), `Line` (23–30) and `Marksman` (31+).
+  The pawn detail shows the role, preferred distance, a `Change` menu and an
+  `Auto` option. Overrides are per-pawn and saved in `ArmoryGameComponent` by
+  `thingIDNumber`, so they survive save/load.
+- `CombatScoring` applies a ±5% deterministic personal affinity (at the default
+  50% squad variety); Demand and the hand planner apply a sequential duplicate
+  top-choice penalty. `Squad variety` at 0% disables both.
+- `burstShotCount >= 6` (LMG, minigun, beam repeater) gets a 0.75 support
+  penalty so raw burst DPS does not make every pawn want a minigun.
+- Demand and Weapons show a `Range` column; the pawn ledger shows role, preferred
+  distance and profile DPS. Demand detail lines show the pawn's role on hover.
+
+Live test on `Armory Testing` at 1600×900: role line and `Change` button fit; a
+forced Marksman override produced `Marksman (override, prefers ~34 tiles)`;
+Demand showed the Range column and range-aware ordering; no Armory errors.
+
+### Pending verification (0.8.0)
+
+- A role override survives save/load and can be reset to `Auto`.
+- Demand top rows are varied enough on a homogeneous colony; adjust `Squad
+  variety` if not.
+- LMG/minigun no longer dominate hand recommendations.
+- The Weapons tab Range column and detail header fit at 1600×900.
+- Settings scroll still reaches the diagnostics after the two new sliders.
+
 Still open from 0.6.7:
 
 - Weapons detail, `Colonists by fit`: the full reason text is visible for long
@@ -1391,7 +1434,8 @@ polish, not new core behaviour.
 - Localization (all strings currently English literals).
 - Workshop packaging (`PublishedFileId.txt`, preview requirements).
 - RimWorld 1.7 / Waylith planning (`LoadFolders.xml`, net10.0, Harmony 3).
-- Deliberate weapon variation (short/long mix, roles) after v1 proves itself.
+- Deliberate weapon variation and roles are now part of 0.8.0; refine the
+  duplicate penalty and support-weapon handling after live feedback.
 
 ---
 
@@ -1472,6 +1516,7 @@ polish, not new core behaviour.
 | 0.7.9 | Use `RecipeDef.MakeNewBill()` so unfinished-thing recipes get `Bill_ProductionWithUft`, and repair bills created by 0.7.8 on load |
 | 0.7.10 | Split the SS preference and backup-rule text across lines; remove the temporary malformed-bill migration |
 | 0.7.11 | Separate hand/backup list limits: default 10 hand and 5 backup, with independent sliders |
+| 0.8.0 | Range-aware combat scores, auto/override roles, squad variety and a Range column |
 
 ---
 
@@ -1481,17 +1526,18 @@ polish, not new core behaviour.
 |---|---|
 | `README.md` | User/dev overview, settings, build, roadmap |
 | `docs/RESEARCH.md` | Auto Arm / Equipment Manager / vanilla / SS findings |
+| `docs/RANGE_AND_ROLES.md` | Range/role research, shipped model and pending decisions |
 | `docs/HANDOFF.md` | This file |
 | `docs/TESTING.md` | Quick harness + live-save procedure, pitfalls, cleanup |
 | `tools/Setup-LiveTest.ps1` | Copies a real save/config into an isolated folder |
 | `tools/LiveTestScaffold.cs.txt` | Temporary load/screenshot scaffold template |
 | `Source/Armory/ArmoryPlanner.cs` | Automation decisions and job issuing |
 | `Source/Armory/ArmorySnapshotBuilder.cs` | Ranking, pod lookup, weapon filter, demand |
-| `Source/Armory/Scoring/*` | Power, fit, blockers, weapon catalog/probes |
+| `Source/Armory/Scoring/*` | Range profile, roles, power, fit, blockers, weapon catalog/probes |
 | `Source/Armory/DemandCrafting.cs` | Queues a Demand weapon bill at the chosen built bench |
 | `Source/Armory/UI/MainTabWindow_Armory.cs` | All tabs and layout |
 | `Source/Armory/ArmorySettings.cs` | Settings + migration + scroll UI |
-| `Source/Armory/ArmoryGameComponent.cs` | Session log, planner reset |
+| `Source/Armory/ArmoryGameComponent.cs` | Session log, planner reset, role overrides |
 | `Source/Armory/Compatibility/SimpleSidearmsAdapter.cs` | Reflection-only SS state/rules; M3 core |
 | `Source/Armory/WeaponFilter.cs` | One shared weapon-definition filter |
 | `Source/Armory/ArmoryMod.cs` | Mod entry, settings, competitor/SS detection |

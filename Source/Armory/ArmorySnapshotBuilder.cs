@@ -41,7 +41,8 @@ namespace Armory
                     Thing = weapon,
                     Label = weapon.LabelCap,
                     IsRanged = weapon.def.IsRangedWeapon,
-                    Power = WeaponPower.Get(weapon, powerCache)
+                    Power = WeaponPower.Get(weapon, powerCache),
+                    Range = WeaponPower.GetRange(weapon)
                 });
             }
             snapshot.Weapons.Sort((a, b) => b.Power.CompareTo(a.Power));
@@ -258,12 +259,15 @@ namespace Armory
             };
 
             PawnFitContext context = PawnFitContext.Create(pawn);
-            CollectSidearms(analysis, context, powerCache);
+            analysis.CombatRole = context.CombatRole;
+            analysis.PreferredRange = context.PreferredRange;
+            analysis.RoleOverridden = context.RoleOverridden;
+            analysis.CombatRoleSource = context.CombatRoleSource;
+            CollectSidearms(analysis, context);
 
             if (analysis.Current != null)
             {
-                analysis.CurrentScore = WeaponPower.Get(analysis.Current, powerCache) *
-                                        PawnFit.Compute(context, analysis.Current);
+                analysis.CurrentScore = CombatScoring.Compute(context, analysis.Current, out _);
             }
 
             analysis.SidearmState = SimpleSidearmsAdapter.GetState(pawn);
@@ -317,7 +321,7 @@ namespace Armory
                 Candidate candidate = new Candidate
                 {
                     Weapon = info,
-                    Score = info.Power * PawnFit.Compute(context, info.Thing),
+                    Score = CombatScoring.Compute(context, info.Thing, out _),
                     Blocker = reason,
                     Hard = hard,
                     Ledger = null
@@ -399,7 +403,7 @@ namespace Armory
             {
                 if (ssChoice != analysis.Current)
                 {
-                    ConsiderCarried(analysis, context, ssChoice, powerCache);
+                    ConsiderCarried(analysis, context, ssChoice);
                 }
                 return;
             }
@@ -408,10 +412,10 @@ namespace Armory
             {
                 // Reflection failed; fall back to the best weapon already in the pawn's
                 // possession so the plan does not stall, but keep the once-only warning.
-                ConsiderCarried(analysis, context, analysis.Current, powerCache);
+                ConsiderCarried(analysis, context, analysis.Current);
                 for (int i = 0; i < analysis.Sidearms.Count; i++)
                 {
-                    ConsiderCarried(analysis, context, analysis.Sidearms[i], powerCache);
+                    ConsiderCarried(analysis, context, analysis.Sidearms[i]);
                 }
                 return;
             }
@@ -421,7 +425,7 @@ namespace Armory
             // must not block an upgrade.
             if (analysis.Current != null && analysis.IsHandType(analysis.Current.def))
             {
-                ConsiderCarried(analysis, context, analysis.Current, powerCache);
+                ConsiderCarried(analysis, context, analysis.Current);
             }
         }
 
@@ -480,7 +484,7 @@ namespace Armory
                 SidearmCandidate candidate = new SidearmCandidate
                 {
                     Weapon = info,
-                    Score = info.Power * PawnFit.Compute(context, info.Thing),
+                    Score = CombatScoring.Compute(context, info.Thing, out _),
                     Blocker = alreadyCarried ? Eligibility.AlreadyCarried : reason,
                     AlreadyCarried = alreadyCarried
                 };
@@ -527,8 +531,7 @@ namespace Armory
                    !equippable.PrimaryVerb.verbProps.onlyManualCast;
         }
 
-        private static void CollectSidearms(PawnAnalysis analysis, PawnFitContext context,
-            Dictionary<int, float> powerCache)
+        private static void CollectSidearms(PawnAnalysis analysis, PawnFitContext context)
         {
             Pawn pawn = analysis.Pawn;
             if (pawn == null || pawn.inventory == null || pawn.inventory.innerContainer == null)
@@ -551,7 +554,7 @@ namespace Armory
                     // backup target or appear as replacement targets.
                     continue;
                 }
-                float score = WeaponPower.Get(weapon, powerCache) * PawnFit.Compute(context, weapon);
+                float score = CombatScoring.Compute(context, weapon, out _);
                 analysis.Sidearms.Add(weapon);
                 analysis.CarriedSidearms.Add(new CarriedSidearm
                 {
@@ -564,12 +567,13 @@ namespace Armory
         }
 
         private static void ConsiderCarried(PawnAnalysis analysis, PawnFitContext context,
-            ThingWithComps weapon, Dictionary<int, float> powerCache)        {
+            ThingWithComps weapon)
+        {
             if (weapon == null || !analysis.IsHandType(weapon.def))
             {
                 return;
             }
-            float score = WeaponPower.Get(weapon, powerCache) * PawnFit.Compute(context, weapon);
+            float score = CombatScoring.Compute(context, weapon, out _);
             if (score > analysis.BestCarriedPrimaryScore)
             {
                 analysis.BestCarriedPrimaryScore = score;
@@ -656,6 +660,8 @@ namespace Armory
             }
 
             Dictionary<ThingDef, DemandRow> rows = new Dictionary<ThingDef, DemandRow>();
+            Dictionary<ThingDef, int> plannedCounts = new Dictionary<ThingDef, int>();
+            float variety = settings == null ? 0f : settings.varietyStrength;
             for (int i = 0; i < snapshot.Pawns.Count; i++)
             {
                 PawnAnalysis pawn = snapshot.Pawns[i];
@@ -669,7 +675,8 @@ namespace Armory
                 if (!pawn.HandLocked)
                 {
                     AddSlotWants(rows, pawn, context, craftSources, researchSources, true,
-                        pawn.HandBaselineScore, threshold, LabelOf(pawn.Current));
+                        pawn.HandBaselineScore, threshold, LabelOf(pawn.Current),
+                        plannedCounts, variety);
                 }
 
                 // Backups need SS's per-pawn memory; without it Armory has no typed slot.
@@ -684,7 +691,8 @@ namespace Armory
                 ThingWithComps worstBackup;
                 TryGetWorstBackup(pawn, out backupBaseline, out worstBackup);
                 AddSlotWants(rows, pawn, context, craftSources, researchSources, false,
-                    backupBaseline, threshold, LabelOf(worstBackup));
+                    backupBaseline, threshold, LabelOf(worstBackup),
+                    plannedCounts, variety);
             }
 
             foreach (KeyValuePair<ThingDef, DemandRow> pair in rows)
@@ -744,9 +752,9 @@ namespace Armory
                     return bySection;
                 }
 
-                // Aggregate expected benefit: power x pawn fit, summed over the
-                // colonists who would upgrade. This keeps weak starter weapons below
-                // stronger options even when they are somebody's current best.
+                // Aggregate expected benefit: range-aware combat score, summed over
+                // the colonists who would upgrade. This keeps weak starter weapons
+                // below stronger options even when they are somebody's current best.
                 int byScore = b.TotalScore.CompareTo(a.TotalScore);
                 if (byScore != 0)
                 {
@@ -811,7 +819,7 @@ namespace Armory
         private static void AddSlotWants(Dictionary<ThingDef, DemandRow> rows,
             PawnAnalysis pawn, PawnFitContext context, List<WeaponSource> craftSources,
             List<WeaponSource> researchSources, bool hand, float baseline, float threshold,
-            string currentLabel)
+            string currentLabel, Dictionary<ThingDef, int> plannedCounts, float variety)
         {
             float required = baseline * (1f + threshold);
             float bestCraft = 0f;
@@ -820,7 +828,8 @@ namespace Armory
             for (int i = 0; i < craftSources.Count; i++)
             {
                 float score;
-                if (TryScoreCandidate(pawn, context, craftSources[i], hand, required, out score) &&
+                if (TryScoreCandidate(pawn, context, craftSources[i], hand, required,
+                        plannedCounts, variety, out score) &&
                     score > bestCraft)
                 {
                     bestCraft = score;
@@ -832,7 +841,7 @@ namespace Armory
             {
                 float score;
                 if (TryScoreCandidate(pawn, context, researchSources[i], hand, researchRequired,
-                        out score) &&
+                        plannedCounts, variety, out score) &&
                     score > bestResearch)
                 {
                     bestResearch = score;
@@ -843,25 +852,26 @@ namespace Armory
             {
                 float score;
                 if (!TryScoreCandidate(pawn, context, craftSources[i], hand, required,
-                        out score))
+                        plannedCounts, variety, out score))
                 {
                     continue;
                 }
                 bool isTop = bestCraft > 0f && score >= bestCraft - 0.001f;
-                AddWant(rows, pawn, craftSources[i], score, hand, baseline, currentLabel, isTop);
+                AddWant(rows, pawn, craftSources[i], score, hand, baseline, currentLabel, isTop,
+                    plannedCounts);
             }
 
             for (int i = 0; i < researchSources.Count; i++)
             {
                 float score;
                 if (!TryScoreCandidate(pawn, context, researchSources[i], hand, researchRequired,
-                        out score))
+                        plannedCounts, variety, out score))
                 {
                     continue;
                 }
                 bool isTop = bestResearch > 0f && score >= bestResearch - 0.001f;
                 AddWant(rows, pawn, researchSources[i], score, hand, baseline, currentLabel,
-                    isTop);
+                    isTop, plannedCounts);
             }
         }
 
@@ -871,7 +881,8 @@ namespace Armory
         /// would not be an upgrade.
         /// </summary>
         private static bool TryScoreCandidate(PawnAnalysis pawn, PawnFitContext context,
-            WeaponSource source, bool hand, float requiredScore, out float score)
+            WeaponSource source, bool hand, float requiredScore,
+            Dictionary<ThingDef, int> plannedCounts, float variety, out float score)
         {
             score = 0f;
             if (source == null || source.Probe == null || source.ProbePower <= 0f ||
@@ -906,13 +917,24 @@ namespace Armory
                 }
             }
 
-            score = source.ProbePower * PawnFit.Compute(context, source.Probe);
+            score = CombatScoring.Compute(context, source.Probe, out _);
+            if (variety > 0.001f && plannedCounts != null)
+            {
+                int count;
+                if (plannedCounts.TryGetValue(def, out count) && count > 0)
+                {
+                    // Sequential soft cap: after one pawn is planned for a def, the
+                    // next copy is slightly less attractive, and so on. The first
+                    // copy is untouched.
+                    score /= 1f + variety * 0.15f * count;
+                }
+            }
             return score > requiredScore;
         }
 
         private static void AddWant(Dictionary<ThingDef, DemandRow> rows, PawnAnalysis pawn,
             WeaponSource source, float score, bool hand, float baseline, string currentLabel,
-            bool isTop)
+            bool isTop, Dictionary<ThingDef, int> plannedCounts)
         {
             DemandRow row;
             if (!rows.TryGetValue(source.Def, out row))
@@ -921,7 +943,8 @@ namespace Armory
                 {
                     Def = source.Def,
                     Label = source.Def.LabelCap,
-                    Power = source.ProbePower
+                    Power = source.ProbePower,
+                    Range = WeaponPower.GetRange(source.Probe)
                 };
                 rows[source.Def] = row;
             }
@@ -948,12 +971,20 @@ namespace Armory
                 Score = score,
                 IsNew = isNew,
                 IsTop = isTop,
-                CurrentLabel = currentLabel
+                CurrentLabel = currentLabel,
+                Role = CombatScoring.Label(pawn.CombatRole),
+                PreferredRange = pawn.PreferredRange
             });
 
             if (isTop)
             {
                 row.BestCount++;
+                if (plannedCounts != null)
+                {
+                    int count;
+                    plannedCounts.TryGetValue(source.Def, out count);
+                    plannedCounts[source.Def] = count + 1;
+                }
             }
             row.KnownCount += isNew ? 0 : 1;
             row.NewCount += isNew ? 1 : 0;

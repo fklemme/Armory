@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.7.11** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.8.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -25,7 +25,7 @@ Four tabs: **Pawns**, **Weapons**, **Demand**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–4 complete; 5 (polish) underway; Demand build plan in 0.7.0 |
+| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0 |
 
 ---
 
@@ -38,6 +38,9 @@ For every free colonist, including pawns in pods/caskets:
 - a **hand slot** ranking of the pawn's Simple Sidearms type
   (`ranged` or `melee`), with the best usable upgrade and the delta over the
   hand baseline;
+- a **combat role** (`CQB`, `Assault`, `Line`, `Marksman`) and preferred
+  engagement distance, derived from the pawn's actual accuracy curve and genes,
+  or fixed with a per-pawn override;
 - a **backup slot** ranking of the opposite type, with SS's slot/mass/selection
   blockers and current carried backup;
 - a full ranked list with a status per weapon and an expandable factor ledger;
@@ -54,11 +57,15 @@ for every shooter" artifact.
 ### Weapons
 Every loose weapon on the map with:
 
-- power;
+- power and maximum range;
 - best-fit colonist per slot;
 - status (`Hand`, `Backup`, `Hand blocked`, `Backup blocked`, `No user`);
 - a colonist-by-fit detail view with deep checks (reachability, reservations) and
   separate hand/backup readiness.
+
+Ranged power is scored at each pawn's preferred distance using RimWorld's real
+accuracy curve. A shotgun and a sniper are not compared as if both could fire at
+every range.
 
 `Hand blocked` means blocked as the pawn's **hand** weapon (usually an SS role
 block). A melee weapon can be a `Backup` candidate for a ranged pawn even when it
@@ -87,9 +94,10 @@ Needed = max(0, Wanted by - owned copies that are not forbidden)
 
 Columns:
 
-- `Power`: normal-quality weapon strength, independent of the pawn;
-- `Score`: expected value for the colony (`power × pawn fit`, summed over the
-  colonists who would take it); this is the main sort key;
+- `Power`: normal-quality base strength before range and pawn fit;
+- `Range`: maximum firing range in tiles (`-` for melee);
+- `Score`: range-aware expected value for the colony, summed over the colonists
+  who would take it; this is the main sort key;
 - `Slot`: `hand`, `backup`, or how many of each;
 - `Wanted by`: colonists who would improve with this def (may overlap other rows);
 - `Owned`: copies in the colony (`2 · 1 forb.` when some are forbidden);
@@ -108,8 +116,8 @@ Sections follow the order of action: **Craft** (recipe unlocked now),
 and **Buy** (no crafting route, trader only). Within a section, rows are ordered
 by `Score`, then total gain, best count and needed copies. This is not pure weapon
 power: a weapon that suits more colonists can outrank a slightly stronger one
-that helps only one. `Power` and `Score` make that trade-off visible: power is the
-weapon alone, score adds how well it fits the colonists who want it.
+that helps only one. `Power` is the weapon alone; `Score` adds range, pawn fit,
+role preference and a light squad-variety penalty.
 
 Rows that are the best option for someone stay visible even when the requirement
 is already covered; those show `enough` in green. A gold star before the name
@@ -117,8 +125,35 @@ marks the best option in its section for at least one colonist; all names are
 white, so the star is the only distinction. Without that, an owned ideal (for
 example the hatchet a colonist already carries) would disappear. Click a row to
 see one detail line per contributing colonist, with their name, current weapon,
-individual `Score`, `Slot`, and `Gain` aligned under the same columns. Defs with
-no gap are otherwise hidden.
+combat role, individual `Score`, `Slot`, and `Gain` aligned under the same
+columns. Defs with no gap are otherwise hidden.
+
+### Range and combat roles
+
+RimWorld's hit chance is a per-tile shooting-accuracy curve multiplied by the
+weapon's accuracy at that distance. Armory samples that curve over a band around
+each pawn's preferred distance, so a chain shotgun and a sniper rifle are never
+compared as if both could fire at every range.
+
+The preferred distance is automatic by default:
+
+- the pawn's effective reach is the farthest distance where aim is still half
+  of its 10-tile value;
+- preferred distance is that reach minus 8 tiles, clamped to 8–34;
+- low skill and the Biotech `Nearsighted` gene therefore produce a short-range
+  role; high skill with normal long-range accuracy produces a marksman;
+- `CQB` is 12 tiles or less, `Assault` 13–22, `Line` 23–30 and `Marksman` 31+.
+
+The pawn detail has a `Change` button for a per-pawn override. Overrides are
+saved with the colony (not the mod settings) and survive save/load. `Auto`
+returns to the derived role.
+
+A small deterministic personal preference and a sequential duplicate penalty
+keep equal pawns from becoming clones. Both are controlled by **Squad variety**
+in settings; set it to 0% to disable them. The duplicate penalty applies to
+Demand rows and to the optional hand planner. LMGs and miniguns are treated as
+support weapons and receive a 0.75 support penalty so their raw burst DPS does
+not make every pawn want one.
 
 `Owned` includes forbidden copies; `Needed` only counts usable ones, and its
 tooltip shows how many unforbidding would cover. A research-locked def you
@@ -359,14 +394,16 @@ All settings are under **Options → Mod settings → Armory**. The page scrolls
 | Upgrade threshold | 10% | 0–50% | Required improvement to swap |
 | Ranged preference | ×1.00 | 0.5–2.0 | Global scoring bias |
 | Melee preference | ×1.00 | 0.5–2.0 | Global scoring bias |
+| Combat distance bias | 0 tiles | -5–+5 | Shift all preferred ranges closer (negative) or longer (positive) |
+| Squad variety | 50% | 0–100% | Per-pawn weapon affinity and duplicate top-choice penalty; 0% disables both |
 | Ranked hand weapons shown per pawn | 10 | 5–100 | Hand list limit |
 | Ranked backup weapons shown per pawn | 5 | 1–50 | Backup list limit |
 | Show blocked weapons by default | on | — | Include non-ready rows |
 | Rescan interval | 120 ticks | 30–600 | Snapshot rebuild interval |
 | Log snapshot summary on map load | off | — | Writes a one-time diagnostic to `Player.log` |
 
-Internal: `settingsVersion` (currently 3) drives the age, typed-slot and list-limit
-migrations.
+Internal: `settingsVersion` (currently 4) drives the age, typed-slot, list-limit
+and range/variety migrations.
 
 ---
 
@@ -394,11 +431,13 @@ Armory/
     Model/ArmoryModels.cs          snapshot/candidate/pawn/weapon models
     Scoring/WeaponPower.cs         pawn-independent power + situational penalty
     Scoring/PawnFit.cs             pawn fit + optional ledger
+    Scoring/CombatScoring.cs       range profile, preferred distance, roles, variety
     Scoring/WeaponCatalog.cs       craftable/buyable defs + synthetic scoring probes
     Scoring/Eligibility.cs         soft/hard blockers
     UI/MainTabWindow_Armory.cs     Pawns/Weapons/Demand/Log tabs
     UI/TextUtil.cs                 rich-text safe measurement/truncation
   docs/RESEARCH.md                 decompiled-mod + API findings
+  docs/RANGE_AND_ROLES.md          range/role research, design and decisions
   docs/HANDOFF.md                  exact state and next-step plan
   docs/TESTING.md                  quick + live-save testing procedure
   tools/Quicktest-Armory.ps1       isolated quicktest harness

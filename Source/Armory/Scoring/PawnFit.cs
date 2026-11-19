@@ -13,8 +13,25 @@ namespace Armory
         public int Melee;
         public bool Brawler;
         public bool HasIdeo;
-        public float Accuracy;
         public float Aim;
+
+        /// <summary>Resolved ranged combat role, either automatic or a player override.</summary>
+        public CombatRole CombatRole;
+
+        /// <summary>Preferred engagement distance in tiles for this pawn's ranged hand.</summary>
+        public int PreferredRange;
+
+        /// <summary>True when the player fixed the role instead of deriving it from accuracy.</summary>
+        public bool RoleOverridden;
+
+        /// <summary>Human-readable origin of <see cref="CombatRole"/>.</summary>
+        public string CombatRoleSource;
+
+        /// <summary>
+        /// Pawn-only hit factor by distance, including the pawn's per-tile shooting
+        /// accuracy and its range-specific accuracy factors. Built once per pawn.
+        /// </summary>
+        public float[] AimCurve;
 
         public static PawnFitContext Create(Pawn pawn)
         {
@@ -25,15 +42,24 @@ namespace Armory
                 Melee = SkillLevel(pawn, SkillDefOf.Melee),
                 Brawler = HasBrawler(pawn),
                 HasIdeo = ModsConfig.IdeologyActive && pawn.Ideo != null,
-                Accuracy = StatExtension.GetStatValue(pawn, StatDefOf.ShootingAccuracyPawn, true, 2500),
                 Aim = StatExtension.GetStatValue(pawn, StatDefOf.AimingDelayFactor, true, 2500)
             };
+            CombatScoring.Prepare(context);
             return context;
+        }
+
+        public float AimAt(int distance)
+        {
+            if (AimCurve != null && distance >= 0 && distance < AimCurve.Length)
+            {
+                return AimCurve[distance];
+            }
+            return ShotReport.HitFactorFromShooter(Pawn, distance);
         }
 
         private static int SkillLevel(Pawn pawn, SkillDef skill)
         {
-            if (pawn.skills == null)
+            if (pawn == null || pawn.skills == null)
             {
                 return 0;
             }
@@ -43,11 +69,16 @@ namespace Armory
 
         private static bool HasBrawler(Pawn pawn)
         {
-            return pawn.story != null && pawn.story.traits != null && pawn.story.traits.HasTrait(TraitDefOf.Brawler);
+            return pawn != null && pawn.story != null && pawn.story.traits != null &&
+                   pawn.story.traits.HasTrait(TraitDefOf.Brawler);
         }
     }
 
-    /// <summary>How well a specific weapon suits a specific pawn, with an optional readable ledger.</summary>
+    /// <summary>
+    /// How well a specific weapon suits a specific pawn, excluding ranged accuracy and
+    /// aiming speed. Ranged accuracy is handled by <see cref="CombatScoring"/> so the
+    /// game's distance curve is applied exactly once.
+    /// </summary>
     public static class PawnFit
     {
         /// <summary>Bulk path: no string allocations.</summary>
@@ -102,15 +133,7 @@ namespace Armory
                 }
             }
 
-            if (ranged)
-            {
-                float accuracy = Mathf.Clamp(ctx.Accuracy, 0.6f, 1.4f);
-                float aim = Mathf.Clamp(1f / Mathf.Max(0.1f, ctx.Aim), 0.7f, 1.3f);
-                fit *= accuracy * aim;
-                Add(parts, string.Format("shooting accuracy: x{0:0.00}", accuracy));
-                Add(parts, string.Format("aim speed: x{0:0.00}", aim));
-            }
-            else if (melee && ctx.Pawn != null)
+            if (melee && ctx.Pawn != null)
             {
                 float hit = Mathf.Clamp(
                     StatExtension.GetStatValue(ctx.Pawn, StatDefOf.MeleeHitChance, true, 2500), 0.4f, 1f);

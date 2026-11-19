@@ -1,4 +1,4 @@
-ï»¿using System.Collections.Generic;
+using System.Collections.Generic;
 using Armory.Compatibility;
 using RimWorld;
 using UnityEngine;
@@ -244,19 +244,23 @@ namespace Armory
             delta = new Rect(row.x + width * 0.88f, row.y, width * 0.12f, row.height);
         }
 
-        private static void WeaponColumns(Rect row, out Rect label, out Rect power, out Rect best, out Rect status)
+        private static void WeaponColumns(Rect row, out Rect label, out Rect power, out Rect range,
+            out Rect best, out Rect status)
         {
             const float gap = 8f;
             float width = row.width;
-            float labelWidth = width * 0.50f;
-            float powerWidth = width * 0.10f;
-            float bestWidth = width * 0.20f;
+            float labelWidth = width * 0.42f;
+            float powerWidth = width * 0.09f;
+            float rangeWidth = width * 0.09f;
+            float bestWidth = width * 0.19f;
 
             label = new Rect(row.x, row.y, labelWidth - gap, row.height);
             power = new Rect(row.x + labelWidth, row.y, powerWidth - gap, row.height);
-            best = new Rect(row.x + labelWidth + powerWidth, row.y, bestWidth - gap, row.height);
-            status = new Rect(row.x + labelWidth + powerWidth + bestWidth, row.y,
-                width - labelWidth - powerWidth - bestWidth, row.height);
+            range = new Rect(row.x + labelWidth + powerWidth, row.y, rangeWidth - gap, row.height);
+            best = new Rect(row.x + labelWidth + powerWidth + rangeWidth, row.y,
+                bestWidth - gap, row.height);
+            status = new Rect(row.x + labelWidth + powerWidth + rangeWidth + bestWidth, row.y,
+                width - labelWidth - powerWidth - rangeWidth - bestWidth, row.height);
         }
 
         private static void DrawPawnListHeader(Rect rect)
@@ -528,6 +532,24 @@ namespace Armory
                 new Color(0.78f, 0.86f, 0.96f));
             y += 22f;
 
+            if (pawn.RoleIsRanged != false)
+            {
+                string roleText = string.Format("Combat role: {0} ({1}, prefers ~{2} tiles)",
+                    CombatScoring.Label(pawn.CombatRole),
+                    pawn.RoleOverridden ? "override" : "auto",
+                    pawn.PreferredRange);
+                DrawColoredLine(new Rect(rect.x, y, Mathf.Max(40f, rect.width - 96f), 22f),
+                    roleText, new Color(0.78f, 0.86f, 0.96f));
+                Rect roleButton = new Rect(rect.xMax - 86f, y + 1f, 86f, 20f);
+                if (Widgets.ButtonText(roleButton, "Change"))
+                {
+                    OpenCombatRoleMenu(pawn);
+                }
+                TooltipHandler.TipRegion(roleButton,
+                    "Override this pawn's preferred engagement distance. Auto derives it from the pawn's accuracy curve, skill and genes.");
+                y += 26f;
+            }
+
             if (!string.IsNullOrEmpty(pawn.AutomationNote))
             {
                 DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
@@ -646,7 +668,7 @@ namespace Armory
                         ledgerContext = PawnFitContext.Create(pawn.Pawn);
                     }
                     string ledger;
-                    PawnFit.Compute(ledgerContext, candidate.Weapon.Thing, out ledger);
+                    CombatScoring.Compute(ledgerContext, candidate.Weapon.Thing, out ledger);
                     candidate.Ledger = ledger;
                 }
             }
@@ -896,6 +918,10 @@ namespace Armory
         private float PawnDetailHeight(PawnAnalysis pawn, int limit, bool showBlocked)
         {
             float height = 26f + 66f + limit * 22f;
+            if (pawn.RoleIsRanged != false)
+            {
+                height += 26f;
+            }
             if (limit < visibleRanked.Count)
             {
                 height += 20f;
@@ -928,6 +954,31 @@ namespace Armory
             return height + 20f;
         }
 
+        private void OpenCombatRoleMenu(PawnAnalysis pawn)
+        {
+            List<FloatMenuOption> options = new List<FloatMenuOption>();
+            AddCombatRoleOption(options, pawn, CombatRole.Auto, "Auto (from accuracy)");
+            AddCombatRoleOption(options, pawn, CombatRole.Cqb, "CQB (prefers 10 tiles)");
+            AddCombatRoleOption(options, pawn, CombatRole.Assault, "Assault (prefers 17 tiles)");
+            AddCombatRoleOption(options, pawn, CombatRole.Line, "Line (prefers 25 tiles)");
+            AddCombatRoleOption(options, pawn, CombatRole.Marksman, "Marksman (prefers 34 tiles)");
+            Find.WindowStack.Add(new FloatMenu(options));
+        }
+
+        private void AddCombatRoleOption(List<FloatMenuOption> options, PawnAnalysis pawn,
+            CombatRole role, string text)
+        {
+            bool current = pawn.RoleOverridden
+                ? pawn.CombatRole == role
+                : role == CombatRole.Auto;
+            string label = current ? "* " + text : "  " + text;
+            options.Add(new FloatMenuOption(label, delegate
+            {
+                ArmoryGameComponent.SetRoleOverride(pawn.Pawn, role);
+                refreshRequested = true;
+            }));
+        }
+
         private static void DrawLedger(ref float cursor, float width, PawnAnalysis pawn, Candidate candidate)
         {
             GUI.color = new Color(0.78f, 0.87f, 0.96f);
@@ -939,7 +990,7 @@ namespace Armory
                 cursor += 18f;
             }
             DrawCell(new Rect(38f, cursor, Mathf.Max(40f, width - 46f), 18f),
-                string.Format("power {0:0} x fit = {1:0}", candidate.Weapon.Power, candidate.Score),
+                string.Format("base power {0:0} | combat score {1:0}", candidate.Weapon.Power, candidate.Score),
                 TextAnchor.MiddleLeft, GameFont.Tiny);
             cursor += 18f;
             DrawCell(new Rect(38f, cursor, Mathf.Max(40f, width - 46f), 18f),
@@ -1008,9 +1059,12 @@ namespace Armory
 
                 PawnAnalysis best = row.BestHandPawn ?? row.BestBackupPawn ??
                                     row.BestAnyHandPawn ?? row.BestAnyBackupPawn;
-                WeaponColumns(rowRect, out Rect label, out Rect power, out Rect bestPawn, out Rect status);
+                WeaponColumns(rowRect, out Rect label, out Rect power, out Rect range,
+                    out Rect bestPawn, out Rect status);
                 DrawCell(label, row.Weapon.Label, TextAnchor.MiddleLeft);
                 DrawCell(power, row.Weapon.Power.ToString("0"), TextAnchor.MiddleRight);
+                DrawCell(range, RangeText(row.Weapon.Range), TextAnchor.MiddleRight,
+                    GameFont.Small, new Color(0.72f, 0.82f, 0.92f));
                 DrawCell(bestPawn, best == null ? "-" : best.Pawn.LabelShort, TextAnchor.MiddleLeft);
                 Color statusColor;
                 if (row.BestHandPawn != null)
@@ -1038,10 +1092,12 @@ namespace Armory
 
         private static void DrawWeaponListHeader(Rect rect)
         {
-            WeaponColumns(rect, out Rect label, out Rect power, out Rect best, out Rect status);
+            WeaponColumns(rect, out Rect label, out Rect power, out Rect range,
+                out Rect best, out Rect status);
             Color color = new Color(0.68f, 0.68f, 0.68f);
             DrawCell(label, "Weapon", TextAnchor.MiddleLeft, GameFont.Tiny, color);
             DrawCell(power, "Power", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            DrawCell(range, "Range", TextAnchor.MiddleRight, GameFont.Tiny, color);
             DrawCell(best, "Best colonist", TextAnchor.MiddleLeft, GameFont.Tiny, color);
             DrawCell(status, "Status", TextAnchor.MiddleRight, GameFont.Tiny, color);
         }
@@ -1054,7 +1110,9 @@ namespace Armory
 
             float y = rect.y + 32f;
             Widgets.Label(new Rect(rect.x, y, rect.width, 22f),
-                string.Format("{0}    power {1:0}", row.Weapon.IsRanged ? "Ranged" : "Melee", row.Weapon.Power));
+                string.Format("{0}    power {1:0}{2}",
+                    row.Weapon.IsRanged ? "Ranged" : "Melee", row.Weapon.Power,
+                    row.Weapon.IsRanged ? "    range " + row.Weapon.Range.ToString("0.0") : string.Empty));
             y += 24f;
 
             if (row.BestHandPawn != null)
@@ -1255,6 +1313,7 @@ namespace Armory
         private struct DemandColumns
         {
             public const float PowerWidth = 58f;
+            public const float RangeWidth = 48f;
             public const float ScoreWidth = 64f;
             public const float SlotWidth = 132f;
             public const float WantedWidth = 86f;
@@ -1269,6 +1328,7 @@ namespace Armory
             public float WeaponX;
             public float WeaponWidth;
             public float PowerX;
+            public float RangeX;
             public float ScoreX;
             public float SlotX;
             public float WantedX;
@@ -1287,7 +1347,8 @@ namespace Armory
                 columns.WantedX = columns.OwnedX - Gap - WantedWidth;
                 columns.SlotX = columns.WantedX - Gap - SlotWidth;
                 columns.ScoreX = columns.SlotX - Gap - ScoreWidth;
-                columns.PowerX = columns.ScoreX - Gap - PowerWidth;
+                columns.RangeX = columns.ScoreX - Gap - RangeWidth;
+                columns.PowerX = columns.RangeX - Gap - PowerWidth;
                 columns.WeaponX = 4f;
                 columns.WeaponWidth = Mathf.Max(140f, columns.PowerX - Gap - columns.WeaponX);
                 return columns;
@@ -1399,11 +1460,15 @@ namespace Armory
                 DrawCell(new Rect(columns.PowerX, cursor, DemandColumns.PowerWidth, RowHeight),
                     row.Power.ToString("0"), TextAnchor.MiddleRight, GameFont.Small,
                     new Color(0.82f, 0.82f, 0.82f));
+                Rect rangeCell = new Rect(columns.RangeX, cursor, DemandColumns.RangeWidth, RowHeight);
+                DrawCell(rangeCell, RangeText(row.Range), TextAnchor.MiddleRight, GameFont.Small,
+                    new Color(0.72f, 0.82f, 0.92f));
+                TooltipHandler.TipRegion(rangeCell, "Maximum firing range in tiles.");
                 Rect scoreCell = new Rect(columns.ScoreX, cursor, DemandColumns.ScoreWidth, RowHeight);
                 DrawCell(scoreCell, row.TotalScore.ToString("0"), TextAnchor.MiddleRight, GameFont.Small,
                     new Color(0.9f, 0.86f, 0.7f));
                 TooltipHandler.TipRegion(scoreCell,
-                    "Expected value: normal-quality power x pawn fit, summed over the wanted colonists. Expand the row to see each contribution.");
+                    "Range-aware expected value for the colonists who want it: effective DPS at each pawn's preferred distance, multiplied by fit and variety. Expand the row to see each contribution.");
                 DrawCell(new Rect(columns.SlotX, cursor, DemandColumns.SlotWidth, RowHeight),
                     row.Uses, TextAnchor.MiddleLeft, GameFont.Small,
                     new Color(0.72f, 0.82f, 0.92f));
@@ -1516,12 +1581,16 @@ namespace Armory
                 rect.height);
             DrawCell(powerRect, "Power", TextAnchor.MiddleRight, GameFont.Tiny, color);
             TooltipHandler.TipRegion(powerRect,
-                "Normal-quality weapon strength before pawn fit. Score combines power, fit and how many colonists benefit.");
+                "Normal-quality base strength before range and pawn fit. Score is the range-aware value used for sorting.");
+            Rect rangeRect = new Rect(rect.x + columns.RangeX, rect.y, DemandColumns.RangeWidth,
+                rect.height);
+            DrawCell(rangeRect, "Range", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            TooltipHandler.TipRegion(rangeRect, "Maximum firing range in tiles.");
             Rect scoreRect = new Rect(rect.x + columns.ScoreX, rect.y, DemandColumns.ScoreWidth,
                 rect.height);
             DrawCell(scoreRect, "Score", TextAnchor.MiddleRight, GameFont.Tiny, color);
             TooltipHandler.TipRegion(scoreRect,
-                "Expected value: normal-quality power x pawn fit, summed over the wanted colonists. Rows are sorted by this inside each section, then by total gain.");
+                "Expected range-aware value for the colonists who want it: effective DPS at each pawn's preferred distance, multiplied by fit and variety. Rows are sorted by this inside each section.");
             Rect slotRect = new Rect(rect.x + columns.SlotX, rect.y, DemandColumns.SlotWidth,
                 rect.height);
             DrawCell(slotRect, "Slot", TextAnchor.MiddleLeft, GameFont.Tiny, color);
@@ -1569,7 +1638,7 @@ namespace Armory
             string text = row.Owned.ToString();
             if (row.Forbidden > 0)
             {
-                text += " Â· " + row.Forbidden + " forb.";
+                text += " · " + row.Forbidden + " forb.";
             }
             return text;
         }
@@ -1594,14 +1663,14 @@ namespace Armory
                         // Some copies already exist; research only unlocks additional ones.
                         research = "more: " + research;
                     }
-                    return row.Buyable ? research + " Â· buy" : research;
+                    return row.Buyable ? research + " · buy" : research;
                 case DemandSection.Buy:
                     return "buy";
                 default:
                     return row.CraftableNow
                         ? (string.IsNullOrEmpty(row.BenchLabel)
                             ? "craft"
-                            : "craft Â· " + row.BenchLabel)
+                            : "craft · " + row.BenchLabel)
                         : "buy";
             }
         }
@@ -1625,6 +1694,9 @@ namespace Armory
             float nameX = columns.WeaponX + DemandColumns.BestMarkerWidth + 8f;
             DrawCell(new Rect(nameX, cursor, nameWidth, 20f), want.Colonist,
                 TextAnchor.MiddleLeft, GameFont.Small, new Color(0.78f, 0.78f, 0.78f));
+            TooltipHandler.TipRegion(new Rect(nameX, cursor, nameWidth, 20f),
+                string.Format("{0} - {1}, prefers ~{2} tiles", want.Colonist,
+                    want.Role ?? "role unknown", want.PreferredRange));
 
             float currentX = nameX + nameWidth;
             float currentWidth = Mathf.Max(40f, columns.WeaponWidth - (currentX - columns.WeaponX));
@@ -1849,6 +1921,11 @@ namespace Armory
             Text.Anchor = TextAnchor.UpperLeft;
             Text.Font = GameFont.Small;
             GUI.color = previousColor;
+        }
+
+        private static string RangeText(float range)
+        {
+            return range <= 0.01f ? "-" : range.ToString("0.0");
         }
 
         private static string FormatPct(float value)

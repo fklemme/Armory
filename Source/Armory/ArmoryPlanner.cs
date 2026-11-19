@@ -75,6 +75,8 @@ namespace Armory
             List<PawnAnalysis> order = new List<PawnAnalysis>(snapshot.Pawns);
             order.Sort((a, b) => b.TopReadyDeltaPct.CompareTo(a.TopReadyDeltaPct));
             Dictionary<int, bool> queuedPrimaryRanged = new Dictionary<int, bool>();
+            Dictionary<ThingDef, int> plannedHandDefs = new Dictionary<ThingDef, int>();
+            float variety = settings.varietyStrength;
 
             for (int i = 0; i < order.Count; i++)
             {
@@ -111,14 +113,20 @@ namespace Armory
                     ? baselineScore * (1f + settings.upgradeThreshold)
                     : 0.01f;
 
-                for (int c = 0; c < analysis.Ranked.Count; c++)
+                List<Candidate> choices = new List<Candidate>(analysis.Ranked);
+                choices.Sort((a, b) =>
+                    EffectiveHandScore(b, plannedHandDefs, variety).CompareTo(
+                        EffectiveHandScore(a, plannedHandDefs, variety)));
+
+                for (int c = 0; c < choices.Count; c++)
                 {
-                    Candidate candidate = analysis.Ranked[c];
+                    Candidate candidate = choices[c];
                     if (!candidate.Ready)
                     {
                         continue;
                     }
-                    if (candidate.Score <= minimumScore)
+                    float effectiveScore = EffectiveHandScore(candidate, plannedHandDefs, variety);
+                    if (effectiveScore <= minimumScore)
                     {
                         break;
                     }
@@ -197,6 +205,9 @@ namespace Armory
                             baselineLabel);
                     }
                     ArmoryGameComponent.Record(now, pawn, weapon, DecisionKind.EquipHand, detail);
+                    int assignedCount;
+                    plannedHandDefs.TryGetValue(weapon.def, out assignedCount);
+                    plannedHandDefs[weapon.def] = assignedCount + 1;
 
                     if (settings.debugLogging)
                     {
@@ -448,6 +459,26 @@ namespace Armory
                     break;
                 }
             }
+        }
+
+        private static float EffectiveHandScore(Candidate candidate,
+            Dictionary<ThingDef, int> plannedDefs, float variety)
+        {
+            if (candidate == null || candidate.Weapon == null || candidate.Weapon.Thing == null)
+            {
+                return 0f;
+            }
+
+            float score = candidate.Score;
+            if (variety > 0.001f && plannedDefs != null)
+            {
+                int count;
+                if (plannedDefs.TryGetValue(candidate.Weapon.Thing.def, out count) && count > 0)
+                {
+                    score /= 1f + variety * 0.15f * count;
+                }
+            }
+            return score;
         }
 
         private static bool IsDroppableBackup(ThingWithComps thing)

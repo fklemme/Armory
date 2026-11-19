@@ -29,6 +29,7 @@ namespace Armory
         public static ArmoryGameComponent Instance;
 
         private readonly List<Decision> decisions = new List<Decision>(128);
+        private Dictionary<int, int> roleOverrides = new Dictionary<int, int>();
 
         public ArmoryGameComponent(Game game)
         {
@@ -70,9 +71,57 @@ namespace Armory
             }
         }
 
+        /// <summary>Player override for a pawn's ranged combat role, or Auto when none is set.</summary>
+        public static CombatRole GetRoleOverride(Pawn pawn)
+        {
+            if (Instance == null || pawn == null || Instance.roleOverrides == null)
+            {
+                return CombatRole.Auto;
+            }
+
+            int value;
+            if (!Instance.roleOverrides.TryGetValue(pawn.thingIDNumber, out value))
+            {
+                return CombatRole.Auto;
+            }
+            if (value < (int)CombatRole.Cqb || value > (int)CombatRole.Marksman)
+            {
+                return CombatRole.Auto;
+            }
+            return (CombatRole)value;
+        }
+
+        /// <summary>Sets or clears a pawn's ranged combat role override.</summary>
+        public static void SetRoleOverride(Pawn pawn, CombatRole role)
+        {
+            if (Instance == null || pawn == null)
+            {
+                return;
+            }
+            if (Instance.roleOverrides == null)
+            {
+                Instance.roleOverrides = new Dictionary<int, int>();
+            }
+
+            if (role == CombatRole.Auto)
+            {
+                Instance.roleOverrides.Remove(pawn.thingIDNumber);
+            }
+            else
+            {
+                Instance.roleOverrides[pawn.thingIDNumber] = (int)role;
+            }
+        }
+
         public override void ExposeData()
         {
-            // The decision log is deliberately session-only.
+            // The decision log is deliberately session-only. Role overrides belong to
+            // the colony and must survive save/load, so they use pawn thing IDs.
+            Scribe_Collections.Look(ref roleOverrides, "roleOverrides", LookMode.Value, LookMode.Value);
+            if (Scribe.mode == LoadSaveMode.PostLoadInit && roleOverrides == null)
+            {
+                roleOverrides = new Dictionary<int, int>();
+            }
         }
     }
 }

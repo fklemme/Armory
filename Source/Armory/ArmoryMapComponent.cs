@@ -91,11 +91,14 @@ namespace Armory
                 Candidate top = pawn.TopOverall;
                 Candidate ready = pawn.TopReady;
                 Log.Message(string.Format(
-                    "[Armory]   {0}: role {1}; {2} -> best hand {3} ({4:0}) [{5}]; ready {6}; hand ranked {7}, incompatible {8}; automation {9}; hand locked {10}",
+                    "[Armory]   {0}: role {1}; combat {2} ({3}, prefers {4}t); {5} -> best hand {6} ({7:0}) [{8}]; ready {9}; hand ranked {10}, incompatible {11}; automation {12}; hand locked {13}",
                     pawn.Pawn.LabelShort,
                     pawn.HasRole
                         ? ((pawn.RoleIsRanged.Value ? "ranged" : "melee") + " (" + pawn.RoleSource + ")")
                         : "none",
+                    CombatScoring.Label(pawn.CombatRole),
+                    pawn.RoleOverridden ? "override" : "auto",
+                    pawn.PreferredRange,
                     pawn.Current == null ? "unarmed" : pawn.Current.LabelCap,
                     top == null ? "none" : top.Weapon.Label,
                     top == null ? 0f : top.Score,
@@ -157,11 +160,12 @@ namespace Armory
                     ? "new"
                     : row.AverageGain.ToString("0%");
                 Log.Message(string.Format(
-                    "[Armory]   demand {0}: {1} | score {2:0} | power {3:0} | wanted {4} (best {5}) | owned {6} ({7} forbidden) | needed {8} | gain {9} | {10} | {11} | can craft {12} | bench {13}",
+                    "[Armory]   demand {0}: {1} | score {2:0} | power {3:0} | range {4:0.0} | wanted {5} (best {6}) | owned {7} ({8} forbidden) | needed {9} | gain {10} | {11} | {12} | can craft {13} | bench {14}",
                     i + 1,
                     row.Label,
                     row.TotalScore,
                     row.Power,
+                    row.Range,
                     row.Uses,
                     row.BestCount,
                     row.Owned,

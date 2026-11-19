@@ -11,6 +11,7 @@ namespace Armory
         public string Label;
         public bool IsRanged;
         public float Power;
+        public float Range;
     }
 
     /// <summary>One weapon evaluated for one pawn.</summary>
@@ -87,6 +88,18 @@ namespace Armory
 
         /// <summary>Human-readable source of <see cref="RoleIsRanged"/>.</summary>
         public string RoleSource;
+
+        /// <summary>Resolved ranged combat role for this pawn.</summary>
+        public CombatRole CombatRole;
+
+        /// <summary>Preferred engagement distance in tiles.</summary>
+        public int PreferredRange;
+
+        /// <summary>True when the player fixed the role instead of deriving it.</summary>
+        public bool RoleOverridden;
+
+        /// <summary>Human-readable origin of <see cref="CombatRole"/>.</summary>
+        public string CombatRoleSource;
 
         /// <summary>Null when the pawn is on the map; otherwise why they are unavailable.</summary>
         public string UnavailableReason;
@@ -323,6 +336,12 @@ namespace Armory
 
         /// <summary>Weapon the pawn currently uses for that slot, or "nothing".</summary>
         public string CurrentLabel;
+
+        /// <summary>Combat role label at planning time.</summary>
+        public string Role;
+
+        /// <summary>Preferred engagement distance at planning time.</summary>
+        public int PreferredRange;
     }
 
     /// <summary>
@@ -357,12 +376,16 @@ namespace Armory
         /// <summary>Normal-quality, pawn-independent weapon strength for display.</summary>
         public float Power;
 
+        /// <summary>Maximum firing range in tiles; zero for melee weapons.</summary>
+        public float Range;
+
         /// <summary>Sum of relative gains; used as a secondary ordering key.</summary>
         public float TotalGain;
 
         /// <summary>
-        /// Sum of candidate scores (power x pawn fit) across the contributing colonists.
-        /// Primary ordering key inside a section: power, fit and breadth all matter.
+        /// Sum of range-aware candidate scores across the contributing colonists.
+        /// Primary ordering key inside a section: role fit, effective DPS and breadth
+        /// all matter.
         /// </summary>
         public float TotalScore;
 

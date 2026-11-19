@@ -110,8 +110,7 @@ namespace Armory
                 }
             }
 
-            snapshot.Pawns.Sort((a, b) =>
-                string.Compare(a.Pawn.LabelShort, b.Pawn.LabelShort, StringComparison.OrdinalIgnoreCase));
+            snapshot.Pawns.Sort(CompareColonistOrder);
 
             for (int i = 0; i < snapshot.Weapons.Count; i++)
             {
@@ -1026,6 +1025,41 @@ namespace Armory
                 found = true;
             }
             return found;
+        }
+
+        private static int CompareColonistOrder(PawnAnalysis a, PawnAnalysis b)
+        {
+            // displayOrder is the colonist-bar order. Vanilla assigns it when a
+            // pawn first appears there, which defaults to join order, and updates
+            // it when the player drags portraits. Pawns that have not been
+            // processed by the bar yet fall back to join tick.
+            int order = DisplayOrderOf(a.Pawn).CompareTo(DisplayOrderOf(b.Pawn));
+            if (order != 0)
+            {
+                return order;
+            }
+
+            int joined = JoinTickOf(a.Pawn).CompareTo(JoinTickOf(b.Pawn));
+            if (joined != 0)
+            {
+                return joined;
+            }
+
+            return string.Compare(a.Pawn.LabelShort, b.Pawn.LabelShort, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static int DisplayOrderOf(Pawn pawn)
+        {
+            if (pawn.playerSettings == null || pawn.playerSettings.displayOrder == -9999999)
+            {
+                return int.MaxValue;
+            }
+            return pawn.playerSettings.displayOrder;
+        }
+
+        private static int JoinTickOf(Pawn pawn)
+        {
+            return pawn.playerSettings == null ? 0 : pawn.playerSettings.joinTick;
         }
 
         private static string LabelOf(ThingWithComps thing)

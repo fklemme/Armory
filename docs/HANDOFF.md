@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.9.0**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.9.1**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.9.0 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.9.1 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -31,9 +31,9 @@ release text, banner and default automation for the first public build.
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
 0.8.3, the Colonists/Upgrades tab rename in 0.8.4, the icon/tab-order pass in
-0.8.5, the simplified crossed-weapons icon in 0.8.6, and the release text,
-banner and default-automation pass in 0.9.0. Research, reference-mod behaviour,
-the shipped model and remaining decisions are in
+0.8.5, the simplified crossed-weapons icon in 0.8.6, the release text, banner and
+default-automation pass in 0.9.0, and colonist-bar ordering in 0.9.1. Research,
+reference-mod behaviour, the shipped model and remaining decisions are in
 [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
 
 ---
@@ -1323,6 +1323,27 @@ Demand showed the Range column and range-aware ordering; no Armory errors.
 
 ---
 
+## 0.9.1 — Colonists list follows the colonist bar
+
+The Colonists tab sorted by `LabelShort`, which did not match the portraits at
+the top of the screen. It now uses `playerSettings.displayOrder`, the same key
+as vanilla's colonist bar.
+
+- The bar order defaults to join order, and dragging a portrait updates
+  `displayOrder`, so Armory follows manual reordering too.
+- Unassigned pawns fall back to `joinTick`, then name, so the list stays stable
+  before the bar first processes them.
+- The Colonists tab tooltip now states the order and mentions portrait drag.
+
+Answer to the original question: the old list was **alphabetical by short name**
+(`Banks`, `Chef`, `Elsie`, …), not join order.
+
+Verified live at 1600x900 on the 13-colonist save: the colonist-bar order and
+the Armory list matched exactly — `Kruecke, Rathat, Existence, Huber, Elsie,
+Hashoytt, Hoss, Grant, Banks, Jerry, Trebo, Chef, Gripe`.
+
+---
+
 ## 0.9.0 — release text, banner and default-on management
 
 First public release preparation.
@@ -1802,6 +1823,7 @@ polish, not new core behaviour.
 | 0.8.5 | Round-seal Armory icon, `About/ModIcon.png`, `MainButtonDef` order 25, and reproducible tab-glyph generator |
 | 0.8.6 | Remove the seal/star, rebalance crossed sword and rifle, and make `ModIcon.png` a transparent backdrop-free glyph |
 | 0.9.0 | Release text and banner pass: default-on auto-equip and backups, new tagline/icon banner, Upgrades naming, reproducible banner generator |
+| 0.9.1 | Colonists list follows the colonist-bar display order (join order by default) instead of alphabetical name order |
 
 ---
 

@@ -117,7 +117,7 @@ namespace Armory
         {
             float x = rect.x;
             if (TabButton(new Rect(x, rect.y, 110f, rect.height), "Colonists", view == ArmoryView.Colonists,
-                    "Each colonist's current hand and backup weapon, status and ranked alternatives."))
+                    "Each colonist's current hand and backup weapon, status and ranked alternatives. Listed in colonist-bar order; drag portraits to reorder."))
             {
                 view = ArmoryView.Colonists;
                 selectedCandidate = -1;

@@ -2,7 +2,7 @@
 
 **The right weapon, in the right hands.**
 
-**Version 0.9.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.9.1** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and automatic manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -27,7 +27,7 @@ Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0 |
+| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1 |
 
 ---
 
@@ -35,6 +35,10 @@ Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 
 ### Colonists
 For every free colonist, including pawns in pods/caskets:
+
+The list follows the **colonist bar** at the top of the screen — the same order
+as the portraits, which defaults to join order. Drag a portrait to reorder both
+the bar and this list.
 
 - current hand weapon and its score;
 - a **hand slot** ranking of the colonist's Simple Sidearms type

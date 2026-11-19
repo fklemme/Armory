@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.8.4**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.8.5**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.8.4 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.8.5 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -29,9 +29,9 @@ raid arming, localization, and Workshop prep.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
-0.8.3 and the Colonists/Upgrades tab rename in 0.8.4. Research, reference-mod
-behaviour, the shipped model and remaining decisions are in
-[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+0.8.3, the Colonists/Upgrades tab rename in 0.8.4 and the seal icon in 0.8.5.
+Research, reference-mod behaviour, the shipped model and remaining decisions
+are in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
 
 ---
 
@@ -1320,6 +1320,38 @@ Demand showed the Range column and range-aware ordering; no Armory errors.
 
 ---
 
+## 0.8.5 — Armory seal icon, ModIcon and tab order
+
+The Armory identity is now a round armory seal: a riveted brass ring, star, and
+a crossed sword and rifle.
+
+- The tab glyph and `About/ModIcon.png` use the same seal direction. The tab file
+  is a 64x64 transparent glyph; the mod icon is a 512x512 badge for the mod list
+  and loading screen.
+- The rifle is drawn **left-pointing before its 35-degree rotation**, so the
+  scope stays above the barrel and the magazine below. Rotating a right-pointing
+  rifle by 215 degrees turned it upside-down.
+- The tab glyph uses a simplified rifle silhouette and a transparent separation
+  gap around the sword, so the cross survives at 64px.
+- `About/ModIcon.png` replaces the generic puzzle-piece icon in the mod list /
+  loading screen.
+- `MainButtonDef` order changed from **35 to 25**, one visible slot left. Vanilla
+  neighbors are Schedule (20) and Assign (30); no active mod in the current list
+  uses 25.
+- `tools/Generate-ArmoryIcon.ps1` now regenerates the seal tab glyph. The
+  README layout lists both icon assets.
+
+Verified live at 1600x900 on `Northwestern Esora Humanlike Confederacy`: the new
+seal appears in the bottom bar, the tab order is the intended one, and there are
+no Armory errors. `IconArmory.png` is 64x64 and `ModIcon.png` is 512x512.
+
+### Pending verification (0.8.5)
+
+- The new ModIcon appears in the mod list after a restart, replacing the puzzle
+  piece.
+
+---
+
 ## 0.8.4 — Colonists/Upgrades tabs and a wider weapon column
 
 The last two jargon tab names and the cramped Upgrades weapon column are fixed.
@@ -1697,6 +1729,7 @@ polish, not new core behaviour.
 | 0.8.2 | Restore middle-dot separators in the Demand Source column (U+FFFD fix) |
 | 0.8.3 | Interface wording pass: explicit statuses, hand type, vs current, candidate headers and tooltips |
 | 0.8.4 | Narrow the Upgrades `Slot` column to `hand`/`backup`/`both`, widen current-weapon text, and finish the tab rename |
+| 0.8.5 | Round-seal Armory icon, `About/ModIcon.png`, `MainButtonDef` order 25, and reproducible tab-glyph generator |
 
 ---
 

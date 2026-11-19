@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.8.3** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.8.4** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -8,7 +8,7 @@ questions that existing managers leave opaque:
 1. **What does each colonist want to carry, and why aren't they carrying it?**
 2. **Who should get this new weapon, and what should I build or unforbid?**
 
-Four tabs: **Pawns**, **Weapons**, **Demand**, **Log**.
+Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 
 ---
 
@@ -25,13 +25,13 @@ Four tabs: **Pawns**, **Weapons**, **Demand**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3 |
+| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4 |
 
 ---
 
 ## What it does
 
-### Pawns
+### Colonists
 For every free colonist, including pawns in pods/caskets:
 
 - current hand weapon and its score;
@@ -79,7 +79,7 @@ can be a `Backup` candidate for a ranged colonist even when it cannot be that
 colonist's hand weapon; if Simple Sidearms' mass cap rejects it, it is
 `Backup (blocked)` with the reason.
 
-### Demand
+### Upgrades
 The upgrade menu: every obtainable weapon that would improve a colonist, minus
 what the colony already owns. It answers "what could we make, research, or buy
 next?" instead of "who would pick up the leftovers on the floor?"
@@ -105,7 +105,7 @@ Columns:
 - `Range`: maximum firing range in tiles (`-` for melee);
 - `Score`: range-aware expected value for the colony, summed over the colonists
   who would take it; this is the main sort key;
-- `Slot`: `hand`, `backup`, or how many of each;
+- `Slot`: `hand`, `backup`, or `both`; hover for the hand/backup counts;
 - `Wanted by`: colonists who would improve with this def (may overlap other rows);
 - `Owned`: copies in the colony (`2 · 1 forbidden` when some are forbidden);
 - `Needed`: copies still missing; `enough` (green) when the def is the best option
@@ -158,7 +158,7 @@ returns to the derived role.
 A small deterministic personal preference and a sequential duplicate penalty
 keep equal pawns from becoming clones. Both are controlled by **Squad variety**
 in settings; set it to 0% to disable them. The duplicate penalty applies to
-Demand rows and to the optional hand planner. LMGs and miniguns are treated as
+upgrade rows and to the optional hand planner. LMGs and miniguns are treated as
 support weapons and receive a 0.75 support penalty so their raw burst DPS does
 not make every pawn want one.
 
@@ -168,7 +168,7 @@ already own shows `more: <project>` when only extra copies need the research.
 A pawn is never offered a second copy of a weapon def they already carry as a
 backup; hand swaps of the same def are still allowed for quality upgrades.
 
-Unlike the planner, Demand ignores transient state: a drafted, asleep, or
+Unlike the planner, the Upgrades tab ignores transient state: a drafted, asleep, or
 full-bagged colonist still counts, because the plan is about what the colony
 should own, not what a job can do this second. Only permanent gates (age,
 violence incapability, manipulation) remove a colonist. Manual-use ranged
@@ -266,7 +266,7 @@ occupants appear. `DescribeUnavailable` walks `ThingOwner → ThingComp →
 Building`, and if that fails it searches player buildings and their
 `IThingHolder` comps for the pawn. Rows are grey with a reason such as
 `In a biosculpter pod`. Their preferences are shown for reference, but they are
-excluded from demand, best-fit, and automation.
+excluded from the upgrade plan, best-fit, and automation.
 
 ### Ages
 
@@ -423,14 +423,14 @@ Armory/
   About/Preview.png
   Defs/MainButtonDefs.xml          MainButtonDef "Armory", order 35
   Textures/UI/Buttons/MainButtons/IconArmory.png  main-tab icon
-  Textures/UI/Icons/ArmoryBestStar.png  Demand best-option star
+  Textures/UI/Icons/ArmoryBestStar.png  Upgrades best-option star
   Assemblies/Armory.dll            build output
   Source/Armory/
     Armory.csproj
     ArmoryMod.cs                   Mod entry, settings, competitor detection
     ArmorySettings.cs              settings + scrollable options UI
     ArmoryMapComponent.cs          snapshot cache + planner tick
-    ArmorySnapshotBuilder.cs       pawn/weapon/demand analysis, pod lookup
+    ArmorySnapshotBuilder.cs       colonist/weapon/upgrade analysis, pod lookup
     ArmoryPlanner.cs               opt-in equip jobs, claims, cooldowns
     ArmoryGameComponent.cs         session decision log (GameComponent)
     DebugActions_Armory.cs         log snapshot / unforbid / run planner
@@ -442,7 +442,7 @@ Armory/
     Scoring/CombatScoring.cs       range profile, preferred distance, roles, variety
     Scoring/WeaponCatalog.cs       craftable/buyable defs + synthetic scoring probes
     Scoring/Eligibility.cs         soft/hard blockers
-    UI/MainTabWindow_Armory.cs     Pawns/Weapons/Demand/Log tabs
+    UI/MainTabWindow_Armory.cs     Colonists/Weapons/Upgrades/Log tabs
     UI/TextUtil.cs                 rich-text safe measurement/truncation
   docs/RESEARCH.md                 decompiled-mod + API findings
   docs/RANGE_AND_ROLES.md          range/role research, design and decisions
@@ -506,7 +506,7 @@ Manual equivalent:
 an isolated save-data folder, then optionally builds and launches it with the
 full mod list. A temporary copy-in scaffold
 (`tools/LiveTestScaffold.cs.txt`) auto-loads the save, dumps the Armory snapshot,
-opens the Demand tab, and captures `armory-live.png` using Unity's
+opens the Upgrades tab, and captures `armory-live.png` using Unity's
 `ScreenCapture` — no keystrokes, focus changes, or desktop capture. The real save
 and config are never modified.
 
@@ -523,7 +523,7 @@ Full procedure, switches, pitfalls and cleanup:
   not compute exact mass/weight budgets itself; SS's `CanPickupSidearmInstance`
   is checked per candidate. Remembered weapons the pawn no longer carries are not
   used as candidates.
-- **No duplicate backup types are added.** The planner and Demand skip a backup
+- **No duplicate backup types are added.** The planner and the Upgrades tab skip a backup
   def the pawn already carries in the hand or bag, so a gladius is never followed
   by a second gladius. Existing duplicates are not removed automatically: the
   planner never drops a weapon without a replacement, so drop one manually, or it
@@ -537,17 +537,17 @@ Full procedure, switches, pitfalls and cleanup:
   shelves/stockpiles. Weapons inside transport pods or pawn inventory are not
   offered as hand candidates; pod occupants are still listed as unavailable
   pawns.
-- **Demand assumes normal quality and default stuff.** A hypothetical weapon is
+- **The Upgrades tab assumes normal quality and default stuff.** A hypothetical weapon is
   scored as a normal-quality copy made from `GenStuff.DefaultStuffFor` (usually
   the cheapest valid stuff), so a high-skill crafter's excellent or masterwork
   output can beat the estimate, and a colony already holding masterwork gear can
-  show less demand than it really has. Owned copies are counted per def; their
+  show fewer useful upgrades than it really has. Owned copies are counted per def; their
   individual quality only affects each colonist's current baseline, so owning one
   awful copy also hides the need to craft a better copy of the same def.
-- **Demand is per def, not per item.** Every upgrade is listed, so wants overlap:
+- **The Upgrades tab is per def, not per item.** Every upgrade is listed, so wants overlap:
   a colonist can appear in several rows for the same slot. `Need` describes what
   one row alone would require, not a combined shopping list.
-- **Demand does not create bills or buy anything.** `buy` comes from the def's
+- **The Upgrades tab does not create bills or buy anything.** `buy` comes from the def's
   `tradeability`; it does not know whether a suitable trader is currently
   available, and nothing is queued automatically. The **Buy** section is usually
   empty in vanilla because most weapon defs have recipes; it is for modded or
@@ -563,7 +563,7 @@ Full procedure, switches, pitfalls and cleanup:
 - **No raid behaviour** yet (e.g., arm everyone when a raid starts).
 - **Decision log is session-only** and records hand/backup equips, drops, and
   aborted upgrades, not every skip.
-  Pawn automation pauses/blocks are shown in the Pawns tab and pawn detail.
+  Pawn automation pauses/blocks are shown in the Colonists tab and pawn detail.
 - **English strings are hardcoded**; localization not started.
 - **Workshop packaging** not started.
 - **RimWorld 1.7** (Waylith/.NET 10) not targeted; the structure is ready for a
@@ -587,7 +587,7 @@ Full procedure, switches, pitfalls and cleanup:
    - SS slot/mass/selection checks on every candidate;
    - hand and backup shown separately, never in one cross-type ranking.
 3. **Milestone 5 — Polish**
-   - Demand as a build plan (0.7.0): ideal loadout vs owned, craftable/buyable
+   - Upgrades as a build plan (0.7.0): ideal loadout vs owned, craftable/buyable
      defs, research-locked section, normal-quality estimates;
    - exotic container scanning;
    - auto-haul dropped weapons;

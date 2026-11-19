@@ -356,7 +356,7 @@ I would do **A + B + E**, with C as small offsets and D as a light layer.
 
 ### UI
 
-- Add `Range` to the Weapons and Demand tables.
+- Add `Range` to the Weapons and Upgrades tables.
 - Add `Role` / `Preferred` to the pawn list or detail.
 - In the pawn detail, show the profile for the selected weapon, for example:
 
@@ -427,11 +427,11 @@ choices:
 - Per-pawn overrides are stored in `ArmoryGameComponent` and saved with the
   colony; `Auto` removes the override.
 - `Squad variety` defaults to 50% and controls both the ±5% personal affinity
-  and the sequential duplicate top-choice penalty (Demand and the planner).
+  and the sequential duplicate top-choice penalty (Upgrades and the planner).
   0% disables both.
 - Support weapons (`burstShotCount >= 6`) get a 0.75 support multiplier.
-- Demand and Weapons show a `Range` column; Demand detail lines show the role
-  on hover; the pawn detail shows a `Change` menu.
+- Upgrades and Weapons show a `Range` column; Upgrades detail lines show the role
+  on hover; the colonist detail shows a `Change role` menu.
 - The one-hand + opposite-type backup model is unchanged. A second ranged
   backup for SS remains the next milestone (option F).
 

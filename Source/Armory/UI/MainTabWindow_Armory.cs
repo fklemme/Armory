@@ -10,13 +10,13 @@ namespace Armory
     {
         private enum ArmoryView
         {
-            Pawns,
+            Colonists,
             Weapons,
-            Demand,
+            Upgrades,
             Log
         }
 
-        private ArmoryView view = ArmoryView.Pawns;
+        private ArmoryView view = ArmoryView.Colonists;
         private int selectedPawn;
         private int selectedWeapon;
         private int selectedCandidate = -1;
@@ -98,13 +98,13 @@ namespace Armory
             Rect content = new Rect(inRect.x, y, inRect.width, Mathf.Max(50f, inRect.yMax - y));
             switch (view)
             {
-                case ArmoryView.Pawns:
+                case ArmoryView.Colonists:
                     DrawPawns(content, snapshot);
                     break;
                 case ArmoryView.Weapons:
                     DrawWeapons(content, snapshot);
                     break;
-                case ArmoryView.Demand:
+                case ArmoryView.Upgrades:
                     DrawDemand(content, snapshot);
                     break;
                 default:
@@ -116,10 +116,10 @@ namespace Armory
         private void DrawTabBar(Rect rect, ArmorySnapshot snapshot)
         {
             float x = rect.x;
-            if (TabButton(new Rect(x, rect.y, 110f, rect.height), "Pawns", view == ArmoryView.Pawns,
+            if (TabButton(new Rect(x, rect.y, 110f, rect.height), "Colonists", view == ArmoryView.Colonists,
                     "Each colonist's current hand and backup weapon, status and ranked alternatives."))
             {
-                view = ArmoryView.Pawns;
+                view = ArmoryView.Colonists;
                 selectedCandidate = -1;
             }
             x += 114f;
@@ -130,10 +130,10 @@ namespace Armory
                 selectedCandidate = -1;
             }
             x += 114f;
-            if (TabButton(new Rect(x, rect.y, 110f, rect.height), "Demand", view == ArmoryView.Demand,
+            if (TabButton(new Rect(x, rect.y, 110f, rect.height), "Upgrades", view == ArmoryView.Upgrades,
                     "Upgrade options: what to craft, research or buy for the colony."))
             {
-                view = ArmoryView.Demand;
+                view = ArmoryView.Upgrades;
                 selectedCandidate = -1;
             }
             x += 114f;
@@ -1171,7 +1171,7 @@ namespace Armory
 
             Rect inner = listRect.ContractedBy(6f);
             DrawCell(new Rect(inner.x, inner.y, inner.width, 18f),
-                "Only loose weapons on this map are listed here. Equipped and carried weapons appear under Pawns.",
+                "Only loose weapons on this map are listed here. Equipped and carried weapons appear under Colonists.",
                 TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.68f, 0.68f, 0.68f));
             Rect scrollRect = new Rect(inner.x, inner.y + 18f + HeaderHeight, inner.width,
                 inner.height - 18f - HeaderHeight);
@@ -1271,7 +1271,7 @@ namespace Armory
             DrawCell(status, "Best use", TextAnchor.MiddleRight, GameFont.Tiny, color);
 
             TooltipHandler.TipRegion(power,
-                "Normal-quality base strength before range and colonist fit. The Demand tab's Score adds both.");
+                "Normal-quality base strength before range and colonist fit. The Upgrades tab's Score adds both.");
             TooltipHandler.TipRegion(range, "Maximum firing range in tiles.");
             TooltipHandler.TipRegion(best,
                 "Colonist with the highest score for this weapon in its best ready slot.");
@@ -1504,7 +1504,7 @@ namespace Armory
             public const float PowerWidth = 58f;
             public const float RangeWidth = 48f;
             public const float ScoreWidth = 64f;
-            public const float SlotWidth = 132f;
+            public const float SlotWidth = 64f;
             public const float WantedWidth = 80f;
             public const float OwnedWidth = 100f;
             public const float NeedWidth = 64f;
@@ -1660,9 +1660,10 @@ namespace Armory
                     new Color(0.9f, 0.86f, 0.7f));
                 TooltipHandler.TipRegion(scoreCell,
                     "Range-aware expected value for the colonists who want it: effective DPS at each colonist's preferred distance, multiplied by fit and variety. Expand the row to see each contribution.");
-                DrawCell(new Rect(columns.SlotX, cursor, DemandColumns.SlotWidth, RowHeight),
-                    row.Uses, TextAnchor.MiddleLeft, GameFont.Small,
+                Rect slotCell = new Rect(columns.SlotX, cursor, DemandColumns.SlotWidth, RowHeight);
+                DrawCell(slotCell, SlotText(row), TextAnchor.MiddleLeft, GameFont.Small,
                     new Color(0.72f, 0.82f, 0.92f));
+                TipCell(slotCell, SlotTooltip(row));
                 DrawCell(new Rect(columns.WantedX, cursor, DemandColumns.WantedWidth, RowHeight),
                     row.Wanted.ToString(), TextAnchor.MiddleRight);
                 DrawCell(new Rect(columns.OwnedX, cursor, DemandColumns.OwnedWidth, RowHeight),
@@ -1790,7 +1791,7 @@ namespace Armory
                 rect.height);
             DrawCell(slotRect, "Slot", TextAnchor.MiddleLeft, GameFont.Tiny, color);
             TooltipHandler.TipRegion(slotRect,
-                "Where the weapon is wanted: hand, backup, or both. Expand a row to see each colonist's slot.");
+                "Where the weapon is wanted: hand, backup, or both. Hover a slot for counts; expand a row to see each colonist.");
             Rect wantRect = new Rect(rect.x + columns.WantedX, rect.y, DemandColumns.WantedWidth,
                 rect.height);
             DrawCell(wantRect, "Wanted by", TextAnchor.MiddleRight, GameFont.Tiny, color);
@@ -1841,6 +1842,30 @@ namespace Armory
             return text;
         }
 
+        private static string SlotText(DemandRow row)
+        {
+            if (row.WantedHand > 0 && row.WantedBackup > 0)
+            {
+                return "both";
+            }
+            return row.WantedHand > 0 ? "hand" : "backup";
+        }
+
+        private static string SlotTooltip(DemandRow row)
+        {
+            if (row.WantedHand > 0 && row.WantedBackup > 0)
+            {
+                string hand = row.WantedHand == 1
+                    ? "1 hand slot"
+                    : row.WantedHand + " hand slots";
+                string backup = row.WantedBackup == 1
+                    ? "1 backup slot"
+                    : row.WantedBackup + " backup slots";
+                return "Wanted for " + hand + " and " + backup + ".";
+            }
+            return row.WantedHand > 0 ? "Wanted for the hand slot." : "Wanted for the backup slot.";
+        }
+
         private static string GainText(DemandRow row)
         {
             if (row.NewCount == row.Wants.Count || row.KnownCount == 0)
@@ -1888,7 +1913,7 @@ namespace Armory
 
         private static void DrawWantLine(DemandWant want, float cursor, DemandColumns columns)
         {
-            const float nameWidth = 110f;
+            const float nameWidth = 96f;
             float nameX = columns.WeaponX + DemandColumns.BestMarkerWidth + 8f;
             DrawCell(new Rect(nameX, cursor, nameWidth, 20f), want.Colonist,
                 TextAnchor.MiddleLeft, GameFont.Small, new Color(0.78f, 0.78f, 0.78f));

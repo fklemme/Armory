@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.8.3**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.8.4**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.8.3 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.8.4 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -12,7 +12,7 @@ tags the last pre-Demand-rework build.
 Milestones 0–4 are implemented:
 
 - **0** — mod skeleton, `MainButtonDef`, tab, settings, build/junction.
-- **1** — ranking, blockers, Pawns/Weapons/Demand tabs, factor ledger.
+- **1** - ranking, blockers, Colonists/Weapons/Upgrades tabs, factor ledger.
 - **2** — opt-in planner (claims, cooldown, threshold, manual protection),
   session decision log, Log tab.
 - **3** — Simple Sidearms primary coexistence via a reflection adapter:
@@ -21,16 +21,17 @@ Milestones 0–4 are implemented:
 - **4** — typed hand/backup slots (0.6.0): one hand weapon of the SS mode type
   and one opposite-type backup, mirrored for melee pawns; same-type-only
   upgrades; add-first or drop-first depending on SS slots; separate Hand/Backup
-  rankings and Weapons/Demand status.
+  rankings and Weapons/Upgrades status.
 
 **Next:** milestone 5, polish. 0.7.0 replaced the stock-gap Demand tab with an
 ideal-loadout build plan; remaining polish is container scanning, auto-haul,
 raid arming, localization, and Workshop prep.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
-0.8.1, a Source-column encoding fix in 0.8.2 and an interface wording pass in
-0.8.3. Research, reference-mod behaviour, the shipped model and remaining
-decisions are in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
+0.8.3 and the Colonists/Upgrades tab rename in 0.8.4. Research, reference-mod
+behaviour, the shipped model and remaining decisions are in
+[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
 
 ---
 
@@ -1319,13 +1320,40 @@ Demand showed the Range column and range-aware ordering; no Armory errors.
 
 ---
 
+## 0.8.4 — Colonists/Upgrades tabs and a wider weapon column
+
+The last two jargon tab names and the cramped Upgrades weapon column are fixed.
+No scoring or planner behaviour changed.
+
+- **Pawns** is now **Colonists** and **Demand** is now **Upgrades**. The internal
+  `Demand` model, `DemandRow` and `expandedDemandDef` names are unchanged.
+- Tab tooltips and README/TESTING references follow the new names.
+- The Upgrades `Slot` column shrank from 132 px to 64 px. It shows `hand`,
+  `backup`, or `both`; hovering a slot shows the exact hand/backup counts.
+- The colonist-name gutter in expanded Upgrades rows shrank from 110 px to 96 px.
+  Combined with the slot change, the `now <weapon>` text has 82 px more room, so
+  names such as `now Marksman rifle (normal)` and
+  `now Vakazron's EMP Gatling Gun` fit without ellipses.
+
+Verified live at 1600x900 with the anti-materiel row expanded:
+`Colonists`, `Weapons`, `Upgrades`, `Log` render correctly; `Slot` shows `hand`;
+the long current-weapon labels are fully visible. Build clean.
+
+### Pending verification (0.8.4)
+
+- A row wanted for both slots displays `both`, and its hover tooltip reports the
+  correct hand/backup counts.
+- The narrower `Slot` column still fits `backup` at the minimum window width.
+
+---
+
 ## 0.8.3 — interface wording and status clarity
 
 A read-through of every visible label found several broad or internal terms. The
 pass changes wording and adds tooltips; it does not change planning, scoring or
 eligibility.
 
-**Pawns**
+**Colonists**
 
 - `Status: ok` is now `Fully equipped`.
 - `hand ready` / `hand upgrade` / `add backup` / `backup upgrade` became
@@ -1363,8 +1391,11 @@ eligibility.
   hand`, `Can equip in hand` and `Can carry as backup`.
 - The `(holds it)` suffix is gone; the status carries that information.
 
-**Demand**
+**Upgrades**
 
+- The `Slot` column is narrower and shows `hand`, `backup`, or `both`; its
+  tooltip gives the exact hand/backup counts. The freed width goes to the weapon
+  and expanded current-weapon text.
 - The caption is two lines and says `compared with the weapons you own`,
   `Sections: Craft, Research, Buy` and `counts only after you unforbid it`.
 - `new` in `Gain` is now `new slot`.
@@ -1391,10 +1422,10 @@ eligibility.
   `by best skill (ranged)`, `chosen when generated`.
 
 Verified live at 1600x900 on `Northwestern Esora Humanlike Confederacy`: the
-Pawns list shows `Fully equipped` / `Hand upgrade available`, `Hand type:
+Colonists list shows `Fully equipped` / `Hand upgrade available`, `Hand type:
 ranged (Simple Sidearms mode)`, candidate headers, `Can equip` and `Persona:
 bond manually`. The Weapons tab shows `Best use` with `Backup (blocked)` and
-`Colonists by score`; the Demand caption wraps correctly and `craft · bench`
+`Colonists by score`; the Upgrades caption wraps correctly and `craft · bench`
 remains intact. The Settings dialog renders the new labels and descriptions
 without overlap. Build clean.
 
@@ -1665,6 +1696,7 @@ polish, not new core behaviour.
 | 0.8.1 | Unbonded persona weapons are manual-only; loose-weapons note; clearer SS persona blocker |
 | 0.8.2 | Restore middle-dot separators in the Demand Source column (U+FFFD fix) |
 | 0.8.3 | Interface wording pass: explicit statuses, hand type, vs current, candidate headers and tooltips |
+| 0.8.4 | Narrow the Upgrades `Slot` column to `hand`/`backup`/`both`, widen current-weapon text, and finish the tab rename |
 
 ---
 

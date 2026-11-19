@@ -152,7 +152,7 @@ namespace Armory
                         return;
                     }
 
-                    OpenDemandTab();
+                    OpenUpgradesTab();
                     ArmoryMapComponent component = map.GetComponent<ArmoryMapComponent>();
                     if (component != null)
                     {
@@ -208,7 +208,7 @@ namespace Armory
             }
         }
 
-        private static void OpenDemandTab()
+        private static void OpenUpgradesTab()
         {
             MainButtonDef def = DefDatabase<MainButtonDef>.GetNamedSilentFail("Armory");
             if (def == null)
@@ -232,9 +232,9 @@ namespace Armory
                 BindingFlags.Instance | BindingFlags.NonPublic);
             if (view != null)
             {
-                view.SetValue(window, Enum.Parse(view.FieldType, "Demand"));
+                view.SetValue(window, Enum.Parse(view.FieldType, "Upgrades"));
             }
-            Log.Message("[Armory] live test: Demand tab opened");
+            Log.Message("[Armory] live test: Upgrades tab opened");
         }
     }
 }

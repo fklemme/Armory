@@ -7,7 +7,7 @@ Two levels of testing:
    regressions.
 2. **Live save** — a copy of a real colony with the full mod list, loaded in an
    isolated save-data folder. Slower, but it exercises real weapons, modded defs,
-   Simple Sidearms state, and the actual Demand tab.
+   Simple Sidearms state, and the actual Upgrades tab.
 
 Neither level touches the user's save or config, and neither uses keystrokes or
 window focus.
@@ -105,7 +105,7 @@ Useful switches:
 3. Waits for the load long event to finish (`LongEventHandler.AnyEventNowOrWaiting`
    becomes false) and logs the colony size.
 4. Opens the Armory tab with `Find.MainTabsRoot.SetCurrentTab`, reflects the
-   private `view` field to `Demand`, and calls `ArmoryMapComponent.LogSnapshot`.
+   private `view` field to `Upgrades`, and calls `ArmoryMapComponent.LogSnapshot`.
 5. Closes `Dialog_Debug` windows, captures `armory-live.png`, waits a second, and
    calls `Application.Quit()`.
 
@@ -164,12 +164,12 @@ script recreates it from the real profile on the next run.
 
 ## UI interaction
 
-The scaffold can open the Armory tab and select Demand programmatically, but it
+The scaffold can open the Armory tab and select Upgrades programmatically, but it
 does not click arbitrary UI. For a clicked row or a different tab, set the
 relevant private field by reflection in the scaffold:
 
-- `MainTabWindow_Armory.view` — `ArmoryView` (`Pawns`, `Weapons`, `Demand`, `Log`).
-- `MainTabWindow_Armory.expandedDemandDef` — `ThingDef` to expand a Demand row.
+- `MainTabWindow_Armory.view` — `ArmoryView` (`Colonists`, `Weapons`, `Upgrades`, `Log`).
+- `MainTabWindow_Armory.expandedDemandDef` — `ThingDef` to expand an Upgrades row.
 
 Avoid `SendInput`/key emulation; it steals focus and can interfere with the user.
 Unity's `ScreenCapture` and the reflection hooks are sufficient for unattended

@@ -7,6 +7,7 @@
     <li>1.6</li>
   </supportedVersions>
   <modVersion>0.9.2</modVersion>
+  <url>https://github.com/fklemme/Armory</url>
   <description>Armory is a weapon inspector and automatic manager for RimWorld 1.6. It shows what every colonist wants to carry, why they are not carrying it, and what the colony should craft, research or buy next.
 
 Every free colonist gets range-aware rankings based on RimWorld's real accuracy curve, plus a combat role (CQB, Assault, Line or Marksman) that can be overridden per colonist. With Simple Sidearms, Armory models one hand weapon of the colonist's type and one opposite-type backup. Blockers stay visible instead of hiding candidates: forbidden, outside the allowed area, unreachable, reserved, biocoded, role restrictions, ideoligion dislike, and Simple Sidearms slot or mass limits.
@@ -15,5 +16,8 @@ The Upgrades tab lists every obtainable weapon that would improve a colonist, gr
 
 When no other weapon manager is active, automatic weapon management is on by default. Armory queues equip jobs for the best ready weapon, claims each weapon for one pawn, respects a swap cooldown, never unforbids anything, and treats unbonded persona weapons as manual-only. Backup management keeps one legal opposite-type weapon and upgrades only the worst same-type weapon. Automatic equipping and backup management can each be disabled in settings, and the Log tab records every decision with its reason.
 
-Simple Sidearms support is optional and read through reflection, so Armory still works without it. No Harmony dependency.</description>
+Simple Sidearms support is optional and read through reflection, so Armory still works without it. No Harmony dependency.
+
+Steam Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224
+Source and issues: https://github.com/fklemme/Armory</description>
 </ModMetaData>

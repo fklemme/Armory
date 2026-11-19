@@ -1,7 +1,12 @@
 # Steam Workshop release copy and checklist
 
-Status: **0.9.2 private release candidate**. Do not bump to 1.0 yet; publish
-0.9.2, test it privately, then make the item public when it is ready.
+Status: **0.9.2 private release candidate**. The first item is uploaded and
+currently hidden while Steam's automated content check runs. Do not bump to 1.0
+yet; finish the private test, then make the item public.
+
+- Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224
+- Source and issues: https://github.com/fklemme/Armory
+- Workshop ID: `3842538224` (stored in `docs/workshop-id.txt`)
 
 `tools/Publish-Armory.ps1` builds a clean release copy and swaps it into the
 game's `Mods` folder. The development workspace stays untouched.
@@ -54,18 +59,20 @@ content author.
 
 After the upload:
 
-1. copy `RimWorld\Mods\Armory\About\PublishedFileId.txt` to
-   `docs\workshop-id.txt` (the script can seed future releases from it);
+1. the generated ID is preserved with the release copy and in
+   `docs\workshop-id.txt` (already done for `3842538224`);
 2. set the Workshop item visibility to **Hidden** or **Private** for the first
    private test;
-3. run `Publish-Armory.ps1 -Restore` to remove the release copy and recreate the
-   development junction.
+3. run `Publish-Armory.ps1 -Restore` to remove the local release copy and
+   recreate the development junction before the subscriber test.
 
 `-Restore` also preserves the generated ID with the release copy, but
 `docs\workshop-id.txt` is the durable repo copy.
 
 ## Private test
 
+- The page must first clear Steam's automated content check; no action is needed
+  while it says the item is awaiting analysis.
 - Set the item to Hidden/Private, then subscribe to it.
 - For a true subscriber test, temporarily move the local release copy out of
   `RimWorld\Mods` (or use a separate RimWorld install/Steam account), restart,
@@ -89,6 +96,10 @@ When the private test passes, set the item to **Public**.
   updates do **not** overwrite the Workshop page description, so it is safe to
   polish it on Steam after the first upload. The in-game description still comes
   from `About.xml`.
+- **Links:** `About.xml` now links to the GitHub source, and the README links to
+  both the Workshop item and GitHub. Because the Workshop item already exists,
+  add the GitHub link to the Workshop page description manually (the Links block
+  in the suggested description below).
 
 ## Suggested Workshop description
 
@@ -133,6 +144,11 @@ No hard dependencies. Simple Sidearms support is optional and read through refle
 
 [h2]Version[/h2]
 0.9.2 - first private release candidate.
+
+[h2]Links[/h2]
+[list]
+[*][url=https://github.com/fklemme/Armory]Source code and issue tracker on GitHub[/url]
+[/list]
 ```
 
 ## Update checklist for future versions
@@ -141,5 +157,6 @@ No hard dependencies. Simple Sidearms support is optional and read through refle
 2. Run `Publish-Armory.ps1 -Prepare`.
 3. Upload with **Update on Steam Workshop**.
 4. Edit the change note and Workshop description on Steam if needed.
-5. Copy any new `PublishedFileId.txt` back to `docs\workshop-id.txt`.
+5. Keep `docs\workshop-id.txt` at `3842538224`; the prepare script seeds it into
+   `About\PublishedFileId.txt`.
 6. Run `-Restore`.

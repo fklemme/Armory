@@ -21,6 +21,8 @@ Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 | Mod name | Armory |
 | Author | Kruecke |
 | packageId | `kruecke.armory` |
+| Steam Workshop | [Armory on Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224) |
+| Source / issues | [github.com/fklemme/Armory](https://github.com/fklemme/Armory) |
 | Game version | 1.6.4871 |
 | Dependencies | None. Simple Sidearms is optional and read by reflection |
 | Build target | `net472` |
@@ -227,7 +229,8 @@ In RimWorld: enable **Armory** in the mod list, restart, open the **Armory** tab
 into `RimWorld/Mods/Armory`; upload from RimWorld's Mods screen in Dev Mode.
 `-Restore` removes the release copy and recreates the development junction.
 The full checklist, release-folder contents and Workshop page copy are in
-[`docs/WORKSHOP.md`](docs/WORKSHOP.md).
+[`docs/WORKSHOP.md`](docs/WORKSHOP.md). The current Workshop item is
+[Armory on Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224).
 
 ---
 
@@ -589,8 +592,8 @@ Full procedure, switches, pitfalls and cleanup:
   aborted upgrades, not every skip.
   Pawn automation pauses/blocks are shown in the Colonists tab and pawn detail.
 - **English strings are hardcoded**; localization not started.
-- **Steam Workshop publishing** is staged but the item is not published yet;
-  see [`docs/WORKSHOP.md`](docs/WORKSHOP.md).
+- **Steam Workshop publishing** is live: the first item is uploaded and awaiting
+  Steam's automated content check; see [`docs/WORKSHOP.md`](docs/WORKSHOP.md).
 - **RimWorld 1.7** (Waylith/.NET 10) not targeted; the structure is ready for a
   `LoadFolders.xml` split later.
 - Minor alignment imperfections in the tab remain.

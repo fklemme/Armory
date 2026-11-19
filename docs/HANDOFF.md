@@ -5,6 +5,9 @@ Build is clean (0 warnings, 0 errors). No test hooks remain in source.
 Git repository on `main`; 0.2.3 through 0.9.2 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
+**Links:** [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224) ·
+[GitHub](https://github.com/fklemme/Armory)
+
 ---
 
 ## Where we are
@@ -1334,9 +1337,10 @@ First private Workshop release candidate. Do **not** publish as 1.0.
   regenerated from the same scripts, and the banner icon is aligned with the
   text block.
 - Renamed the Colonists list header from `vs current` to **`Best vs current`**
-  and widened that column slightly so the label fits at 1280x720. The value is
-  still the best available hand candidate compared with the current hand weapon;
-  negative means the current weapon is better.
+  and widened that column slightly so the label fits at 1600x900. It still
+  ellipsizes at 1280x720 in the existing narrow layout. The value is still the
+  best available hand candidate compared with the current hand weapon; negative
+  means the current weapon is better.
 - Added `tools/Publish-Armory.ps1`:
   - `-Prepare` builds Release, stages only runtime files in
     `C:\Users\mail\Projects\Rimworld Mods\ArmoryRelease\Armory`, removes the
@@ -1347,21 +1351,28 @@ First private Workshop release candidate. Do **not** publish as 1.0.
     `docs/workshop-id.txt` on future releases.
 - Added `docs/WORKSHOP.md` with the exact upload workflow, private-test checklist,
   release-folder contents, and a Steam-ready Workshop description.
-- Current machine state: `RimWorld\Mods\Armory` is the **clean release copy**
-  with no `PublishedFileId.txt` yet; the development junction is removed. The
-  real `Prefs.xml` currently has Dev Mode off, so enable it before uploading.
-  Run `Publish-Armory.ps1 -Restore` after the upload to return to development.
+- First private Workshop upload completed:
+  [Armory on Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224),
+  item ID **3842538224**. Steam is holding it hidden while its automated content
+  check runs; no action is needed until that clears.
+- The development junction was restored after the upload, and the clean release
+  copy remains at `C:\Users\mail\Projects\Rimworld Mods\ArmoryRelease\Armory`
+  with `About\PublishedFileId.txt`. The durable ID lives in
+  `docs\workshop-id.txt`.
+- Added two-way links: GitHub source/issues in `About.xml` (`<url>` and the
+  description), README, and the Workshop page draft; the Workshop link is in the
+  README and handoff.
 
 Verified: Release build clean; the icon, ModIcon and banner are reproducible from
-their scripts. Pending: the private Steam upload, PublishedFileId capture, and a
-clean subscriber test.
+their scripts; the first upload created item 3842538224. Pending: Steam's
+automated content check, a clean subscriber test, and making the item public.
 
 ### Pending verification (0.9.2)
 
-- Upload 0.9.2 from the clean release copy with visibility Hidden/Private.
-- Copy the generated `About/PublishedFileId.txt` into `docs/workshop-id.txt`.
+- Wait for Steam's automated content check to finish.
 - Test the subscribed Workshop copy with and without Simple Sidearms.
 - Set the item to Public when the private test passes.
+- Add the GitHub link and current description to the Workshop page in Steam.
 
 ---
 

@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.8.6**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.9.0**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.8.6 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.9.0 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -13,8 +13,8 @@ Milestones 0–4 are implemented:
 
 - **0** — mod skeleton, `MainButtonDef`, tab, settings, build/junction.
 - **1** - ranking, blockers, Colonists/Weapons/Upgrades tabs, factor ledger.
-- **2** — opt-in planner (claims, cooldown, threshold, manual protection),
-  session decision log, Log tab.
+- **2** — planner (claims, cooldown, threshold, manual protection; default on
+  since 0.9.0), session decision log, Log tab.
 - **3** — Simple Sidearms primary coexistence via a reflection adapter:
   forced states, preferences, primary mode, carried-primary baseline, SS job
   guard, sidearm display.
@@ -23,15 +23,17 @@ Milestones 0–4 are implemented:
   upgrades; add-first or drop-first depending on SS slots; separate Hand/Backup
   rankings and Weapons/Upgrades status.
 
-**Next:** milestone 5, polish. 0.7.0 replaced the stock-gap Demand tab with an
-ideal-loadout build plan; remaining polish is container scanning, auto-haul,
-raid arming, localization, and Workshop prep.
+**Next:** milestone 5, polish and release prep. 0.7.0 turned the Upgrades view
+into an ideal-loadout build plan; remaining polish is container scanning,
+auto-haul, raid arming, localization, and Workshop prep. 0.9.0 aligns the
+release text, banner and default automation for the first public build.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
 0.8.3, the Colonists/Upgrades tab rename in 0.8.4, the icon/tab-order pass in
-0.8.5 and the simplified crossed-weapons icon in 0.8.6. Research, reference-mod
-behaviour, the shipped model and remaining decisions are in
+0.8.5, the simplified crossed-weapons icon in 0.8.6, and the release text,
+banner and default-automation pass in 0.9.0. Research, reference-mod behaviour,
+the shipped model and remaining decisions are in
 [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
 
 ---
@@ -569,7 +571,7 @@ Not done in M3 (now in M4): choosing/equipping sidearms and SS limit handling.
 
 ## Milestone 4 (0.4.0, revised in 0.6.0) — typed hand/backup slots
 
-Backup management is off by default. The hand ranking is always active.
+Backup management is on by default since 0.9.0. The hand ranking is always active.
 
 Behaviour:
 
@@ -1321,6 +1323,41 @@ Demand showed the Range column and range-aware ordering; no Armory errors.
 
 ---
 
+## 0.9.0 — release text, banner and default-on management
+
+First public release preparation.
+
+- Automatic equipping and backup management are now **on by default** for new
+  installs. No settings migration was added: this is still a development
+  version, so existing development settings files keep their saved values.
+- `About/About.xml` was rewritten for the release. It uses the **Upgrades** tab
+  name, describes management as default-on, and covers range-aware roles, typed
+  hand/backup loadouts, the Craft/Research/Buy plan, and optional Simple
+  Sidearms support.
+- `About/Preview.png` was regenerated at 640x360 with the current
+  crossed-weapons icon and the tagline **"The right weapon, in the right
+  hands."** The author name was removed from the banner; the footer now names
+  RimWorld 1.6.
+- `tools/Generate-ArmoryBanner.ps1` reproduces the banner from
+  `About/ModIcon.png`, so a future icon change can be propagated with one run.
+- README and HANDOFF text now reflect the Upgrades tab name, default-on
+  automation, the Craft button behavior, and the icon/banner layout.
+- The icon refactor from the parallel session is included: a symmetric
+  45-degree crossed sword and rifle with a tighter cutout.
+
+Verified: build clean; the isolated live save loaded at 1600x900 with the
+Upgrades tab open and no Armory errors; tab icon 64x64, ModIcon 512x512, banner
+640x360, with transparent icon corners. Pending: visual check in the mod list
+and a fresh settings file after restart.
+
+### Pending verification (0.9.0)
+
+- A fresh settings file starts with automatic equipping and backup management on.
+- The new banner appears correctly in the mod list; the tab icon still reads at
+  64px.
+
+---
+
 ## 0.8.6 — simpler crossed-weapons icon, no background
 
 The seal and star were more frame than icon at tab size, and the 512px ModIcon's
@@ -1682,6 +1719,8 @@ polish, not new core behaviour.
 
 - **Full auto-manager is the goal**, not only an inspector, but the ranking must
   stay simple and understandable. Fancy per-role loadouts come later, if at all.
+  The first release ships with automatic equipping and backup management on by
+  default so the manager works out of the box.
 - **Manager-agnostic**: Armory should not depend on Auto Arm's or Equipment
   Manager's internals. Operationally, only one auto-equipper should act, hence
   the competitor guard and override.
@@ -1762,6 +1801,7 @@ polish, not new core behaviour.
 | 0.8.4 | Narrow the Upgrades `Slot` column to `hand`/`backup`/`both`, widen current-weapon text, and finish the tab rename |
 | 0.8.5 | Round-seal Armory icon, `About/ModIcon.png`, `MainButtonDef` order 25, and reproducible tab-glyph generator |
 | 0.8.6 | Remove the seal/star, rebalance crossed sword and rifle, and make `ModIcon.png` a transparent backdrop-free glyph |
+| 0.9.0 | Release text and banner pass: default-on auto-equip and backups, new tagline/icon banner, Upgrades naming, reproducible banner generator |
 
 ---
 
@@ -1776,6 +1816,8 @@ polish, not new core behaviour.
 | `docs/TESTING.md` | Quick harness + live-save procedure, pitfalls, cleanup |
 | `tools/Setup-LiveTest.ps1` | Copies a real save/config into an isolated folder |
 | `tools/LiveTestScaffold.cs.txt` | Temporary load/screenshot scaffold template |
+| `tools/Generate-ArmoryIcon.ps1` | Regenerates the 64px tab glyph and transparent ModIcon |
+| `tools/Generate-ArmoryBanner.ps1` | Regenerates `About/Preview.png` from the ModIcon |
 | `Source/Armory/ArmoryPlanner.cs` | Automation decisions and job issuing |
 | `Source/Armory/ArmorySnapshotBuilder.cs` | Ranking, pod lookup, weapon filter, demand |
 | `Source/Armory/Scoring/*` | Range profile, roles, power, fit, blockers, weapon catalog/probes |

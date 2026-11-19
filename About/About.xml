@@ -6,12 +6,14 @@
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
-  <modVersion>0.8.6</modVersion>
-  <description>Shows, for every colonist, which weapons they would prefer and why they are not carrying them.
+  <modVersion>0.9.0</modVersion>
+  <description>Armory is a weapon inspector and automatic manager for RimWorld 1.6. It shows what every colonist wants to carry, why they are not carrying it, and what the colony should craft, research or buy next.
 
-Armory ranks loose weapons for every colonist, split into a hand slot and an opposite-type backup, then shows the blockers: forbidden or outside the allowed area, unreachable, reserved, biocoded to someone else, role restrictions, and ideoligion dislike. Ranged weapons are scored at each pawn's preferred engagement distance using the game's real accuracy curve, so range, skill and genes matter. Each pawn gets a combat role (CQB, Assault, Line or Marksman) that can be overridden. The Demand tab lists every weapon that would improve a colonist, grouped into craft, research, and buy, and compares those options with what the colony already owns.
+Every free colonist gets range-aware rankings based on RimWorld's real accuracy curve, plus a combat role (CQB, Assault, Line or Marksman) that can be overridden per colonist. With Simple Sidearms, Armory models one hand weapon of the colonist's type and one opposite-type backup. Blockers stay visible instead of hiding candidates: forbidden, outside the allowed area, unreachable, reserved, biocoded, role restrictions, ideoligion dislike, and Simple Sidearms slot or mass limits.
 
-Automatic equipping is opt-in. When enabled it queues Equip jobs for the best ready weapon, claims each weapon for one pawn, respects a swap cooldown, never unforbids or breaks persona bonds, and pauses for pawns whose weapon was changed manually. The Log tab shows each action with the reason it was taken.
+The Upgrades tab lists every obtainable weapon that would improve a colonist, grouped into Craft, Research and Buy. It shows owned and missing copies, expected gain and the best bench, and can queue one bill when a built bench can make the missing weapon. The Weapons tab covers every loose weapon on the map, while the Colonists tab shows each pawn's current hand and backup weapon, status and ranked alternatives.
 
-Simple Sidearms is supported through reflection. Armory respects forced primaries and unarmed states, follows the pawn's per-pawn ranged/melee primary mode, and models one hand weapon of that type plus one opposite-type backup. Backup assignment is optional and off by default; when enabled it keeps one legal opposite-type weapon in the pawn's inventory, upgrades only the worst weapon of the same type, and checks every candidate against Simple Sidearms' own slot, mass, and selection limits.</description>
+When no other weapon manager is active, automatic weapon management is on by default. Armory queues equip jobs for the best ready weapon, claims each weapon for one pawn, respects a swap cooldown, never unforbids anything, and treats unbonded persona weapons as manual-only. Backup management keeps one legal opposite-type weapon and upgrades only the worst same-type weapon. Automatic equipping and backup management can each be disabled in settings, and the Log tab records every decision with its reason.
+
+Simple Sidearms support is optional and read through reflection, so Armory still works without it. No Harmony dependency.</description>
 </ModMetaData>

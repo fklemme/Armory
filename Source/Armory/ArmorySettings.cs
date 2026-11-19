@@ -16,7 +16,7 @@ namespace Armory
         public int engagementOffset;
         public float varietyStrength = 0.5f;
 
-        public bool autoEquipEnabled;
+        public bool autoEquipEnabled = true;
         public bool overrideCompetitor;
         public int plannerIntervalTicks = 250;
         public int swapCooldownTicks = 2500;
@@ -24,7 +24,7 @@ namespace Armory
         public bool equipDrafted;
         public bool respectManualEquip = true;
         public bool respectSimpleSidearms = true;
-        public bool manageSidearms;
+        public bool manageSidearms = true;
         public bool replaceWorseSidearms = true;
         public int manualCooldownTicks = 15000;
         public int settingsVersion = 4;
@@ -46,7 +46,7 @@ namespace Armory
             Scribe_Values.Look(ref engagementOffset, "engagementOffset", 0);
             Scribe_Values.Look(ref varietyStrength, "varietyStrength", 0.5f);
 
-            Scribe_Values.Look(ref autoEquipEnabled, "autoEquipEnabled", false);
+            Scribe_Values.Look(ref autoEquipEnabled, "autoEquipEnabled", true);
             Scribe_Values.Look(ref overrideCompetitor, "overrideCompetitor", false);
             Scribe_Values.Look(ref plannerIntervalTicks, "plannerIntervalTicks", 250);
             Scribe_Values.Look(ref swapCooldownTicks, "swapCooldownTicks", 2500);
@@ -54,7 +54,7 @@ namespace Armory
             Scribe_Values.Look(ref equipDrafted, "equipDrafted", false);
             Scribe_Values.Look(ref respectManualEquip, "respectManualEquip", true);
             Scribe_Values.Look(ref respectSimpleSidearms, "respectSimpleSidearms", true);
-            Scribe_Values.Look(ref manageSidearms, "manageSidearms", false);
+            Scribe_Values.Look(ref manageSidearms, "manageSidearms", true);
             Scribe_Values.Look(ref replaceWorseSidearms, "replaceWorseSidearms", true);
             Scribe_Values.Look(ref manualCooldownTicks, "manualCooldownTicks", 15000);
             Scribe_Values.Look(ref settingsVersion, "settingsVersion", 0);

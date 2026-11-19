@@ -127,6 +127,7 @@ if (-not $armorySettings)
     throw "Unexpected Armory settings file: $armoryPath"
 }
 Set-XmlValue $armoryDoc $armorySettings "autoEquipEnabled" "False"
+Set-XmlValue $armoryDoc $armorySettings "manageSidearms" "False"
 Set-XmlValue $armoryDoc $armorySettings "debugLogging" "True"
 $armoryDoc.Save($armoryPath)
 
@@ -139,7 +140,7 @@ Write-Host "Prepared isolated test folder:" -ForegroundColor Cyan
 Write-Host "  save:   $sourceSave"
 Write-Host "  root:   $Root"
 Write-Host "  marker: $(Join-Path $Root 'armory-live.txt') = $saveName"
-Write-Host "  config: copied; DevMode on, windowed ${Width}x${Height}, Armory auto-equip off, debug logging on"
+Write-Host "  config: copied; DevMode on, windowed ${Width}x${Height}, Armory automation off, debug logging on"
 
 if (-not $hasScaffold)
 {

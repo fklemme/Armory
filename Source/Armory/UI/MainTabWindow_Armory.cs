@@ -167,7 +167,7 @@ namespace Armory
                 refreshRequested = true;
             }
             TooltipHandler.TipRegion(refreshRect,
-                "Rebuild the colonist, weapon and demand lists now.");
+                "Rebuild the colonist, weapon and upgrade lists now.");
             Rect settingsRect = new Rect(rect.xMax - 88f, rect.y + 2f, 88f, rect.height - 4f);
             if (Widgets.ButtonText(settingsRect, "Settings"))
             {

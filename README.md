@@ -1,8 +1,10 @@
 # Armory
 
-**Version 0.8.6** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**The right weapon, in the right hands.**
 
-A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
+**Version 0.9.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
+
+A weapon inspector and automatic manager for RimWorld. It answers two
 questions that existing managers leave opaque:
 
 1. **What does each colonist want to carry, and why aren't they carrying it?**
@@ -25,7 +27,7 @@ Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified backdrop-free icon in 0.8.6 |
+| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0 |
 
 ---
 
@@ -279,7 +281,7 @@ from settings created before 0.2.2 is migrated to `3` once.
 
 ### Automation
 
-Off by default. When enabled:
+Automation is on by default. While enabled:
 
 - only weapons that can be equipped now are used; **Armory never unforbids**;
 - largest upgrades first, then next-best fallback if the top choice is claimed
@@ -338,7 +340,7 @@ When **Respect Simple Sidearms** is on (default):
 - pawns currently running `EquipSecondary` / `ReequipSecondary` /
   `ReequipSecondaryCombat` are skipped.
 
-Backup management is off by default; when enabled it:
+Backup management is on by default; when enabled it:
 
 - adds one opposite-type weapon via Simple Sidearms' `EquipSecondary` job;
 - validates every candidate with `CanPickupSidearmInstance`, so SS slot, mass,
@@ -388,7 +390,7 @@ All settings are under **Options → Mod settings → Armory**. The page scrolls
 
 | Setting | Default | Range | Meaning |
 |---|---:|---:|---|
-| Enable automatic equipping | off | — | Master switch for the planner |
+| Enable automatic equipping | on | — | Master switch for the planner |
 | Run anyway while another manager is loaded | off | — | Bypasses the competitor guard |
 | Upgrade check interval | 250 ticks | 120–600 | How often Armory checks for upgrades |
 | Wait after a weapon swap | 2500 ticks (~42 s) | 600–10000 | Wait after a weapon swap, per colonist |
@@ -397,7 +399,7 @@ All settings are under **Options → Mod settings → Armory**. The page scrolls
 | Respect manual weapon changes | on | — | Pause after a player/other-mod change |
 | Pause after a manual weapon change | 15000 ticks (~250 s) | 2500–30000 | Length of that pause |
 | Respect Simple Sidearms | on | — | Typed hand/backup slots, Simple Sidearms mode, forced states, and hand baseline |
-| Manage backup weapons | off | — | Keep one opposite-type weapon in the bag via `EquipSecondary` |
+| Manage backup weapons | on | — | Keep one opposite-type weapon in the bag via `EquipSecondary` |
 | Upgrade a worse backup | on | — | Replace the worst same-type backup when a better valid one exists; never cross-type |
 | Minimum upgrade gain | 10% | 0–50% | Required improvement to recommend or equip a weapon |
 | Ranged score weight | ×1.00 | 0.5–2.0 | Global scoring bias |
@@ -411,7 +413,9 @@ All settings are under **Options → Mod settings → Armory**. The page scrolls
 | Write a snapshot summary to the log when a map loads | off | — | One-time diagnostic in `Player.log` |
 
 Internal: `settingsVersion` (currently 4) drives the age, typed-slot, list-limit
-and range/variety migrations.
+and range/variety migrations. The 0.9.0 automation defaults apply to new
+settings only; no migration rewrites an existing `autoEquipEnabled` or
+`manageSidearms` value.
 
 ---
 
@@ -432,7 +436,7 @@ Armory/
     ArmorySettings.cs              settings + scrollable options UI
     ArmoryMapComponent.cs          snapshot cache + planner tick
     ArmorySnapshotBuilder.cs       colonist/weapon/upgrade analysis, pod lookup
-    ArmoryPlanner.cs               opt-in equip jobs, claims, cooldowns
+    ArmoryPlanner.cs               automatic equip jobs, claims, cooldowns
     ArmoryGameComponent.cs         session decision log (GameComponent)
     DebugActions_Armory.cs         log snapshot / unforbid / run planner
     WeaponFilter.cs                single definition of a real weapon
@@ -453,6 +457,7 @@ Armory/
   tools/Setup-LiveTest.ps1         copies a real save into an isolated folder
   tools/LiveTestScaffold.cs.txt    temporary auto-load/screenshot scaffold
   tools/Generate-ArmoryIcon.ps1    regenerates the tab glyph and ModIcon
+  tools/Generate-ArmoryBanner.ps1  regenerates About/Preview.png from the ModIcon
 ```
 
 ---
@@ -481,14 +486,15 @@ Core + Armory. Pass `-IncludeSimpleSidearms` to create a config with Harmony and
 Simple Sidearms. Your real mod list and settings are never touched. The script
 waits for an `[Armory]` log line, prints Armory lines, and closes the game.
 
-To enable automation and diagnostics in the isolated game, write
+To disable automation in the isolated game and enable diagnostics, write
 `Config/Mod_Armory_ArmoryMod.xml` in that folder:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <SettingsBlock>
   <ModSettings Class="Armory.ArmorySettings">
-    <autoEquipEnabled>True</autoEquipEnabled>
+    <autoEquipEnabled>False</autoEquipEnabled>
+    <manageSidearms>False</manageSidearms>
     <debugLogging>True</debugLogging>
   </ModSettings>
 </SettingsBlock>
@@ -548,12 +554,13 @@ Full procedure, switches, pitfalls and cleanup:
 - **The Upgrades tab is per def, not per item.** Every upgrade is listed, so wants overlap:
   a colonist can appear in several rows for the same slot. `Need` describes what
   one row alone would require, not a combined shopping list.
-- **The Upgrades tab does not create bills or buy anything.** `buy` comes from the def's
+- **The Upgrades tab does not buy anything or queue bills automatically.** `buy` comes from the def's
   `tradeability`; it does not know whether a suitable trader is currently
-  available, and nothing is queued automatically. The **Buy** section is usually
-  empty in vanilla because most weapon defs have recipes; it is for modded or
-  quest weapons with no crafting route. Research-locked defs stay under
-  Research even when a trader could also supply them.
+  available. The **Craft** button queues one bill only when clicked, and only
+  for a row whose missing copies can be made at a built bench. The **Buy**
+  section is usually empty in vanilla because most weapon defs have recipes; it
+  is for modded or quest weapons with no crafting route. Research-locked defs
+  stay under Research even when a trader could also supply them.
 - **Weapons carried by colonists in caravans** are not part of owned supply,
   because the snapshot only sees the current map.
 - **Combat Extended** ammo state is not scored beyond its stat effects.

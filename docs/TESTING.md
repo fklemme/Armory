@@ -75,7 +75,7 @@ Or step by step:
 
 ```powershell
 # 1. Prepare the isolated folder (copy Config + save, marker, DevMode, windowed,
-#    Armory debug logging on and auto-equip off)
+#    Armory debug logging on and automation off)
 .\tools\Setup-LiveTest.ps1 -SaveName "Armory Testing"
 
 # 2. Add the scaffold and build

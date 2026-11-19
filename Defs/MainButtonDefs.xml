@@ -3,7 +3,7 @@
   <MainButtonDef>
     <defName>Armory</defName>
     <label>Armory</label>
-    <description>Inspect weapon preferences and blockers for every colonist.</description>
+    <description>Inspect, plan and manage weapons for every colonist.</description>
     <tabWindowClass>Armory.MainTabWindow_Armory</tabWindowClass>
     <iconPath>UI/Buttons/MainButtons/IconArmory</iconPath>
     <order>25</order>

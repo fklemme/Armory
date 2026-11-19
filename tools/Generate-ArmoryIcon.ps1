@@ -1,10 +1,10 @@
 # Generates the Armory main-tab icon and ModIcon.
 #
-# Final design: a crossed sword and rifle, with no frame or background. The
-# rifle points left before rotation, so its magazine stays below the barrel;
-# rotating a right-pointing rifle by 180+35 degrees makes it read upside-down.
-# The sword is scaled larger than before so the two weapons have comparable
-# visual weight.
+# Final design: a balanced crossed sword and rifle, with no frame or background.
+# Both weapons use a 45-degree diagonal so the silhouette reads as a centered X
+# rather than a rotated emblem. The rifle points left before rotation, so its
+# magazine stays below the barrel. The enlarged, similarly weighted weapons fill
+# the canvas while retaining enough padding for clean downsampling.
 #
 # The 512px transparent glyph is written to About/ModIcon.png for the mod list
 # and loading screen; the 64px tab icon is the same artwork downsampled.
@@ -145,13 +145,14 @@ $g.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuali
 $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
 $g.Clear([System.Drawing.Color]::Transparent)
 
-# Crossed weapons, no frame. The larger sword scale balances the rifle mass.
-Draw-SimpleRifleLeft $g 1.8 35 256 256 $color
+# A symmetric 45-degree cross with a restrained cutout keeps both silhouettes
+# legible, including at the 64px main-tab size.
+Draw-SimpleRifleLeft $g 2.38 45 260 246 $color
 
 $sword = New-SwordPath
-Move-Path $sword 2.35 35 256 256
+Move-Path $sword 3.08 45 260 246
 $gap = $sword.Clone()
-$gapPen = New-Object System.Drawing.Pen([System.Drawing.Color]::Black, 30)
+$gapPen = New-Object System.Drawing.Pen([System.Drawing.Color]::Black, 18)
 $gap.Widen($gapPen)
 $gapPen.Dispose()
 $g.CompositingMode = [System.Drawing.Drawing2D.CompositingMode]::SourceCopy

@@ -8,7 +8,7 @@ using Verse.AI;
 namespace Armory
 {
     /// <summary>
-    /// Issues equip jobs for the best ready weapon per pawn. Opt-in, rate-limited, and
+    /// Issues equip jobs for the best ready weapon per pawn. Enabled by default, rate-limited, and
     /// deliberately conservative: no unforbidding, no breaking persona bonds, no stealing.
     /// </summary>
     public static class ArmoryPlanner

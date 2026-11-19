@@ -449,6 +449,19 @@ namespace Armory.Compatibility
             {
                 return "All ranged sidearm slots are full";
             }
+            if (MatchesTranslation(ssReason, "BladelinkBondedToSomeoneElse"))
+            {
+                CompBladelinkWeapon blade = weapon == null ? null : weapon.GetComp<CompBladelinkWeapon>();
+                if (blade != null && blade.Biocodable && blade.CodedPawn == null)
+                {
+                    // Simple Sidearms compares CodedPawn (null) with the pawn and reports
+                    // "bonded to someone else" for an unbonded persona weapon.
+                    return "Unbonded persona: equip manually to bond";
+                }
+                return blade != null && !string.IsNullOrEmpty(blade.CodedPawnLabel)
+                    ? "Bonded to " + blade.CodedPawnLabel
+                    : "Bonded to someone else";
+            }
             return ssReason;
         }
 

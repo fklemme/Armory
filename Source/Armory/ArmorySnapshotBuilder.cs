@@ -903,6 +903,13 @@ namespace Armory
                 return false;
             }
 
+            if (Eligibility.IsUnbondedPersona(source.Probe))
+            {
+                // A new persona weapon would bond on equip; never put that into an
+                // automatic craft/buy plan, for either slot.
+                return false;
+            }
+
             if (!hand)
             {
                 // Def-level rules only: a hypothetical new weapon has no biocoding,

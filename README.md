@@ -1,6 +1,6 @@
 # Armory
 
-**Version 0.8.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.8.1** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and opt-in auto-equip manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -25,7 +25,7 @@ Four tabs: **Pawns**, **Weapons**, **Demand**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0 |
+| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1 |
 
 ---
 
@@ -66,6 +66,11 @@ Every loose weapon on the map with:
 Ranged power is scored at each pawn's preferred distance using RimWorld's real
 accuracy curve. A shotgun and a sniper are not compared as if both could fire at
 every range.
+
+This tab lists **loose weapons on the map only**. A weapon that is equipped or
+carried by a pawn is visible in that pawn's detail instead. Unbonded persona
+weapons are listed, but Armory will not auto-equip them: bonding is permanent,
+so the player chooses the pawn and equips the weapon manually.
 
 `Hand blocked` means blocked as the pawn's **hand** weapon (usually an SS role
 block). A melee weapon can be a `Backup` candidate for a ranged pawn even when it

@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.8.0**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.8.1**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.8.0 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.8.1 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 ---
@@ -27,9 +27,9 @@ Milestones 0–4 are implemented:
 ideal-loadout build plan; remaining polish is container scanning, auto-haul,
 raid arming, localization, and Workshop prep.
 
-A range/role scoring pass shipped in 0.8.0. Research, reference-mod behaviour,
-the shipped model and remaining decisions are in
-[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
+0.8.1. Research, reference-mod behaviour, the shipped model and remaining
+decisions are in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
 
 ---
 
@@ -1316,6 +1316,45 @@ Demand showed the Range column and range-aware ordering; no Armory errors.
 - The Weapons tab Range column and detail header fit at 1600×900.
 - Settings scroll still reaches the diagnostics after the two new sliders.
 
+---
+
+## 0.8.1 — unbonded persona weapons are manual-only
+
+A quest dropped a second persona monosword. The loose copy was in the Weapons
+tab all along, but the already-bonded copy was carried by its owner and therefore
+correctly absent from the loose-weapon list. Two problems made this confusing:
+
+- Simple Sidearms reports an **unbonded** persona weapon as
+  `BladelinkBondedToSomeoneElse` because its `CodedPawn != pawn` check treats
+  `null` as "someone else". Armory repeated that misleading text.
+- Nothing stopped the planner from equipping an unbonded persona weapon, which
+  would permanently bond it as a side effect.
+
+Changes:
+
+- `Eligibility.IsUnbondedPersona` detects a persona weapon with no bonded pawn.
+- All Armory candidate checks now return
+  `Unbonded persona: equip manually to bond`; the planner will not equip it.
+- Demand never plans a new unbonded persona weapon.
+- The Weapons tab has a visible note: `Loose weapons only. Equipped and carried
+  weapons appear under Pawns.`
+- `SimpleSidearmsAdapter.ExplainPickupFailure` now says
+  `Unbonded persona: equip manually to bond` for this SS case and names the
+  bonded pawn when the weapon really is bonded elsewhere.
+
+Verified live on `Northwestern Esora Humanlike Confederacy`: `Talia, persona
+monosword (good)` is the loose top row; every ranged pawn's backup entry now
+shows the manual-bond reason; `Silencesender` remains with Trebo and is not a
+loose weapon. Build clean.
+
+### Pending verification (0.8.1)
+
+- Manually equipping the loose persona weapon bonds it to the chosen pawn, after
+  which Armory can treat it as that pawn's bonded weapon.
+- A persona weapon already bonded elsewhere still shows the bonded pawn's name
+  and remains hard-blocked.
+- The planner skips unbonded persona weapons and does not silently bond them.
+
 Still open from 0.6.7:
 
 - Weapons detail, `Colonists by fit`: the full reason text is visible for long
@@ -1517,6 +1556,7 @@ polish, not new core behaviour.
 | 0.7.10 | Split the SS preference and backup-rule text across lines; remove the temporary malformed-bill migration |
 | 0.7.11 | Separate hand/backup list limits: default 10 hand and 5 backup, with independent sliders |
 | 0.8.0 | Range-aware combat scores, auto/override roles, squad variety and a Range column |
+| 0.8.1 | Unbonded persona weapons are manual-only; loose-weapons note; clearer SS persona blocker |
 
 ---
 

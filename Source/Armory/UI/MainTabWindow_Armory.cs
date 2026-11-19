@@ -1032,10 +1032,13 @@ namespace Armory
             Widgets.DrawBoxSolid(detailRect, new Color(0.12f, 0.12f, 0.12f));
 
             Rect inner = listRect.ContractedBy(6f);
-            Rect scrollRect = new Rect(inner.x, inner.y + HeaderHeight, inner.width,
-                inner.height - HeaderHeight);
+            DrawCell(new Rect(inner.x, inner.y, inner.width, 18f),
+                "Loose weapons only. Equipped and carried weapons appear under Pawns.",
+                TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.68f, 0.68f, 0.68f));
+            Rect scrollRect = new Rect(inner.x, inner.y + 18f + HeaderHeight, inner.width,
+                inner.height - 18f - HeaderHeight);
             float rowWidth = scrollRect.width - 20f;
-            DrawWeaponListHeader(new Rect(inner.x, inner.y, rowWidth, HeaderHeight));
+            DrawWeaponListHeader(new Rect(inner.x, inner.y + 18f, rowWidth, HeaderHeight));
             Widgets.BeginScrollView(scrollRect, ref weaponListScroll,
                 new Rect(0f, 0f, rowWidth, snapshot.WeaponRows.Count * RowHeight));
 
@@ -1638,7 +1641,7 @@ namespace Armory
             string text = row.Owned.ToString();
             if (row.Forbidden > 0)
             {
-                text += " · " + row.Forbidden + " forb.";
+                text += " ï¿½ " + row.Forbidden + " forb.";
             }
             return text;
         }
@@ -1663,14 +1666,14 @@ namespace Armory
                         // Some copies already exist; research only unlocks additional ones.
                         research = "more: " + research;
                     }
-                    return row.Buyable ? research + " · buy" : research;
+                    return row.Buyable ? research + " ï¿½ buy" : research;
                 case DemandSection.Buy:
                     return "buy";
                 default:
                     return row.CraftableNow
                         ? (string.IsNullOrEmpty(row.BenchLabel)
                             ? "craft"
-                            : "craft · " + row.BenchLabel)
+                            : "craft ï¿½ " + row.BenchLabel)
                         : "buy";
             }
         }

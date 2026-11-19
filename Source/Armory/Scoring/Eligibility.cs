@@ -107,6 +107,14 @@ namespace Armory
                 return false;
             }
 
+            if (IsUnbondedPersona(weapon))
+            {
+                // Bonding is permanent. Let the player choose the pawn and equip it
+                // manually instead of having the planner create a bond as a side effect.
+                reason = "Unbonded persona: equip manually to bond";
+                return false;
+            }
+
             string equipReason;
             if (!EquipmentUtility.CanEquip(weapon, pawn, out equipReason, true))
             {
@@ -116,6 +124,16 @@ namespace Armory
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// True for a persona weapon that has not bonded yet. Equipping one is permanent,
+        /// so Armory displays it but leaves the bonding decision to the player.
+        /// </summary>
+        public static bool IsUnbondedPersona(ThingWithComps weapon)
+        {
+            CompBladelinkWeapon blade = weapon == null ? null : weapon.GetComp<CompBladelinkWeapon>();
+            return blade != null && blade.Biocodable && blade.CodedPawn == null;
         }
 
         private static bool CheckWorld(Pawn pawn, ThingWithComps weapon, bool deep, out string reason)

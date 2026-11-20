@@ -2,8 +2,8 @@
 
 **Snapshot:** Armory **0.10.1**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.10.0 are committed; 0.10.1 is the
-current iteration; `v0.6.7-stable` tags the last pre-Demand-rework build.
+Git repository on `main`; 0.2.3 through 0.10.1 are committed; `v0.6.7-stable`
+tags the last pre-Demand-rework build.
 
 **Links:** [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224) ·
 [GitHub](https://github.com/fklemme/Armory)

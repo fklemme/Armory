@@ -73,9 +73,17 @@ UI and settings polish after the 0.10.0 typed-hand pass.
 - The hand table's hard minimum is now 1 instead of 5, so a custom value of 1–4
   is honored.
 
-Verified: clean build; the Settings UI compiles; no runtime test was run for this
-purely UI/settings pass yet. Pending: a live check of the hidden Backup column,
-the Auto limit labels, and the detail layout at 1280x720/1600x900.
+Verified on isolated live saves:
+- **No SS:** effective limits logged `hand=15, backup=5`; the Backup column was
+  hidden, Hand/Status widened, the detail showed
+  `Backup slot: requires Simple Sidearms.`, and the hand list showed 15 entries.
+- **SS enabled:** effective limits logged `hand=5, backup=5`; the Backup column
+  returned and the backup list showed 5 entries.
+- The Settings page showed the Auto checkboxes and the 15-hand label without SS;
+  the SS run resolved 5/5. Build is clean.
+
+Pending: actual equip-job completion and the hand-type override save/load
+round-trip, as before.
 
 ---
 

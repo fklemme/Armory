@@ -79,11 +79,17 @@ UI and settings polish after the 0.10.0 typed-hand pass.
   weapons remain manual-only, and the backup planner explicitly skips them so it
   cannot create a permanent bond as a side effect.
 - Shortened list statuses so they fit the status column:
-  `Blocked: ...` instead of `Cannot automate: ...`, `Hand locked` instead of the
-  full bonded-weapon sentence, and `Backup ready` / `Backup upgrade ready` when
-  the hand is locked. Added **`Backup waiting`** for the case where Simple
-  Sidearms has not switched to the resolved hand type yet, so `Backup ready` now
-  only means a backup can actually be added; the pawn detail explains the wait.
+  `Blocked: ...` instead of `Cannot automate: ...`; `Equipped (hand locked)` when a
+  bonded weapon is intentionally kept and there is no pending action; `Hand locked`
+  only when a hand upgrade is actually blocked; and `Backup ready` /
+  `Backup upgrade ready` when the hand is locked. Added **`Backup waiting`** for
+  the case where Simple Sidearms has not switched to the resolved hand type yet,
+  so `Backup ready` now only means a backup can actually be added; the pawn detail
+  explains the wait.
+- Clarified the hand-lock detail:
+  `Hand locked: bonded weapon in hand. Armory will not replace it; backups still run.`
+  A Simple Sidearms **forced weapon** is a different state and shows its veto
+  reason (`Forced weapon: X`), not `Hand locked`.
 - Candidate limits now use one 1–50 range for both hand and backup. Both default
   to **Auto**:
   - hand: 15 without Simple Sidearms, 5 with it;
@@ -107,9 +113,10 @@ Verified on isolated live saves:
 - Trebo's hand-locked bonded melee weapon with SS mode ranged now shows
   `Backup waiting`, not `Backup ready`; the detail explains that the backup waits
   for the hand type to match.
-- Build is clean. The final Talia live screenshot was not possible because the
-  user's RimWorld instance was already running; the change is a compile-clean
-  duplicate-check fix. Pending: confirm Talia now shows `Persona: bond manually`.
+- After switching Trebo to SS melee, his carried ranged backup is recognized and
+  the list shows `Equipped (hand locked)`, not an alarming `Hand locked`.
+- Talia now shows `Persona: bond manually` instead of `Already carried`.
+- Build is clean.
 
 Pending: actual equip-job completion and the hand-type override save/load
 round-trip, as before.

@@ -580,8 +580,13 @@ namespace Armory
                     color = BlockedSlotColor;
                     return "Backup waiting";
                 }
-                color = BlockedSlotColor;
-                return "Hand locked";
+                if (handTypeWait || hasHandWish)
+                {
+                    color = BlockedSlotColor;
+                    return "Hand locked";
+                }
+                color = new Color(0.78f, 0.78f, 0.78f);
+                return "Equipped (hand locked)";
             }
 
             if (pawn.HandTypeMismatch)
@@ -752,7 +757,7 @@ namespace Armory
             {
                 string handLockText = pawn.SidearmState != null && WaitsForHandType(pawn)
                     ? "Hand locked: bonded weapon. Backup waits for the hand type to match."
-                    : "Hand locked: bonded persona weapon. Remove it to unlock the hand.";
+                    : "Hand locked: bonded weapon in hand. Armory will not replace it; backups still run.";
                 DrawColoredLine(new Rect(rect.x, y, rect.width, 22f), handLockText,
                     new Color(1f, 0.82f, 0.45f));
                 y += 22f;

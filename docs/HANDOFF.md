@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.9.2**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.10.0**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.9.2 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.10.0 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 **Links:** [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224) ·
@@ -28,17 +28,82 @@ Milestones 0–4 are implemented:
 
 **Next:** milestone 5, polish and release prep. 0.7.0 turned the Upgrades view
 into an ideal-loadout build plan; remaining polish is container scanning,
-auto-haul, raid arming, localization, and Workshop prep. 0.9.2 is staged for the
-first private Steam Workshop upload.
+auto-haul, raid arming, localization, and Workshop prep. The first Workshop item
+(0.9.2) is uploaded and hidden while Steam's content check runs. 0.10.0 adds the
+typed hand model, passion-based role assignment and automatic hand-type
+alignment; upload it as an update after the private test.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
 0.8.3, the Colonists/Upgrades tab rename in 0.8.4, the icon/tab-order pass in
 0.8.5, the simplified crossed-weapons icon in 0.8.6, the release text, banner and
 default-automation pass in 0.9.0, colonist-bar ordering in 0.9.1, and release
-staging plus the `Best vs current` column in 0.9.2. Research, reference-mod
-behaviour, the shipped model and remaining decisions are in
-[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+staging plus the `Best vs current` column in 0.9.2, and the typed-hand/auto-align
+pass in 0.10.0. Research, reference-mod behaviour, the shipped model and remaining
+decisions are in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+
+---
+
+## 0.10.0 — typed hands, passion-based role assignment and automatic alignment
+
+The no-Simple-Sidearms path previously had **no hand type**: `ResolveRole` returned
+null, `IsHandType` accepted every weapon, and melee DPS (computed at contact) was
+ranked directly against ranged expected DPS (computed over a distance band). On a
+shooter-heavy save this put maces, zeushammers and monoswords on top of ranged
+pawns. The fix is a typed hand slot, not a cross-type score penalty.
+
+- Added `HandType` (`Auto`, `Ranged`, `Melee`) and a per-pawn **Hand type**
+  override in the colony game component. It is saved with the colony and survives
+  save/load, alongside the existing ranged-role overrides.
+- Hand type resolution without Simple Sidearms:
+  1. explicit player override;
+  2. a bonded persona weapon currently in hand;
+  3. a worn shield belt whose `CompProperties_Shield.blocksRangedWeapons` is true;
+  4. `Brawler`;
+  5. higher Shooting/Melee passion (`Major` > `Minor` > `None`);
+  6. melee only when Melee is at least 3 levels above Shooting; otherwise ranged
+     is the default (close skills therefore stay ranged).
+- Simple Sidearms remains authoritative when active and respected: its per-pawn
+  primary mode wins, the hand type is not marked as a mismatch, and the per-pawn
+  Armory override is ignored while SS is in control.
+- Only weapons of the resolved type enter the hand ranking. A wrong-type equipped
+  weapon is excluded from the baseline, so the planner automatically equips the
+  best ready weapon of the chosen type; if none is ready, the current weapon is
+  kept and the UI reports the mismatch.
+- The planner logs type changes as
+  `Switching hand type from melee to ranged` / `... ranged to melee`.
+- Backups remain Simple Sidearms-only: `IsBackupType`, backup candidates, backup
+  demand and the backup UI are gated by the SS state. No-SS pawns use only the
+  hand slot.
+- UI: the pawn detail now shows **Hand type** with a `Change type` menu, a
+  mismatch line, and a separate **Ranged role** with `Change range` (shown only
+  for ranged pawns). The Colonists `Best vs current` column shows `switch type`
+  for wrong-type pawns instead of a meaningless percentage; the Upgrades detail
+  uses `switch type` instead of `new slot` for the same case.
+- Hand-type and ranged-role override changes invalidate the snapshot so the
+  planner cannot queue a job from the old type before the next refresh.
+- Version bumped to **0.10.0**; `settingsVersion` stays 4 because no new settings
+  were added.
+
+Verified on isolated copies of the 13-colonist
+`Northwestern Esora Humanlike Confederacy` save:
+
+- **No SS:** clear shooters with melee equipped resolved ranged and were marked
+  `mismatch`; the planner queued `Switching hand type from melee to ranged` for
+  Rathat, Existence, Elsie, Hashoytt, Chef and Gripe. The bonded bladelink
+  monosword pawn resolved melee via `bonded weapon`; a forced `Gripe = Melee`
+  override resolved `melee (manual hand type)` and was not queued for a ranged
+  weapon.
+- **SS enabled:** integration active; every pawn resolved `ranged (Simple
+  Sidearms mode)`, the forced Gripe override was ignored as intended, backup jobs
+  still queued, and no Armory errors appeared.
+- The temporary live-test scaffold was removed and the development build rebuilt
+  clean.
+
+Pending verification: a save/load round-trip for the hand-type override (the
+scribe follows the already-tested role-override pattern), the new detail layout at
+1280x720, and actual equip-job completion on a running colony rather than only the
+queued decisions.
 
 ---
 
@@ -1896,6 +1961,7 @@ polish, not new core behaviour.
 | 0.9.0 | Release text and banner pass: default-on auto-equip and backups, new tagline/icon banner, Upgrades naming, reproducible banner generator |
 | 0.9.1 | Colonists list follows the colonist-bar display order (join order by default) instead of alphabetical name order |
 | 0.9.2 | Refreshed icon/banner, `Best vs current` column, clean release staging and the first private Workshop upload checklist |
+| 0.10.0 | Typed hand model without Simple Sidearms, passion-first role assignment, Brawler/shield/bonded handling, automatic hand-type alignment and per-pawn hand-type overrides |
 
 ---
 

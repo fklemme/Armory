@@ -318,9 +318,9 @@ namespace Armory
             string backupText = CarriedBackupText(pawn);
             DrawCell(backup, backupText, TextAnchor.MiddleLeft, GameFont.Small,
                 backupText == "none" ? new Color(0.75f, 0.75f, 0.75f) : rowColor);
-            TipCell(backup, pawn.HasRole
+            TipCell(backup, pawn.SidearmState != null
                 ? "Carried backups: " + backupText
-                : "Simple Sidearms has no hand type for this colonist, so Armory does not manage a backup slot.");
+                : "Simple Sidearms is not active for this colonist, so there is no managed backup slot.");
 
             Color statusColor;
             string statusText = PawnStatus(pawn, out statusColor);
@@ -329,9 +329,17 @@ namespace Armory
 
             Candidate top = pawn.TopReady;
             float deltaBase = pawn.HandBaselineScore;
-            string deltaText = top == null
-                ? "-"
-                : deltaBase > 0.01f ? FormatPct(top.Score / deltaBase - 1f) : "new slot";
+            string deltaText;
+            if (pawn.HandTypeMismatch)
+            {
+                deltaText = top == null ? "no target" : "switch type";
+            }
+            else
+            {
+                deltaText = top == null
+                    ? "-"
+                    : deltaBase > 0.01f ? FormatPct(top.Score / deltaBase - 1f) : "new slot";
+            }
             DrawCell(delta, deltaText, TextAnchor.MiddleRight,
                 GameFont.Small, pawn.Available && top != null ? Color.white : rowColor);
             TipCell(delta, DeltaTooltip(pawn, top));
@@ -339,6 +347,20 @@ namespace Armory
 
         private static string DeltaTooltip(PawnAnalysis pawn, Candidate top)
         {
+            if (pawn.HandTypeMismatch && pawn.RoleIsRanged.HasValue)
+            {
+                string target = pawn.RoleIsRanged.Value ? "ranged" : "melee";
+                return top == null
+                    ? "This colonist's hand type is " + target +
+                      ", but no ready " + target + " hand weapon is available yet. The current weapon is kept."
+                    : string.Format(
+                        "This colonist's hand type is {0}. Armory will switch from the current {1} weapon to {2} (score {3:0}).",
+                        target,
+                        pawn.Current != null && pawn.Current.def != null && pawn.Current.def.IsMeleeWeapon
+                            ? "melee"
+                            : "ranged",
+                        top.Weapon.Label, top.Score);
+            }
             if (top == null)
             {
                 return "No usable hand candidate is currently available.";
@@ -356,19 +378,9 @@ namespace Armory
                 top.Score >= pawn.HandBaselineScore ? "better" : "worse");
         }
 
-        private static string RoleLabel(PawnAnalysis pawn)
-        {
-            if (!pawn.HasRole)
-            {
-                return "not set (Simple Sidearms inactive or no fixed type)";
-            }
-            return (pawn.RoleIsRanged.Value ? "ranged" : "melee") +
-                   (string.IsNullOrEmpty(pawn.RoleSource) ? string.Empty : " (" + pawn.RoleSource + ")");
-        }
-
         private static string CarriedBackupText(PawnAnalysis pawn)
         {
-            if (!pawn.HasRole)
+            if (pawn.SidearmState == null)
             {
                 return "-";
             }
@@ -485,13 +497,14 @@ namespace Armory
             float baseline = pawn.HandBaselineScore;
             Candidate topReady = pawn.TopReady;
 
-            bool hasHandWish = topReady != null &&
-                               (pawn.Current == null ||
-                                (baseline > 0.01f &&
-                                 topReady.Score > baseline * (1f + threshold)));
+            bool hasHandWish = (pawn.HandTypeMismatch && topReady != null) ||
+                               (topReady != null &&
+                                (pawn.Current == null ||
+                                 (baseline > 0.01f &&
+                                  topReady.Score > baseline * (1f + threshold))));
 
             bool hasBackupWish = false;
-            if (pawn.HasRole && (settings == null || settings.manageSidearms))
+            if (pawn.SidearmState != null && (settings == null || settings.manageSidearms))
             {
                 int carriedBackups = CountBackups(pawn);
                 hasBackupWish = carriedBackups == 0
@@ -518,30 +531,18 @@ namespace Armory
                 return "Hand locked: " + pawn.HandLockReason;
             }
 
-            if (!pawn.HasRole)
+            if (pawn.HandTypeMismatch)
             {
-                if (pawn.Current == null)
-                {
-                    if (topReady != null)
-                    {
-                        color = new Color(0.7f, 0.9f, 0.7f);
-                        return "Hand weapon available";
-                    }
-                    color = new Color(1f, 0.78f, 0.4f);
-                    return pawn.TopOverall == null ? "No weapons on map" : "No usable hand weapon";
-                }
-                if (topReady == null)
-                {
-                    color = new Color(1f, 0.78f, 0.4f);
-                    return "No usable hand upgrade";
-                }
-                if (hasHandWish)
+                string target = pawn.RoleIsRanged.HasValue && pawn.RoleIsRanged.Value
+                    ? "ranged"
+                    : "melee";
+                if (topReady != null)
                 {
                     color = new Color(0.7f, 0.9f, 0.7f);
-                    return "Hand upgrade available";
+                    return "Switching to " + target;
                 }
-                color = new Color(0.78f, 0.78f, 0.78f);
-                return "No worthwhile upgrade";
+                color = new Color(1f, 0.78f, 0.4f);
+                return "No " + target + " weapon";
             }
 
             if (pawn.Current == null && topReady != null)
@@ -558,6 +559,11 @@ namespace Armory
             {
                 color = new Color(0.7f, 0.9f, 0.7f);
                 return "Hand upgrade available";
+            }
+            if (pawn.SidearmState == null)
+            {
+                color = new Color(0.78f, 0.78f, 0.78f);
+                return "Hand equipped";
             }
 
             int backupCount = CountBackups(pawn);
@@ -594,24 +600,58 @@ namespace Armory
             Text.Font = GameFont.Small;
 
             float y = rect.y + 30f;
-            DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
-                string.Format("Hand type: {0}    Current: {1}    Score {2:0}",
-                    RoleLabel(pawn),
-                    pawn.Current == null ? "unarmed" : pawn.Current.LabelCap,
-                    pawn.CurrentScore),
+            bool handTypeEditable = !pawn.HandTypeFromSimpleSidearms;
+            Rect handLine = new Rect(rect.x, y,
+                handTypeEditable ? Mathf.Max(40f, rect.width - 106f) : rect.width, 22f);
+            string handTypeLabel = pawn.RoleIsRanged.HasValue
+                ? (pawn.RoleIsRanged.Value ? "ranged" : "melee")
+                : "not set";
+            DrawColoredLine(handLine,
+                string.Format("Hand type: {0}    Current: {1}",
+                    handTypeLabel,
+                    pawn.Current == null ? "unarmed" : pawn.Current.LabelCap),
                 new Color(0.78f, 0.86f, 0.96f));
+            TipCell(handLine, string.Format(
+                "Source: {0}. Current hand weapon score: {1:0}.",
+                string.IsNullOrEmpty(pawn.RoleSource) ? "automatic" : pawn.RoleSource,
+                pawn.CurrentScore));
+            if (handTypeEditable)
+            {
+                Rect typeButton = new Rect(rect.xMax - 96f, y + 1f, 96f, 20f);
+                if (Widgets.ButtonText(typeButton, "Change type"))
+                {
+                    OpenHandTypeMenu(pawn);
+                }
+                TooltipHandler.TipRegion(typeButton,
+                    "Choose this colonist's hand type. Auto uses passion first, then Brawler, shield belt and skill; ranged is the default when no signal prefers melee.");
+            }
             y += 22f;
 
-            if (pawn.RoleIsRanged != false)
+            if (pawn.HandTypeMismatch && pawn.RoleIsRanged.HasValue)
             {
-                string roleText = string.Format("Combat role: {0} ({1}, prefers ~{2} tiles)",
+                string from = pawn.Current != null && pawn.Current.def != null &&
+                              pawn.Current.def.IsMeleeWeapon
+                    ? "melee"
+                    : "ranged";
+                string to = pawn.RoleIsRanged.Value ? "ranged" : "melee";
+                string mismatch = pawn.TopReady == null
+                    ? string.Format("Hand type mismatch: no {0} weapon available; keeping the {1} weapon.", to, from)
+                    : string.Format("Hand type mismatch: switching from {0} to {1}.", from, to);
+                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f), mismatch,
+                    new Color(1f, 0.82f, 0.45f));
+                y += 22f;
+            }
+
+            if (pawn.RoleIsRanged == true)
+            {
+                string roleText = string.Format("Ranged role: {0} ({1}, prefers ~{2} tiles)",
                     CombatScoring.Label(pawn.CombatRole),
                     pawn.RoleOverridden ? "manual override" : "automatic",
                     pawn.PreferredRange);
                 DrawColoredLine(new Rect(rect.x, y, Mathf.Max(40f, rect.width - 106f), 22f),
                     roleText, new Color(0.78f, 0.86f, 0.96f));
                 Rect roleButton = new Rect(rect.xMax - 96f, y + 1f, 96f, 20f);
-                if (Widgets.ButtonText(roleButton, "Change role"))
+                if (Widgets.ButtonText(roleButton, "Change range"))
                 {
                     OpenCombatRoleMenu(pawn);
                 }
@@ -751,7 +791,7 @@ namespace Armory
             bool manageBackups = ArmoryMod.Settings == null || ArmoryMod.Settings.manageSidearms;
             bool replaceWorse = manageBackups &&
                                 (ArmoryMod.Settings == null || ArmoryMod.Settings.replaceWorseSidearms);
-            string backupType = pawn.HasRole
+            string backupType = pawn.RoleIsRanged.HasValue
                 ? (pawn.RoleIsRanged.Value ? "melee" : "ranged")
                 : "opposite type";
 
@@ -761,16 +801,19 @@ namespace Armory
             Widgets.BeginScrollView(scrollRect, ref pawnDetailScroll, new Rect(0f, 0f, width, contentHeight));
 
             float cursor = 0f;
-            string handType = pawn.HasRole
+            string handType = pawn.RoleIsRanged.HasValue
                 ? (pawn.RoleIsRanged.Value ? "ranged" : "melee")
                 : "all weapons";
             SectionHeader(ref cursor, width, "Hand slot (" + handType + ")");
 
             if (bestReady != null)
             {
+                string comparison = pawn.HandTypeMismatch
+                    ? "type switch"
+                    : FormatPct(pawn.TopReadyDeltaPct) + " vs current";
                 DrawColoredLine(new Rect(0f, cursor, width, 22f),
-                    string.Format("Best available: {0}    Score {1:0}  ({2} vs current)",
-                        bestReady.Weapon.Label, bestReady.Score, FormatPct(pawn.TopReadyDeltaPct)),
+                    string.Format("Best available: {0}    Score {1:0}  ({2})",
+                        bestReady.Weapon.Label, bestReady.Score, comparison),
                     new Color(0.75f, 0.92f, 0.75f));
                 cursor += 22f;
 
@@ -784,12 +827,12 @@ namespace Armory
                     float delta = bestReady.Score / baselineScore - 1f;
                     int percent = Mathf.Max(1, Mathf.RoundToInt(Mathf.Abs(delta) * 100f));
                     int thresholdPercent = Mathf.RoundToInt(threshold * 100f);
-                    string comparison = delta > 0f
+                    string thresholdText = delta > 0f
                         ? string.Format("only {0}% better (required: {1}%)", percent, thresholdPercent)
                         : string.Format("{0}% worse", percent);
                     DrawColoredLine(new Rect(0f, cursor, width, 22f),
                         string.Format("Keeping {0}: best alternative is {1}.",
-                            baselineLabel, comparison),
+                            baselineLabel, thresholdText),
                         new Color(1f, 0.85f, 0.5f));
                     cursor += 22f;
                 }
@@ -806,9 +849,12 @@ namespace Armory
 
             if (bestAny != null && (bestReady == null || bestAny != bestReady))
             {
+                string comparison = pawn.HandTypeMismatch
+                    ? "type switch"
+                    : FormatPct(pawn.DeltaPct(bestAny)) + " vs current";
                 DrawColoredLine(new Rect(0f, cursor, width, 22f),
-                    string.Format("Highest-scoring hand weapon: {0}    Score {1:0}  ({2} vs current)  - {3}",
-                        bestAny.Weapon.Label, bestAny.Score, FormatPct(pawn.DeltaPct(bestAny)),
+                    string.Format("Highest-scoring hand weapon: {0}    Score {1:0}  ({2})  - {3}",
+                        bestAny.Weapon.Label, bestAny.Score, comparison,
                         bestAny.Ready ? "can equip" : bestAny.Blocker),
                     bestAny.Ready ? Color.white : new Color(1f, 0.8f, 0.42f));
                 cursor += 22f;
@@ -861,11 +907,15 @@ namespace Armory
                 DrawCell(candidateScore, candidate.Score.ToString("0"), TextAnchor.MiddleRight);
                 TipCell(candidateScore, "Combat score for this colonist.");
                 Rect candidateDelta = new Rect(width - 70f, cursor, 66f, 22f);
-                DrawCell(candidateDelta, FormatPct(pawn.DeltaPct(candidate)),
+                DrawCell(candidateDelta, pawn.HandTypeMismatch
+                        ? "type switch"
+                        : FormatPct(pawn.DeltaPct(candidate)),
                     TextAnchor.MiddleRight);
-                TipCell(candidateDelta, pawn.HandBaselineScore <= 0.01f
-                    ? "The colonist has no hand weapon; this would fill the empty slot."
-                    : "Compared with the current hand weapon for this colonist.");
+                TipCell(candidateDelta, pawn.HandTypeMismatch
+                    ? "This candidate is the chosen hand type; the equipped weapon is the other type."
+                    : pawn.HandBaselineScore <= 0.01f
+                        ? "The colonist has no hand weapon; this would fill the empty slot."
+                        : "Compared with the current hand weapon for this colonist.");
                 cursor += 22f;
 
                 if (selectedCandidate == i)
@@ -898,7 +948,7 @@ namespace Armory
                 }
             }
 
-            if (pawn.HasRole)
+            if (pawn.SidearmState != null)
             {
                 cursor += 8f;
                 SectionHeader(ref cursor, width, "Backup slot (" + backupType + ")");
@@ -1010,9 +1060,9 @@ namespace Armory
 
         private static string SidearmWaitReason(PawnAnalysis pawn)
         {
-            if (!pawn.HasRole)
+            if (pawn.SidearmState == null || !pawn.RoleIsRanged.HasValue)
             {
-                return "Simple Sidearms backup management is off.";
+                return null;
             }
             if (pawn.Current == null)
             {
@@ -1047,7 +1097,11 @@ namespace Armory
             {
                 height += 18f;
             }
-            if (pawn.RoleIsRanged != false)
+            if (pawn.HandTypeMismatch)
+            {
+                height += 22f;
+            }
+            if (pawn.RoleIsRanged == true)
             {
                 height += 26f;
             }
@@ -1063,7 +1117,7 @@ namespace Armory
             {
                 height += 34f + Mathf.Min(pawn.Incompatible.Count, 40) * 22f;
             }
-            if (pawn.HasRole)
+            if (pawn.SidearmState != null)
             {
                 int backupCount = Mathf.Min(pawn.SidearmCandidates.Count, SidearmDisplayLimit);
                 bool manageBackups = ArmoryMod.Settings == null || ArmoryMod.Settings.manageSidearms;
@@ -1103,6 +1157,27 @@ namespace Armory
             Find.WindowStack.Add(new FloatMenu(options));
         }
 
+        private void OpenHandTypeMenu(PawnAnalysis pawn)
+        {
+            List<FloatMenuOption> options = new List<FloatMenuOption>();
+            AddHandTypeOption(options, pawn, HandType.Auto, "Auto (passion, trait, skill)");
+            AddHandTypeOption(options, pawn, HandType.Ranged, "Ranged hand");
+            AddHandTypeOption(options, pawn, HandType.Melee, "Melee hand");
+            Find.WindowStack.Add(new FloatMenu(options));
+        }
+
+        private void AddHandTypeOption(List<FloatMenuOption> options, PawnAnalysis pawn,
+            HandType type, string text)
+        {
+            bool current = pawn.HandTypeOverride == type;
+            string label = current ? "* " + text : "  " + text;
+            options.Add(new FloatMenuOption(label, delegate
+            {
+                ArmoryGameComponent.SetHandTypeOverride(pawn.Pawn, type);
+                refreshRequested = true;
+            }));
+        }
+
         private void AddCombatRoleOption(List<FloatMenuOption> options, PawnAnalysis pawn,
             CombatRole role, string text)
         {
@@ -1131,13 +1206,15 @@ namespace Armory
                 string.Format("Base power {0:0} | Combat score {1:0}", candidate.Weapon.Power, candidate.Score),
                 TextAnchor.MiddleLeft, GameFont.Tiny);
             cursor += 18f;
-            DrawCell(new Rect(38f, cursor, Mathf.Max(40f, width - 46f), 18f),
-                pawn.BestCarriedPrimary != null && pawn.BestCarriedPrimary != pawn.Current &&
-                candidate.Score <= pawn.BestCarriedPrimaryScore
+            string verdict = pawn.HandTypeMismatch
+                ? "This candidate has the chosen hand type; the equipped weapon is the other type."
+                : pawn.BestCarriedPrimary != null && pawn.BestCarriedPrimary != pawn.Current &&
+                  candidate.Score <= pawn.BestCarriedPrimaryScore
                     ? "Below the best carried hand weapon, so Armory will not equip it."
                     : pawn.DeltaPct(candidate) >= 0f
                         ? "Better than the current hand weapon."
-                        : "Worse than the current hand weapon.",
+                        : "Worse than the current hand weapon.";
+            DrawCell(new Rect(38f, cursor, Mathf.Max(40f, width - 46f), 18f), verdict,
                 TextAnchor.MiddleLeft, GameFont.Tiny);
             cursor += 22f;
             GUI.color = Color.white;
@@ -1294,9 +1371,11 @@ namespace Armory
 
             if (row.BestHandPawn != null)
             {
-                string handDelta = row.BestHandPawn.HandBaselineScore <= 0.01f
-                    ? "new slot"
-                    : FormatPct(DeltaFor(row.BestHandPawn, row.BestHandScore)) + " vs current";
+                string handDelta = row.BestHandPawn.HandTypeMismatch
+                    ? "type switch"
+                    : row.BestHandPawn.HandBaselineScore <= 0.01f
+                        ? "new slot"
+                        : FormatPct(DeltaFor(row.BestHandPawn, row.BestHandScore)) + " vs current";
                 DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
                     string.Format("Best hand fit: {0}  ({1})", row.BestHandPawn.Pawn.LabelShort,
                         handDelta),
@@ -1811,7 +1890,7 @@ namespace Armory
                 rect.height);
             DrawCell(gainRect, "Gain", TextAnchor.MiddleRight, GameFont.Tiny, color);
             TooltipHandler.TipRegion(gainRect,
-                "Improvement over the current weapon. 'new slot' means the colonist has no weapon in that slot yet. The row value is the average; expand the row to see each colonist.");
+                "Improvement over the current weapon. 'new slot' means the colonist has no weapon in that slot yet; 'switch type' means they hold the other hand type. The row value is the average; expand the row to see each colonist.");
             Rect sourceRect = new Rect(rect.x + columns.SourceX, rect.y,
                 DemandColumns.SourceWidth, rect.height);
             DrawCell(sourceRect, "Source", TextAnchor.MiddleLeft, GameFont.Tiny, color);
@@ -1868,11 +1947,19 @@ namespace Armory
 
         private static string GainText(DemandRow row)
         {
-            if (row.NewCount == row.Wants.Count || row.KnownCount == 0)
+            if (row.KnownCount > 0)
+            {
+                return FormatPct(row.AverageGain);
+            }
+            if (row.NewCount > 0)
             {
                 return "new slot";
             }
-            return FormatPct(row.AverageGain);
+            if (row.TypeSwitchCount > 0)
+            {
+                return "switch type";
+            }
+            return "new slot";
         }
 
         private static string SourceText(DemandRow row)
@@ -1918,8 +2005,10 @@ namespace Armory
             DrawCell(new Rect(nameX, cursor, nameWidth, 20f), want.Colonist,
                 TextAnchor.MiddleLeft, GameFont.Small, new Color(0.78f, 0.78f, 0.78f));
             TooltipHandler.TipRegion(new Rect(nameX, cursor, nameWidth, 20f),
-                string.Format("{0} - {1}, prefers ~{2} tiles", want.Colonist,
-                    want.Role ?? "role not set", want.PreferredRange));
+                want.Role == "Melee"
+                    ? string.Format("{0} - Melee hand", want.Colonist)
+                    : string.Format("{0} - {1}, prefers ~{2} tiles", want.Colonist,
+                        want.Role ?? "role not set", want.PreferredRange));
 
             float currentX = nameX + nameWidth;
             float currentWidth = Mathf.Max(40f, columns.WeaponWidth - (currentX - columns.WeaponX));
@@ -1934,7 +2023,8 @@ namespace Armory
                 want.Hand ? "hand" : "backup", TextAnchor.MiddleLeft, GameFont.Small,
                 new Color(0.66f, 0.74f, 0.82f));
             DrawCell(new Rect(columns.GainX, cursor, DemandColumns.GainWidth, 20f),
-                want.IsNew ? "new slot" : FormatPct(want.Gain), TextAnchor.MiddleRight, GameFont.Small,
+                want.TypeSwitch ? "switch type" : want.IsNew ? "new slot" : FormatPct(want.Gain),
+                TextAnchor.MiddleRight, GameFont.Small,
                 new Color(0.68f, 0.82f, 0.68f));
         }
 

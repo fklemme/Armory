@@ -72,6 +72,14 @@ namespace Armory
         }
     }
 
+    /// <summary>Hand weapon type, or Auto when Armory should derive it.</summary>
+    public enum HandType
+    {
+        Auto = 0,
+        Ranged = 1,
+        Melee = 2
+    }
+
     /// <summary>All weapon evaluations for one pawn.</summary>
     public sealed class PawnAnalysis
     {
@@ -80,14 +88,23 @@ namespace Armory
         public float CurrentScore;
 
         /// <summary>
-        /// True when the pawn's hand slot is ranged, false when melee, null when no typed
-        /// slot model applies (Simple Sidearms absent). Derived from SS's primary mode, then
-        /// the current weapon, then skill.
+        /// Resolved hand type: true for ranged, false for melee. Armory always resolves a
+        /// type now; Simple Sidearms owns it when active and respected, otherwise passion,
+        /// traits, skills and the player's per-pawn override do.
         /// </summary>
         public bool? RoleIsRanged;
 
         /// <summary>Human-readable source of <see cref="RoleIsRanged"/>.</summary>
         public string RoleSource;
+
+        /// <summary>The player's per-pawn hand-type choice, or Auto.</summary>
+        public HandType HandTypeOverride;
+
+        /// <summary>True when Simple Sidearms is active and respected, so it owns the hand type.</summary>
+        public bool HandTypeFromSimpleSidearms;
+
+        /// <summary>True when the equipped weapon is the other type and should be swapped.</summary>
+        public bool HandTypeMismatch;
 
         /// <summary>Resolved ranged combat role for this pawn.</summary>
         public CombatRole CombatRole;
@@ -174,7 +191,7 @@ namespace Armory
         /// <summary>True when the weapon belongs in this pawn's opposite-type backup slot.</summary>
         public bool IsBackupType(ThingDef def)
         {
-            if (def == null || !RoleIsRanged.HasValue)
+            if (def == null || !RoleIsRanged.HasValue || !SimpleSidearmsAdapter.Active)
             {
                 return false;
             }
@@ -257,8 +274,8 @@ namespace Armory
         }
 
         /// <summary>
-        /// Score the hand slot must beat. If the equipped weapon is the other type (SS has
-        /// not switched yet, or the pawn is waiting), its score is not comparable to hand
+        /// Score the hand slot must beat. If the equipped weapon is the other type (the hand
+        /// type changed, or SS has not switched yet), its score is not comparable to hand
         /// candidates and is excluded; the best carried hand weapon is the baseline instead.
         /// </summary>
         public float HandBaselineScore
@@ -331,6 +348,9 @@ namespace Armory
         /// <summary>True when the pawn has no weapon for that slot, so there is no baseline.</summary>
         public bool IsNew;
 
+        /// <summary>True when the pawn holds the other hand type, so this would switch type.</summary>
+        public bool TypeSwitch;
+
         /// <summary>True when this def is the pawn's best option within its section.</summary>
         public bool IsTop;
 
@@ -394,6 +414,7 @@ namespace Armory
 
         public int KnownCount;
         public int NewCount;
+        public int TypeSwitchCount;
 
         public readonly List<DemandWant> Wants = new List<DemandWant>();
 

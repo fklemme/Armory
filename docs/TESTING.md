@@ -152,6 +152,29 @@ Wait for the scaffold to finish and quit, then check the log for
 line. Do not run `Setup-LiveTest.ps1 -Launch` after editing the config: it will
 overwrite your changes.
 
+### Testing the hand type and auto-align (0.10.0)
+
+The setup script leaves automatic equipping **off** in the isolated config. For
+an auto-align test, prepare without `-Launch`, then set `autoEquipEnabled` to
+`True` in `%TEMP%\opencode\armory-live\Config\Mod_Armory_ArmoryMod.xml`.
+
+With Simple Sidearms removed from `ModsConfig.xml`:
+
+- a clear shooter holding a melee weapon should resolve `ranged` with
+  `mismatch yes`, and the planner should log
+  `Switching hand type from melee to ranged`;
+- a pawn with a bonded melee weapon, `Brawler`, a ranged-blocking shield belt or
+  higher melee passion should resolve `melee`;
+- use **Change type** on a pawn, set **Melee**, and verify the role changes to
+  `melee (manual hand type)`, the ranged switch is not queued, and the choice
+  survives save/load;
+- close and reopen the tab after changing the type; the snapshot must rebuild
+  immediately rather than keeping the old type for one planner pass.
+
+With Simple Sidearms enabled and respected, every pawn should resolve
+`(Simple Sidearms mode)`, the Armory hand-type override should be ignored, and
+backup jobs should still queue.
+
 ---
 
 ## Pitfalls (learned the hard way)

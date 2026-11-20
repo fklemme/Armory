@@ -6,6 +6,13 @@ proposal. The goal was to stop every ranged pawn from converging on the chain
 shotgun and to make range, skill, genes and character preference visible in
 Armory's advice.
 
+**0.10.0 extension:** the no-Simple-Sidearms path now resolves a typed hand
+(`Ranged` or `Melee`) from an explicit override, bonded weapon, ranged-blocking
+shield belt, Brawler, Shooting/Melee passion, and finally skill (melee requires a
+3-level advantage; close skills stay ranged). Hand candidates are filtered to that
+type, so melee and ranged scores are never compared. The bias documented below is
+unchanged; it only applies within the ranged hand type.
+
 ## 1. What RimWorld actually does
 
 ### Hit chance
@@ -182,7 +189,8 @@ Armory does not need a full loadout editor. It needs:
 - A nearsighted pawn should not be advised to carry a sniper.
 - The reason should be visible in the UI, not hidden in a single number.
 - Modded weapons should work through their own stats, not a hardcoded table.
-- Melee scoring should stay as it is.
+- Melee scoring should stay as it is, but melee and ranged are never compared
+  across hand types.
 
 ## 5. Options
 

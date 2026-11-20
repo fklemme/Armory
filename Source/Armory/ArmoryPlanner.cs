@@ -174,16 +174,28 @@ namespace Armory
                     string detail;
                     if (baselineScore <= 0.01f)
                     {
-                        if (analysis.Current == null || !analysis.HasRole)
+                        if (analysis.Current == null)
                         {
                             detail = "No hand weapon equipped";
                         }
-                        else
+                        else if (analysis.HandTypeMismatch && analysis.RoleIsRanged.HasValue)
+                        {
+                            string from = analysis.Current.def != null && analysis.Current.def.IsMeleeWeapon
+                                ? "melee"
+                                : "ranged";
+                            string to = analysis.RoleIsRanged.Value ? "ranged" : "melee";
+                            detail = "Switching hand type from " + from + " to " + to;
+                        }
+                        else if (analysis.HasRole)
                         {
                             // The pawn holds the other type (SS has not switched yet).
                             detail = analysis.RoleIsRanged.Value
                                 ? "No ranged hand weapon equipped"
                                 : "No melee hand weapon equipped";
+                        }
+                        else
+                        {
+                            detail = "No hand weapon equipped";
                         }
                     }
                     else
@@ -651,7 +663,7 @@ namespace Armory
                 if (manualUntil.TryGetValue(pawn.thingIDNumber, out until) && now < until)
                 {
                     int seconds = Mathf.Max(1, (until - now + 59) / 60);
-                    return string.Format("manual change {0}s", seconds);
+                    return string.Format("manual {0}s", seconds);
                 }
             }
 
@@ -660,7 +672,7 @@ namespace Armory
             if (elapsed < settings.swapCooldownTicks)
             {
                 int seconds = Mathf.Max(1, (settings.swapCooldownTicks - elapsed + 59) / 60);
-                return string.Format("swap cooldown {0}s", seconds);
+                return string.Format("cooldown {0}s", seconds);
             }
             return null;
         }

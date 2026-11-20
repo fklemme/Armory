@@ -91,14 +91,14 @@ namespace Armory
                 Candidate top = pawn.TopOverall;
                 Candidate ready = pawn.TopReady;
                 Log.Message(string.Format(
-                    "[Armory]   {0}: role {1}; combat {2} ({3}, prefers {4}t); {5} -> best hand {6} ({7:0}) [{8}]; ready {9}; hand ranked {10}, incompatible {11}; automation {12}; hand locked {13}",
+                    "[Armory]   {0}: role {1}; combat {2} ({3}, prefers {4}); {5} -> best hand {6} ({7:0}) [{8}]; ready {9}; hand ranked {10}, incompatible {11}; automation {12}; hand locked {13}",
                     pawn.Pawn.LabelShort,
                     pawn.HasRole
                         ? ((pawn.RoleIsRanged.Value ? "ranged" : "melee") + " (" + pawn.RoleSource + ")")
                         : "none",
-                    CombatScoring.Label(pawn.CombatRole),
+                    pawn.RoleIsRanged == true ? CombatScoring.Label(pawn.CombatRole) : "n/a",
                     pawn.RoleOverridden ? "override" : "auto",
-                    pawn.PreferredRange,
+                    pawn.RoleIsRanged == true ? pawn.PreferredRange + "t" : "n/a",
                     pawn.Current == null ? "unarmed" : pawn.Current.LabelCap,
                     top == null ? "none" : top.Weapon.Label,
                     top == null ? 0f : top.Score,
@@ -121,7 +121,7 @@ namespace Armory
                     Log.Message("[Armory]     SS: " + pawn.SidearmState.Summary() +
                                 "; carried weapons: " + pawn.SidearmText);
                 }
-                if (pawn.HasRole)
+                if (pawn.SidearmState != null)
                 {
                     Log.Message(string.Format(
                         "[Armory]     backup ({0}): carried {1}; best carried {2}; candidates {3}",

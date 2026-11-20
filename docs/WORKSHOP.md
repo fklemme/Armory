@@ -1,8 +1,9 @@
 # Steam Workshop release copy and checklist
 
-Status: **0.9.2 private release candidate**. The first item is uploaded and
-currently hidden while Steam's automated content check runs. Do not bump to 1.0
-yet; finish the private test, then make the item public.
+Status: **0.10.0 development build**. The Workshop item was created with 0.9.2
+and is still hidden while Steam's automated content check runs. This build adds
+typed hands, passion-based role assignment and automatic hand-type alignment;
+test it locally before uploading it as an update. Do not bump to 1.0 yet.
 
 - Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224
 - Source and issues: https://github.com/fklemme/Armory
@@ -77,8 +78,16 @@ After the upload:
 - For a true subscriber test, temporarily move the local release copy out of
   `RimWorld\Mods` (or use a separate RimWorld install/Steam account), restart,
   and load a colony with only the Workshop copy active.
-- Check the mod icon, banner, tabs, version `0.9.2`, default-on automation,
-  colonist-bar order, and the `Best vs current` column.
+- Check the mod icon, banner, tabs, version `0.10.0`, default-on automation,
+  colonist-bar order, the `Best vs current` column, and the `Change type` /
+  `Change range` buttons.
+- Test the automatic hand type with and without Simple Sidearms:
+  - without SS, a clear shooter holding a melee weapon should be marked
+    `switch type` and the planner should queue a ranged weapon;
+  - a pawn with higher melee passion, Brawler, a shield belt or a bonded melee
+    weapon should resolve as melee instead;
+  - `Change type` should persist across save/load and immediately rebuild the
+    recommendations.
 - Test once with Simple Sidearms loaded and once without it: Simple Sidearms is
   optional and must never become a hard dependency.
 - Check `Player.log` for Armory errors.
@@ -114,17 +123,20 @@ Armory is a weapon inspector and automatic manager for RimWorld 1.6. It shows wh
 
 [h2]Four tabs[/h2]
 [list]
-[*][b]Colonists[/b] - each pawn's hand and backup weapon, combat role, blockers, ranked alternatives, and a Best vs current comparison.
+[*][b]Colonists[/b] - each pawn's hand and backup weapon, hand type, ranged role, blockers, ranked alternatives, and a Best vs current comparison.
 [*][b]Weapons[/b] - every loose weapon on the map, its power, range, best colonist and best slot.
 [*][b]Upgrades[/b] - every obtainable weapon that would improve a colonist, grouped into Craft, Research and Buy, with owned and missing copies, score, gain and source.
 [*][b]Log[/b] - the automatic decisions Armory made this session, with the reason for each.
 [/list]
 
 [h2]Range-aware scoring[/h2]
-Ranged weapons are scored at each pawn's preferred engagement distance using RimWorld's real accuracy curve. Each pawn gets a combat role - CQB, Assault, Line or Marksman - derived from their accuracy, skill and genes, with a per-colonist override.
+Ranged weapons are scored at each pawn's preferred engagement distance using RimWorld's real accuracy curve. Each ranged pawn gets a ranged role - CQB, Assault, Line or Marksman - derived from their accuracy, skill and genes, with a per-colonist override.
+
+[h2]Ranged and melee hands[/h2]
+Every colonist has a hand type: Ranged or Melee. Armory chooses it from an explicit per-colonist override, a bonded weapon, a ranged-blocking shield belt, Brawler, shooting/melee passion, and finally skill. Only weapons of that type compete for the hand; ranged and melee are never ranked against each other. A colonist holding the wrong type is automatically switched to the best ready weapon of the chosen type. Simple Sidearms' own primary mode wins when it is loaded and respected.
 
 [h2]Hand and backup loadouts[/h2]
-With Simple Sidearms loaded, Armory models one hand weapon of the colonist's type and one opposite-type backup. Ranged and melee are never ranked against each other. Blockers stay visible: forbidden, outside the allowed area, unreachable, reserved, biocoded, role restrictions, ideoligion dislike, and Simple Sidearms slot or mass limits.
+With Simple Sidearms loaded, Armory also models one opposite-type backup. Blockers stay visible: forbidden, outside the allowed area, unreachable, reserved, biocoded, role restrictions, ideoligion dislike, and Simple Sidearms slot or mass limits.
 
 [h2]Automatic management, on by default[/h2]
 When no other weapon manager is active, Armory queues equip jobs for the best ready weapon, claims each weapon for one pawn, respects a swap cooldown, never unforbids anything, and treats unbonded persona weapons as manual-only. Backup management keeps one legal opposite-type weapon and upgrades only the worst same-type weapon. Both automatic equipping and backup management can be disabled in settings.
@@ -143,7 +155,7 @@ No hard dependencies. Simple Sidearms support is optional and read through refle
 [/list]
 
 [h2]Version[/h2]
-0.9.2 - first private release candidate.
+0.10.0 - typed hand, passion-based role assignment and automatic hand-type alignment.
 
 [h2]Links[/h2]
 [list]

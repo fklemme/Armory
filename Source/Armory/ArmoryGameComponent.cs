@@ -30,6 +30,7 @@ namespace Armory
 
         private readonly List<Decision> decisions = new List<Decision>(128);
         private Dictionary<int, int> roleOverrides = new Dictionary<int, int>();
+        private Dictionary<int, int> handTypeOverrides = new Dictionary<int, int>();
 
         public ArmoryGameComponent(Game game)
         {
@@ -111,16 +112,79 @@ namespace Armory
             {
                 Instance.roleOverrides[pawn.thingIDNumber] = (int)role;
             }
+            InvalidateSnapshot();
+        }
+
+        /// <summary>Player override for a pawn's hand weapon type, or Auto when none is set.</summary>
+        public static HandType GetHandTypeOverride(Pawn pawn)
+        {
+            if (Instance == null || pawn == null || Instance.handTypeOverrides == null)
+            {
+                return HandType.Auto;
+            }
+
+            int value;
+            if (!Instance.handTypeOverrides.TryGetValue(pawn.thingIDNumber, out value) ||
+                value < (int)HandType.Ranged || value > (int)HandType.Melee)
+            {
+                return HandType.Auto;
+            }
+            return (HandType)value;
+        }
+
+        /// <summary>Sets or clears a pawn's hand-type override.</summary>
+        public static void SetHandTypeOverride(Pawn pawn, HandType type)
+        {
+            if (Instance == null || pawn == null)
+            {
+                return;
+            }
+            if (Instance.handTypeOverrides == null)
+            {
+                Instance.handTypeOverrides = new Dictionary<int, int>();
+            }
+
+            if (type == HandType.Auto)
+            {
+                Instance.handTypeOverrides.Remove(pawn.thingIDNumber);
+            }
+            else
+            {
+                Instance.handTypeOverrides[pawn.thingIDNumber] = (int)type;
+            }
+            InvalidateSnapshot();
+        }
+
+        private static void InvalidateSnapshot()
+        {
+            Map map = Find.CurrentMap;
+            if (map == null)
+            {
+                return;
+            }
+            ArmoryMapComponent component = map.GetComponent<ArmoryMapComponent>();
+            if (component != null)
+            {
+                component.Invalidate();
+            }
         }
 
         public override void ExposeData()
         {
-            // The decision log is deliberately session-only. Role overrides belong to
-            // the colony and must survive save/load, so they use pawn thing IDs.
+            // The decision log is deliberately session-only. Role and hand-type overrides
+            // belong to the colony and must survive save/load, so they use pawn thing IDs.
             Scribe_Collections.Look(ref roleOverrides, "roleOverrides", LookMode.Value, LookMode.Value);
-            if (Scribe.mode == LoadSaveMode.PostLoadInit && roleOverrides == null)
+            Scribe_Collections.Look(ref handTypeOverrides, "handTypeOverrides", LookMode.Value, LookMode.Value);
+            if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
-                roleOverrides = new Dictionary<int, int>();
+                if (roleOverrides == null)
+                {
+                    roleOverrides = new Dictionary<int, int>();
+                }
+                if (handTypeOverrides == null)
+                {
+                    handTypeOverrides = new Dictionary<int, int>();
+                }
             }
         }
     }

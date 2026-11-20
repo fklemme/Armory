@@ -15,6 +15,15 @@ namespace Armory
         public bool HasIdeo;
         public float Aim;
 
+        /// <summary>Passion for Shooting, used to choose the no-SS hand type before skill.</summary>
+        public Passion ShootingPassion;
+
+        /// <summary>Passion for Melee, used to choose the no-SS hand type before skill.</summary>
+        public Passion MeleePassion;
+
+        /// <summary>True when worn apparel blocks ranged fire (vanilla or modded shield belt).</summary>
+        public bool RangedBlockingShield;
+
         /// <summary>Resolved ranged combat role, either automatic or a player override.</summary>
         public CombatRole CombatRole;
 
@@ -40,7 +49,10 @@ namespace Armory
                 Pawn = pawn,
                 Shooting = SkillLevel(pawn, SkillDefOf.Shooting),
                 Melee = SkillLevel(pawn, SkillDefOf.Melee),
+                ShootingPassion = SkillPassion(pawn, SkillDefOf.Shooting),
+                MeleePassion = SkillPassion(pawn, SkillDefOf.Melee),
                 Brawler = HasBrawler(pawn),
+                RangedBlockingShield = WearsRangedBlockingShield(pawn),
                 HasIdeo = ModsConfig.IdeologyActive && pawn.Ideo != null,
                 Aim = StatExtension.GetStatValue(pawn, StatDefOf.AimingDelayFactor, true, 2500)
             };
@@ -67,10 +79,43 @@ namespace Armory
             return record == null ? 0 : record.Level;
         }
 
+        private static Passion SkillPassion(Pawn pawn, SkillDef skill)
+        {
+            if (pawn == null || pawn.skills == null)
+            {
+                return Passion.None;
+            }
+            SkillRecord record = pawn.skills.GetSkill(skill);
+            return record == null ? Passion.None : record.passion;
+        }
+
         private static bool HasBrawler(Pawn pawn)
         {
             return pawn != null && pawn.story != null && pawn.story.traits != null &&
                    pawn.story.traits.HasTrait(TraitDefOf.Brawler);
+        }
+
+        private static bool WearsRangedBlockingShield(Pawn pawn)
+        {
+            if (pawn == null || pawn.apparel == null || pawn.apparel.WornApparel == null)
+            {
+                return false;
+            }
+            List<Apparel> worn = pawn.apparel.WornApparel;
+            for (int i = 0; i < worn.Count; i++)
+            {
+                Apparel apparel = worn[i];
+                if (apparel == null || apparel.def == null)
+                {
+                    continue;
+                }
+                CompProperties_Shield shield = apparel.def.GetCompProperties<CompProperties_Shield>();
+                if (shield != null && shield.blocksRangedWeapons)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 

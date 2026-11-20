@@ -262,6 +262,7 @@ namespace Armory
             analysis.PreferredRange = context.PreferredRange;
             analysis.RoleOverridden = context.RoleOverridden;
             analysis.CombatRoleSource = context.CombatRoleSource;
+            analysis.HandTypeOverride = ArmoryGameComponent.GetHandTypeOverride(pawn);
             CollectSidearms(analysis, context);
 
             if (analysis.Current != null)
@@ -277,13 +278,20 @@ namespace Armory
                 analysis.HandLockReason = "bonded persona weapon";
             }
             ResolveRole(analysis, context);
-            ResolveBestCarriedBackup(analysis);
+            analysis.HandTypeMismatch = !analysis.HandTypeFromSimpleSidearms &&
+                analysis.Current != null && analysis.Current.def != null &&
+                (analysis.Current.def.IsRangedWeapon || analysis.Current.def.IsMeleeWeapon) &&
+                !analysis.IsHandType(analysis.Current.def);
+            if (analysis.SidearmState != null)
+            {
+                ResolveBestCarriedBackup(analysis);
+            }
 
             // Simple Sidearms has an explicit hand role. Use SS's own QuickSwitch choice
             // among carried weapons as the hand baseline; do not assume the best carried
             // weapon by Armory's score, because SS may skip it (manual use, dangerous,
             // EMP, role) and Armory would then block a valid upgrade.
-            if (analysis.HasRole && SimpleSidearmsAdapter.RespectEnabled)
+            if (analysis.HandTypeFromSimpleSidearms && analysis.SidearmState != null)
             {
                 ResolveBestCarriedHand(analysis, context, powerCache);
             }
@@ -352,45 +360,119 @@ namespace Armory
         }
 
         /// <summary>
-        /// Resolves the hand slot type. SS's per-pawn primary mode wins; otherwise the
-        /// current weapon, then the pawn's better combat skill. When Simple Sidearms is
-        /// absent (or the player turned respect off), there is no typed slot model and
-        /// every weapon competes for the single vanilla hand slot.
+        /// Resolves the hand slot type. Simple Sidearms' per-pawn primary mode wins when
+        /// it is active and respected; otherwise Armory derives a type from the player's
+        /// override, a bonded weapon, a ranged-blocking shield, Brawler, passion, and
+        /// finally skill. Ranged is the default when no signal prefers melee.
         /// </summary>
         private static void ResolveRole(PawnAnalysis analysis, PawnFitContext context)
         {
-            if (!SimpleSidearmsAdapter.Active || !SimpleSidearmsAdapter.RespectEnabled)
+            if (SimpleSidearmsAdapter.Active && SimpleSidearmsAdapter.RespectEnabled)
             {
-                analysis.RoleIsRanged = null;
-                analysis.RoleSource = null;
+                analysis.HandTypeFromSimpleSidearms = true;
+                if (analysis.SidearmState != null &&
+                    analysis.SidearmState.PreferredPrimaryIsRanged.HasValue)
+                {
+                    SetHandType(analysis, analysis.SidearmState.PreferredPrimaryIsRanged.Value,
+                        "Simple Sidearms mode");
+                    return;
+                }
+
+                if (analysis.Current != null && analysis.Current.def != null)
+                {
+                    if (analysis.Current.def.IsRangedWeapon)
+                    {
+                        SetHandType(analysis, true, "from current weapon");
+                        return;
+                    }
+                    if (analysis.Current.def.IsMeleeWeapon)
+                    {
+                        SetHandType(analysis, false, "from current weapon");
+                        return;
+                    }
+                }
+
+                ResolveAutomaticHandType(analysis, context);
                 return;
             }
 
-            if (analysis.SidearmState != null && analysis.SidearmState.PreferredPrimaryIsRanged.HasValue)
+            analysis.HandTypeFromSimpleSidearms = false;
+            ResolveAutomaticHandType(analysis, context);
+        }
+
+        private const int MeleeSkillMargin = 3;
+
+        /// <summary>
+        /// No-SS hand type. Explicit player choice wins, then hard constraints (bonded
+        /// weapon, shield belt), then Brawler, passion, and skill. Passion is deliberately
+        /// checked before skill; a clearly better melee skill must beat Shooting by
+        /// <see cref="MeleeSkillMargin"/> levels so close skills keep the ranged default.
+        /// </summary>
+        private static void ResolveAutomaticHandType(PawnAnalysis analysis, PawnFitContext context)
+        {
+            if (analysis.HandTypeOverride == HandType.Ranged)
             {
-                analysis.RoleIsRanged = analysis.SidearmState.PreferredPrimaryIsRanged.Value;
-                analysis.RoleSource = "Simple Sidearms mode";
+                SetHandType(analysis, true, "manual hand type");
+                return;
+            }
+            if (analysis.HandTypeOverride == HandType.Melee)
+            {
+                SetHandType(analysis, false, "manual hand type");
                 return;
             }
 
-            if (analysis.Current != null && analysis.Current.def != null)
+            if (analysis.HandLocked && analysis.Current != null && analysis.Current.def != null)
             {
                 if (analysis.Current.def.IsRangedWeapon)
                 {
-                    analysis.RoleIsRanged = true;
-                    analysis.RoleSource = "from current weapon";
+                    SetHandType(analysis, true, "bonded weapon");
                     return;
                 }
                 if (analysis.Current.def.IsMeleeWeapon)
                 {
-                    analysis.RoleIsRanged = false;
-                    analysis.RoleSource = "from current weapon";
+                    SetHandType(analysis, false, "bonded weapon");
                     return;
                 }
             }
 
-            analysis.RoleIsRanged = context.Shooting >= context.Melee;
-            analysis.RoleSource = "from combat skill";
+            if (context.RangedBlockingShield)
+            {
+                SetHandType(analysis, false, "shield belt");
+                return;
+            }
+
+            if (context.Brawler)
+            {
+                SetHandType(analysis, false, "Brawler");
+                return;
+            }
+
+            if ((int)context.ShootingPassion > (int)context.MeleePassion)
+            {
+                SetHandType(analysis, true, "shooting passion");
+                return;
+            }
+            if ((int)context.MeleePassion > (int)context.ShootingPassion)
+            {
+                SetHandType(analysis, false, "melee passion");
+                return;
+            }
+
+            if (context.Melee >= context.Shooting + MeleeSkillMargin)
+            {
+                SetHandType(analysis, false, "melee skill");
+                return;
+            }
+
+            SetHandType(analysis, true, context.Shooting > context.Melee
+                ? "shooting skill"
+                : "ranged default");
+        }
+
+        private static void SetHandType(PawnAnalysis analysis, bool ranged, string source)
+        {
+            analysis.RoleIsRanged = ranged;
+            analysis.RoleSource = source;
         }
 
         private static void ResolveBestCarriedHand(PawnAnalysis analysis, PawnFitContext context,
@@ -957,8 +1039,9 @@ namespace Armory
 
             row.TotalScore += score;
 
-            bool isNew = baseline <= 0.01f;
-            float gain = isNew ? 0f : score / baseline - 1f;
+            bool typeSwitch = hand && pawn.HandTypeMismatch;
+            bool isNew = baseline <= 0.01f && !typeSwitch;
+            float gain = isNew || typeSwitch ? 0f : score / baseline - 1f;
 
             if (hand)
             {
@@ -976,10 +1059,13 @@ namespace Armory
                 Gain = gain,
                 Score = score,
                 IsNew = isNew,
+                TypeSwitch = typeSwitch,
                 IsTop = isTop,
                 CurrentLabel = currentLabel,
-                Role = CombatScoring.Label(pawn.CombatRole),
-                PreferredRange = pawn.PreferredRange
+                Role = pawn.RoleIsRanged == true
+                    ? CombatScoring.Label(pawn.CombatRole)
+                    : "Melee",
+                PreferredRange = pawn.RoleIsRanged == true ? pawn.PreferredRange : 0
             });
 
             if (isTop)
@@ -992,8 +1078,9 @@ namespace Armory
                     plannedCounts[source.Def] = count + 1;
                 }
             }
-            row.KnownCount += isNew ? 0 : 1;
+            row.KnownCount += isNew || typeSwitch ? 0 : 1;
             row.NewCount += isNew ? 1 : 0;
+            row.TypeSwitchCount += typeSwitch ? 1 : 0;
             row.KnownGain += isNew ? 0f : gain;
             row.TotalGain += isNew ? 1f : gain;
         }

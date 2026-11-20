@@ -2,7 +2,7 @@
 
 **The right weapon, in the right hands.**
 
-**Version 0.9.2** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.10.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and automatic manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -29,7 +29,7 @@ Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2 |
+| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0 |
 
 ---
 
@@ -44,14 +44,16 @@ the bar and this list.
 
 - current hand weapon and its score;
 - a **`Best vs current`** column comparing the best available hand candidate
-  with the current hand weapon; negative means the current weapon is still better;
-- a **hand slot** ranking of the colonist's Simple Sidearms type
-  (`ranged` or `melee`), with the best available upgrade and how it compares
-  with the current hand weapon;
-- a **combat role** (`CQB`, `Assault`, `Line`, `Marksman`) and preferred
+  with the current hand weapon; negative means the current weapon is still better.
+  When the equipped weapon is the other hand type, the column says `switch type`
+  instead of a meaningless percentage;
+- a **hand slot** ranking of one type, `ranged` or `melee`, with the best
+  available upgrade; the type is derived automatically and can be overridden per
+  colonist;
+- a **ranged role** (`CQB`, `Assault`, `Line`, `Marksman`) and preferred
   engagement distance, derived from the colonist's actual accuracy curve and genes,
-  or fixed with a per-colonist override;
-- a **backup slot** ranking of the opposite type, with Simple Sidearms'
+  or fixed with a per-colonist override; melee pawns have no ranged role;
+- with Simple Sidearms, a **backup slot** ranking of the opposite type, with SS's
   slot/mass/selection blockers and the currently carried backup;
 - a full ranked list with a status per candidate and an expandable factor ledger;
 - a separate `Cannot equip` list for biocoded/bonded/role-restricted weapons;
@@ -59,10 +61,14 @@ the bar and this list.
   act (manual weapon change, swap cooldown, drafted, pacifist, downed, bonded
   weapon, Simple Sidearms job, and so on).
 
-Ranged and melee weapons are never compared in one ranking. A ranged pawn's
-hand slot contains ranged weapons and its backup slot contains melee weapons;
-a melee pawn is the mirror. This removes the old "the monosword is the top wish
-for every shooter" artifact.
+Ranged and melee weapons are never compared in one ranking. Every pawn has a
+hand type, so a ranged pawn only considers ranged hand weapons and a melee pawn
+only considers melee hand weapons. If the equipped weapon is the other type,
+Armory automatically switches to the best ready weapon of the chosen type; the
+old weapon is dropped by the normal equip job. The type is chosen from the
+player's per-pawn override, then a bonded weapon, a ranged-blocking shield belt,
+Brawler, shooting/melee passion, and finally skill. When no signal prefers melee,
+ranged is the default.
 
 ### Weapons
 Every loose weapon on the map with:
@@ -121,7 +127,8 @@ Columns:
 - `Needed`: copies still missing; `enough` (green) when the def is the best option
   for someone but already covered;
 - `Gain`: average improvement over the current weapon, assuming a newly made
-  normal-quality copy; `new slot` when the colonist has nothing in that slot;
+  normal-quality copy; `new slot` when the colonist has nothing in that slot and
+  `switch type` when they hold the other hand type;
 - `Source`: `craft · bench`, the research project, or `buy`. For craft rows the
   bench is the best **built** bench that can make it; if none is built, the best
   **unlocked** bench is shown instead. A craft row with missing copies and a
@@ -142,10 +149,31 @@ marks the best option in its section for at least one colonist; all names are
 white, so the star is the only distinction. Without that, an owned ideal (for
 example the hatchet a colonist already carries) would disappear. Click a row to
 see one detail line per contributing colonist, with their name, current weapon,
-combat role, individual `Score`, `Slot`, and `Gain` aligned under the same
+ranged role, individual `Score`, `Slot`, and `Gain` aligned under the same
 columns. Defs with no gap are otherwise hidden.
 
-### Range and combat roles
+### Hand type, range and ranged roles
+
+Every colonist has a **hand type**: `ranged` or `melee`. Armory resolves it in
+this order:
+
+1. the player's per-pawn **Hand type** override (`Auto`, `Ranged`, `Melee`);
+2. a bonded persona weapon currently in hand (its type wins, and the hand stays
+   locked);
+3. a worn shield belt that blocks ranged fire (`melee`);
+4. the `Brawler` trait (`melee`);
+5. the higher Shooting/Melee **passion** (`Major` beats `Minor`, `Minor` beats
+   `None`);
+6. skill: melee is chosen only when Melee is at least **3 levels higher** than
+   Shooting; otherwise ranged is the default. Close skills therefore keep the
+   ranged default rather than flipping to melee on a one-point difference.
+
+Only weapons of the chosen hand type are ranked. If the colonist is holding the
+other type, the planner automatically equips the best ready weapon of the chosen
+type; if none is ready, the current weapon is kept and the detail shows a
+mismatch warning. The per-pawn override is saved with the colony and survives
+save/load. With Simple Sidearms active and respected, SS's own primary mode owns
+the hand type instead; the override is ignored while SS is in control.
 
 RimWorld's hit chance is a per-tile shooting-accuracy curve multiplied by the
 weapon's accuracy at that distance. Armory samples that curve over a band around
@@ -161,9 +189,10 @@ The preferred distance is automatic by default:
   role; high skill with normal long-range accuracy produces a marksman;
 - `CQB` is 12 tiles or less, `Assault` 13–22, `Line` 23–30 and `Marksman` 31+.
 
-The pawn detail has a `Change` button for a per-pawn override. Overrides are
-saved with the colony (not the mod settings) and survive save/load. `Auto`
-returns to the derived role.
+The pawn detail has a `Change range` button for a per-pawn ranged-role override.
+Overrides are saved with the colony (not the mod settings) and survive save/load.
+`Auto` returns to the derived role. The separate `Change type` button controls
+the ranged/melee hand type.
 
 A small deterministic personal preference and a sequential duplicate penalty
 keep equal pawns from becoming clones. Both are controlled by **Squad variety**
@@ -333,11 +362,15 @@ separate inventory category, and **sidearm limits apply only to the bag**. That
 is why a 2 kg Monosword can be a melee hand weapon but not a melee sidearm under
 SS's Basic preset.
 
-Armory therefore models a pawn as two typed slots:
+Armory therefore models a pawn as two typed slots when Simple Sidearms is active
+and respected:
 
 - **Hand slot** = the colonist's Simple Sidearms hand type. Armory may upgrade it
   with a better weapon of the same type via the vanilla `Equip` job, which also
-  updates Simple Sidearms' remembered preference.
+  updates Simple Sidearms' remembered preference. Without Simple Sidearms, the
+  hand type comes from Armory's own automatic assignment (override, bonded weapon,
+  shield belt, Brawler, passion, skill); the hand slot is still typed and ranked
+  the same way.
 - **Backup slot** = the opposite type. Armory keeps one legal opposite-type
   weapon in the bag via `EquipSecondary`. Ranged pawns get a melee backup; melee
   pawns get a ranged backup.
@@ -393,8 +426,10 @@ gladius is. The Weapons tab shows `Backup (blocked)` with Simple Sidearms'
 reason, and the colonist detail lists the candidate under the backup slot with
 that blocker.
 
-Turning **Respect Simple Sidearms** off reverts to a single untyped hand ranking
-and disables backup management; the two mods may then fight over primaries.
+Turning **Respect Simple Sidearms** off hands the hand type back to Armory's own
+automatic assignment; Armory may then disagree with SS's primary mode while
+backup management still runs. Leave it on unless you are deliberately taking
+manual control.
 
 SS's primary mode is **per pawn**. Changing SS's global default only affects
 newly generated pawns; existing colonists keep their own mode. Use the Simple
@@ -417,8 +452,8 @@ All settings are under **Options → Mod settings → Armory**. The page scrolls
 | Equip drafted colonists | off | — | Queues jobs for drafted colonists |
 | Respect manual weapon changes | on | — | Pause after a player/other-mod change |
 | Pause after a manual weapon change | 15000 ticks (~250 s) | 2500–30000 | Length of that pause |
-| Respect Simple Sidearms | on | — | Typed hand/backup slots, Simple Sidearms mode, forced states, and hand baseline |
-| Manage backup weapons | on | — | Keep one opposite-type weapon in the bag via `EquipSecondary` |
+| Respect Simple Sidearms | on | — | SS primary mode owns the hand type; respect forced states and hand baseline; backup management |
+| Manage backup weapons | on | — | Keep one opposite-type weapon in the bag via `EquipSecondary` (Simple Sidearms only) |
 | Upgrade a worse backup | on | — | Replace the worst same-type backup when a better valid one exists; never cross-type |
 | Minimum upgrade gain | 10% | 0–50% | Required improvement to recommend or equip a weapon |
 | Ranged score weight | ×1.00 | 0.5–2.0 | Global scoring bias |
@@ -434,7 +469,8 @@ All settings are under **Options → Mod settings → Armory**. The page scrolls
 Internal: `settingsVersion` (currently 4) drives the age, typed-slot, list-limit
 and range/variety migrations. The 0.9.0 automation defaults apply to new
 settings only; no migration rewrites an existing `autoEquipEnabled` or
-`manageSidearms` value.
+`manageSidearms` value. Per-pawn ranged-role and hand-type overrides are saved in
+the colony, not in mod settings.
 
 ---
 
@@ -456,7 +492,7 @@ Armory/
     ArmoryMapComponent.cs          snapshot cache + planner tick
     ArmorySnapshotBuilder.cs       colonist/weapon/upgrade analysis, pod lookup
     ArmoryPlanner.cs               automatic equip jobs, claims, cooldowns
-    ArmoryGameComponent.cs         session decision log (GameComponent)
+    ArmoryGameComponent.cs         session decision log, ranged-role and hand-type overrides
     DebugActions_Armory.cs         log snapshot / unforbid / run planner
     WeaponFilter.cs                single definition of a real weapon
     Compatibility/SimpleSidearmsAdapter.cs  reflection-only SS state and rules
@@ -611,7 +647,8 @@ Full procedure, switches, pitfalls and cleanup:
    - SS state and carried sidearms surfaced in pawn detail.
 2. **Milestone 4 — Sidearm ranking and assignment** — done in 0.4.0;
    sidearm visibility in 0.5.0; replaced by the typed hand/backup model in 0.6.0.
-   - one hand slot (Simple Sidearms hand type) and one opposite-type backup;
+   - one typed hand slot (Simple Sidearms mode when active, otherwise Armory's
+     automatic type) and one opposite-type backup;
    - same-type-only upgrades, add-first or drop-first depending on SS slots;
    - mirrored for ranged and melee pawns;
    - SS slot/mass/selection checks on every candidate;

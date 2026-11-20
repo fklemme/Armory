@@ -647,8 +647,10 @@ Behaviour:
 1. **Role**: SS's per-pawn primary mode decides the hand type (`Ranged` /
    `Melee`; `BySkill` resolves through `getSkillWeaponPreference`). If SS has no
    mode, the current weapon type is used, then the pawn's better combat skill.
-   When SS is absent or the respect setting is off, there is no typed model and
-   all weapons compete for the single vanilla hand slot.
+   When SS is absent or the respect setting is off, 0.10.0 resolves Armory's own
+   hand type (override, bonded weapon, ranged-blocking shield, Brawler, passion,
+   then a 3-level melee skill advantage) and still filters hand candidates to that
+   type; see the 0.10.0 section.
 2. **Hand slot**: loose weapons of the role type only. `Eligibility.Check` keeps
    the SS forced/role gates and the normal world checks. The baseline is SS's own
    QuickSwitch choice (`findBestRangedWeapon` / `findBestMeleeWeapon`,

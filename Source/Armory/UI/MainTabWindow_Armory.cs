@@ -803,7 +803,7 @@ namespace Armory
             float cursor = 0f;
             string handType = pawn.RoleIsRanged.HasValue
                 ? (pawn.RoleIsRanged.Value ? "ranged" : "melee")
-                : "all weapons";
+                : "not set";
             SectionHeader(ref cursor, width, "Hand slot (" + handType + ")");
 
             if (bestReady != null)

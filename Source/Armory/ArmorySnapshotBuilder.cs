@@ -760,7 +760,8 @@ namespace Armory
                         plannedCounts, variety);
                 }
 
-                // Backups need SS's per-pawn memory; without it Armory has no typed slot.
+                // Backups need SS's per-pawn memory; without it there is no managed
+                // backup slot, even though the hand slot is still typed.
                 if (!pawn.HasRole || pawn.SidearmState == null)
                 {
                     continue;

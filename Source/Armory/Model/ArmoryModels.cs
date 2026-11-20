@@ -169,6 +169,11 @@ namespace Armory
             get { return string.IsNullOrEmpty(UnavailableReason); }
         }
 
+        /// <summary>
+        /// True when a hand type was resolved. Armory always resolves one for analyzed
+        /// pawns; the property remains for callers that still treat a missing type as
+        /// "not managed".
+        /// </summary>
         public bool HasRole
         {
             get { return RoleIsRanged.HasValue; }

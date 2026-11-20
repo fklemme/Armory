@@ -14,7 +14,7 @@ Every free colonist gets range-aware rankings based on RimWorld's real accuracy 
 
 The Upgrades tab lists every obtainable weapon that would improve a colonist, grouped into Craft, Research and Buy. It shows owned and missing copies, expected gain and the best bench, and can queue one bill when a built bench can make the missing weapon. The Weapons tab covers every loose weapon on the map, while the Colonists tab shows each pawn's current hand and backup weapon, status and ranked alternatives.
 
-When no other weapon manager is active, automatic weapon management is on by default. Armory queues equip jobs for the best ready weapon, claims each weapon for one pawn, respects a swap cooldown, never unforbids anything, and treats unbonded persona weapons as manual-only. Backup management keeps one legal opposite-type weapon and upgrades only the worst same-type weapon. Automatic equipping and backup management can each be disabled in settings, and the Log tab records every decision with its reason.
+When no other weapon manager is active, automatic weapon management is on by default. Armory queues equip jobs for the best ready weapon, claims each weapon for one pawn, respects a swap cooldown, never unforbids anything, and treats unbonded persona weapons as manual-only. With Simple Sidearms, backup management keeps one legal opposite-type weapon and upgrades only the worst same-type weapon. Automatic equipping and backup management can each be disabled in settings, and the Log tab records every decision with its reason.
 
 Simple Sidearms support is optional and read through reflection, so Armory still works without it. No Harmony dependency.
 

@@ -1329,9 +1329,7 @@ Demand showed the Range column and range-aware ordering; no Armory errors.
 
 ## 0.9.2 — release staging, refreshed icon/banner, Best vs current
 
-First private Workshop release candidate. Do **not** publish as 1.0.
-
-- Refreshed the crossed-weapons artwork: the rifle is now the foreground weapon
+First private Workshop release candidate. Do **not** publish as 1.0.- Refreshed the crossed-weapons artwork: the rifle is now the foreground weapon
   with a readable stepped stock, grip, magazine, trigger guard and scope; the
   sword sits behind it. The tab glyph, `ModIcon.png` and `About/Preview.png` were
   regenerated from the same scripts, and the banner icon is aligned with the
@@ -1373,6 +1371,26 @@ automated content check, a clean subscriber test, and making the item public.
 - Test the subscribed Workshop copy with and without Simple Sidearms.
 - Set the item to Public when the private test passes.
 - Add the GitHub link and current description to the Workshop page in Steam.
+
+### Simple Sidearms save/removal and load-order test (2026-11-20)
+
+Tested on isolated copies of the 13-colonist `Northwestern Esora Humanlike
+Confederacy` save:
+
+- **SS removed** from `ModsConfig.xml`: the save loaded, all 13 colonists
+  appeared, the Armory tab and snapshot worked, and the log reported
+  `Simple Sidearms integration: inactive, respect setting: on`. No SS class or
+  XML errors. SS sidearm memory is not available without the mod, as expected.
+- **SS before Armory** (the normal order): integration active, `SS active: True`,
+  SS hand types and hand rankings present.
+- **Armory before SS**: integration active, `SS active: True`; the logged active
+  mod order confirmed Armory loaded before SS.
+- A `Could not resolve reference ... Thing_Human1490067` warning appeared in both
+  SS-on and SS-off runs, so it is unrelated to removing SS.
+
+Conclusion: **load order is not important**, and SS does not need to be an
+optional dependency or `loadAfter` entry. The adapter is lazy and scans all
+loaded assemblies when first used.
 
 ---
 

@@ -322,7 +322,9 @@ Every hand and backup action, with its reason, goes to the **Log** tab.
 
 Simple Sidearms is detected by packageId and read **entirely through
 reflection**, so Armory still loads in a Core-only game and does not break when
-Simple Sidearms changes.
+Simple Sidearms changes. Load order does not matter: Armory resolves the SS
+types lazily when it first needs them, so it works with Armory loaded before or
+after Simple Sidearms.
 
 SS keeps exactly one weapon in `equipment.Primary` — the **hand** — and extra
 weapons in the pawn's inventory — the **bag**. Its per-pawn primary mode

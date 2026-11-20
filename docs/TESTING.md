@@ -128,6 +128,30 @@ dotnet build .\Source\Armory\Armory.csproj
 Keep `%TEMP%\opencode\armory-live` if you want to rerun the same save; the setup
 script recreates it from the real profile on the next run.
 
+### Testing without Simple Sidearms or with a different load order
+
+`Setup-LiveTest.ps1` wipes the isolated root and copies the real config, so
+prepare **without** `-Launch`, edit the isolated `Config\ModsConfig.xml`, then
+launch the game manually:
+
+```powershell
+.\tools\Setup-LiveTest.ps1 -SaveName "Armory Testing"
+
+# remove this <li> to test a save with SS disabled:
+#   <li>petetimessix.simplesidearms</li>
+#
+# or move this <li> before the SS entry to test Armory loading first:
+#   <li>kruecke.armory</li>
+
+& "C:\Program Files (x86)\Steam\steamapps\common\RimWorld\RimWorldWin64.exe" `
+  -quicktest -savedatafolder="$env:TEMP\opencode\armory-live"
+```
+
+Wait for the scaffold to finish and quit, then check the log for
+`[Armory] Simple Sidearms integration: active` / `inactive` and the save-loaded
+line. Do not run `Setup-LiveTest.ps1 -Launch` after editing the config: it will
+overwrite your changes.
+
 ---
 
 ## Pitfalls (learned the hard way)

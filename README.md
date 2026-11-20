@@ -123,7 +123,8 @@ Columns:
 - `Range`: maximum firing range in tiles (`-` for melee);
 - `Score`: range-aware expected value for the colony, summed over the colonists
   who would take it; this is the main sort key;
-- `Slot`: `hand`, `backup`, or `both`; hover for the hand/backup counts;
+- `Slot`: `Hand`, `Backup`, or `Both`, using the same green/blue/cyan colors as
+  the Weapons tab; hover for the hand/backup counts;
 - `Wanted by`: colonists who would improve with this def (may overlap other rows);
 - `Owned`: copies in the colony (`2 · 1 forbidden` when some are forbidden);
 - `Needed`: copies still missing; `enough` (green) when the def is the best option

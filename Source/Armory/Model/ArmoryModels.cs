@@ -444,16 +444,16 @@ namespace Armory
             get { return KnownCount > 0 ? KnownGain / KnownCount : 0f; }
         }
 
-        /// <summary>"hand", "backup", or "2 hand · 1 backup" for display.</summary>
+        /// <summary>"Hand", "Backup", or "2 Hand · 1 Backup" for display.</summary>
         public string Uses
         {
             get
             {
                 if (WantedHand > 0 && WantedBackup > 0)
                 {
-                    return WantedHand + " hand · " + WantedBackup + " backup";
+                    return WantedHand + " Hand · " + WantedBackup + " Backup";
                 }
-                return WantedHand > 0 ? "hand" : "backup";
+                return WantedHand > 0 ? "Hand" : "Backup";
             }
         }
     }

@@ -608,7 +608,7 @@ namespace Armory
             if (pawn.ageTracker == null ||
                 pawn.ageTracker.AgeBiologicalYears < settings.minimumAge)
             {
-                return string.Format("under minimum age ({0})", settings.minimumAge);
+                return "under minimum age";
             }
             if (pawn.WorkTagIsDisabled(WorkTags.Violent))
             {
@@ -621,7 +621,7 @@ namespace Armory
             }
             if (pawn.Drafted && !settings.equipDrafted)
             {
-                return "drafted (equip drafted is off)";
+                return "drafted";
             }
             if (pawn.jobs == null)
             {
@@ -633,7 +633,7 @@ namespace Armory
             }
             if (SimpleSidearmsAdapter.IsSidearmJobRunning(pawn))
             {
-                return "Simple Sidearms sidearm job running";
+                return "sidearm job";
             }
             if (pawn.equipment == null)
             {

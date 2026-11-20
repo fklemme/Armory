@@ -156,7 +156,7 @@ No hard dependencies. Simple Sidearms support is optional and read through refle
 [/list]
 
 [h2]Version[/h2]
-0.10.1 - hand-type/UI polish, hidden no-SS Backup column and unified Auto list limits.
+0.10.1 - hand-type/UI polish, unified slot labels and colors, hidden no-SS Backup column and unified Auto list limits.
 
 [h2]Links[/h2]
 [list]

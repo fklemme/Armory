@@ -35,6 +35,11 @@ namespace Armory
         private const float RowHeight = 26f;
         private const float HeaderHeight = 22f;
 
+        private static readonly Color HandSlotColor = new Color(0.70f, 0.90f, 0.70f);
+        private static readonly Color BackupSlotColor = new Color(0.66f, 0.84f, 0.95f);
+        private static readonly Color BothSlotColor = new Color(0.70f, 0.90f, 0.95f);
+        private static readonly Color BlockedSlotColor = new Color(1f, 0.78f, 0.4f);
+
         private static int SidearmDisplayLimit
         {
             get
@@ -511,8 +516,8 @@ namespace Armory
             }
             if (pawn.AutomationBlocked && !string.IsNullOrEmpty(pawn.AutomationNote))
             {
-                color = new Color(1f, 0.78f, 0.4f);
-                return "Cannot automate: " + pawn.AutomationNote;
+                color = BlockedSlotColor;
+                return "Blocked: " + pawn.AutomationNote;
             }
 
             ArmorySettings settings = ArmoryMod.Settings;
@@ -545,13 +550,13 @@ namespace Armory
             {
                 if (hasBackupWish)
                 {
-                    color = new Color(0.66f, 0.84f, 0.95f);
+                    color = BackupSlotColor;
                     return CountBackups(pawn) == 0
-                        ? "Backup available (hand locked)"
-                        : "Backup upgrade available (hand locked)";
+                        ? "Backup ready"
+                        : "Backup upgrade ready";
                 }
-                color = new Color(1f, 0.78f, 0.4f);
-                return "Hand locked: " + pawn.HandLockReason;
+                color = BlockedSlotColor;
+                return "Hand locked";
             }
 
             if (pawn.HandTypeMismatch)
@@ -561,26 +566,28 @@ namespace Armory
                     : "melee";
                 if (topReady != null)
                 {
-                    color = new Color(0.7f, 0.9f, 0.7f);
+                    color = pawn.RoleIsRanged.HasValue && pawn.RoleIsRanged.Value
+                        ? HandSlotColor
+                        : BackupSlotColor;
                     return "Switching to " + target;
                 }
-                color = new Color(1f, 0.78f, 0.4f);
+                color = BlockedSlotColor;
                 return "No " + target + " weapon";
             }
 
             if (pawn.Current == null && topReady != null)
             {
-                color = new Color(0.7f, 0.9f, 0.7f);
+                color = HandSlotColor;
                 return "Hand weapon available";
             }
             if (pawn.Current == null)
             {
-                color = new Color(1f, 0.78f, 0.4f);
+                color = BlockedSlotColor;
                 return "No hand weapon";
             }
             if (hasHandWish)
             {
-                color = new Color(0.7f, 0.9f, 0.7f);
+                color = HandSlotColor;
                 return "Hand upgrade available";
             }
             if (pawn.SidearmState == null)
@@ -599,16 +606,16 @@ namespace Armory
             {
                 if (BestReadyBackup(pawn) != null)
                 {
-                    color = new Color(0.66f, 0.84f, 0.95f);
+                    color = BackupSlotColor;
                     return "Backup available";
                 }
-                color = new Color(1f, 0.78f, 0.4f);
+                color = BlockedSlotColor;
                 return pawn.SidearmCandidates.Count == 0 ? "No backup weapon" : "No usable backup";
             }
 
             if (BestBackupUpgrade(pawn) != null)
             {
-                color = new Color(0.66f, 0.84f, 0.95f);
+                color = BackupSlotColor;
                 return "Backup upgrade available";
             }
 
@@ -1338,15 +1345,15 @@ namespace Armory
                 Color statusColor;
                 if (row.BestHandPawn != null)
                 {
-                    statusColor = new Color(0.7f, 0.9f, 0.7f);
+                    statusColor = HandSlotColor;
                 }
                 else if (row.BestBackupPawn != null)
                 {
-                    statusColor = new Color(0.66f, 0.84f, 0.95f);
+                    statusColor = BackupSlotColor;
                 }
                 else if (row.BestAnyHandPawn != null || row.BestAnyBackupPawn != null)
                 {
-                    statusColor = new Color(1f, 0.78f, 0.4f);
+                    statusColor = BlockedSlotColor;
                 }
                 else
                 {
@@ -1540,7 +1547,7 @@ namespace Armory
                     bool hard;
                     bool ready = Eligibility.Check(pawn.Pawn, row.Weapon.Thing, true, out reason, out hard);
                     status = ready ? "Can equip in hand" : reason;
-                    color = ready ? new Color(0.7f, 0.9f, 0.7f) : new Color(1f, 0.62f, 0.62f);
+                    color = ready ? HandSlotColor : new Color(1f, 0.62f, 0.62f);
                 }
                 else
                 {
@@ -1549,7 +1556,7 @@ namespace Armory
                     bool ready = Eligibility.CheckSidearm(pawn.Pawn, row.Weapon.Thing, true,
                         out reason, out hard);
                     status = ready ? "Can carry as backup" : reason;
-                    color = ready ? new Color(0.66f, 0.84f, 0.95f) : new Color(1f, 0.62f, 0.62f);
+                    color = ready ? BackupSlotColor : new Color(1f, 0.62f, 0.62f);
                 }
                 Rect statusRect = new Rect(statusX, cursor, statusWidth, 22f);
                 DrawCell(statusRect, status, TextAnchor.MiddleLeft, GameFont.Small, color);
@@ -1786,7 +1793,7 @@ namespace Armory
                     "Range-aware expected value for the colonists who want it: effective DPS at each colonist's preferred distance, multiplied by fit and variety. Expand the row to see each contribution.");
                 Rect slotCell = new Rect(columns.SlotX, cursor, DemandColumns.SlotWidth, RowHeight);
                 DrawCell(slotCell, SlotText(row), TextAnchor.MiddleLeft, GameFont.Small,
-                    new Color(0.72f, 0.82f, 0.92f));
+                    SlotColor(row));
                 TipCell(slotCell, SlotTooltip(row));
                 DrawCell(new Rect(columns.WantedX, cursor, DemandColumns.WantedWidth, RowHeight),
                     row.Wanted.ToString(), TextAnchor.MiddleRight);
@@ -1970,9 +1977,18 @@ namespace Armory
         {
             if (row.WantedHand > 0 && row.WantedBackup > 0)
             {
-                return "both";
+                return "Both";
             }
-            return row.WantedHand > 0 ? "hand" : "backup";
+            return row.WantedHand > 0 ? "Hand" : "Backup";
+        }
+
+        private static Color SlotColor(DemandRow row)
+        {
+            if (row.WantedHand > 0 && row.WantedBackup > 0)
+            {
+                return BothSlotColor;
+            }
+            return row.WantedHand > 0 ? HandSlotColor : BackupSlotColor;
         }
 
         private static string SlotTooltip(DemandRow row)
@@ -1980,14 +1996,14 @@ namespace Armory
             if (row.WantedHand > 0 && row.WantedBackup > 0)
             {
                 string hand = row.WantedHand == 1
-                    ? "1 hand slot"
-                    : row.WantedHand + " hand slots";
+                    ? "1 Hand slot"
+                    : row.WantedHand + " Hand slots";
                 string backup = row.WantedBackup == 1
-                    ? "1 backup slot"
-                    : row.WantedBackup + " backup slots";
+                    ? "1 Backup slot"
+                    : row.WantedBackup + " Backup slots";
                 return "Wanted for " + hand + " and " + backup + ".";
             }
-            return row.WantedHand > 0 ? "Wanted for the hand slot." : "Wanted for the backup slot.";
+            return row.WantedHand > 0 ? "Wanted for the Hand slot." : "Wanted for the Backup slot.";
         }
 
         private static string GainText(DemandRow row)
@@ -2065,8 +2081,8 @@ namespace Armory
                 want.Score.ToString("0"), TextAnchor.MiddleRight, GameFont.Small,
                 new Color(0.82f, 0.8f, 0.68f));
             DrawCell(new Rect(columns.SlotX, cursor, DemandColumns.SlotWidth, 20f),
-                want.Hand ? "hand" : "backup", TextAnchor.MiddleLeft, GameFont.Small,
-                new Color(0.66f, 0.74f, 0.82f));
+                want.Hand ? "Hand" : "Backup", TextAnchor.MiddleLeft, GameFont.Small,
+                want.Hand ? HandSlotColor : BackupSlotColor);
             DrawCell(new Rect(columns.GainX, cursor, DemandColumns.GainWidth, 20f),
                 want.TypeSwitch ? "switch" : want.IsNew ? "new slot" : FormatPct(want.Gain),
                 TextAnchor.MiddleRight, GameFont.Small,

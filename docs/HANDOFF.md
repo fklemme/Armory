@@ -64,6 +64,18 @@ UI and settings polish after the 0.10.0 typed-hand pass.
   loaded, the Backup column is unchanged. The pawn detail shows
   `Backup slot: requires Simple Sidearms.` when the slot is unavailable, or a
   note when SS has no sidearm data for that pawn.
+- Unified slot labels across the tabs: `Hand`, `Backup` and `Both` are Title Case
+  and share the same colors everywhere (green hand, blue backup, cyan both;
+  blocked stays orange). This fixes the Weapons tab using color-coded Title Case
+  while Upgrades used lowercase, same-color labels.
+- Removed the redundant `carries the preferred type` suffix from the Simple
+  Sidearms summary. It was shown for nearly every SS pawn and used a whole line
+  without adding a decision. Specific preferred-pair text is still shown when SS
+  actually has a carried default/preferred pair.
+- Shortened list statuses so they fit the status column:
+  `Blocked: ...` instead of `Cannot automate: ...`, `Hand locked` instead of the
+  full bonded-weapon sentence, and `Backup ready` / `Backup upgrade ready` when
+  the hand is locked.
 - Candidate limits now use one 1–50 range for both hand and backup. Both default
   to **Auto**:
   - hand: 15 without Simple Sidearms, 5 with it;
@@ -80,7 +92,11 @@ Verified on isolated live saves:
 - **SS enabled:** effective limits logged `hand=5, backup=5`; the Backup column
   returned and the backup list showed 5 entries.
 - The Settings page showed the Auto checkboxes and the 15-hand label without SS;
-  the SS run resolved 5/5. Build is clean.
+  the SS run resolved 5/5.
+- A live SS check confirmed the Upgrades `Slot` values render `Hand`/`Backup`
+  with the same colors as the Weapons tab, and Jerry's Simple Sidearms summary no
+  longer shows `carries the preferred type`.
+- Build is clean.
 
 Pending: actual equip-job completion and the hand-type override save/load
 round-trip, as before.
@@ -2007,7 +2023,7 @@ polish, not new core behaviour.
 | 0.9.1 | Colonists list follows the colonist-bar display order (join order by default) instead of alphabetical name order |
 | 0.9.2 | Refreshed icon/banner, `Best vs current` column, clean release staging and the first private Workshop upload checklist |
 | 0.10.0 | Typed hand model without Simple Sidearms, passion-first role assignment, Brawler/shield/bonded handling, automatic hand-type alignment and per-pawn hand-type overrides |
-| 0.10.1 | Corrected hand-type order tooltip, removed duplicate current-weapon text, hid the no-SS Backup column, and unified Auto candidate limits (15 hand without SS; 5/5 with SS) |
+| 0.10.1 | Corrected hand-type order tooltip, removed duplicate current-weapon text, hid the no-SS Backup column, unified slot labels/colors, dropped the redundant SS "carries the preferred type" line, shortened list statuses, and unified Auto candidate limits (15 hand without SS; 5/5 with SS) |
 
 ---
 

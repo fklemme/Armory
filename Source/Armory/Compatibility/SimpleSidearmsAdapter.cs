@@ -73,10 +73,6 @@ namespace Armory.Compatibility
                 {
                     text += " | " + PreferredPairReason;
                 }
-                else if (CarriesPreferredPrimary)
-                {
-                    text += " | carries the preferred type";
-                }
                 return text;
             }
         }

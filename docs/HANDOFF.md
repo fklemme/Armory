@@ -75,7 +75,9 @@ UI and settings polish after the 0.10.0 typed-hand pass.
 - Shortened list statuses so they fit the status column:
   `Blocked: ...` instead of `Cannot automate: ...`, `Hand locked` instead of the
   full bonded-weapon sentence, and `Backup ready` / `Backup upgrade ready` when
-  the hand is locked.
+  the hand is locked. Added **`Backup waiting`** for the case where Simple
+  Sidearms has not switched to the resolved hand type yet, so `Backup ready` now
+  only means a backup can actually be added; the pawn detail explains the wait.
 - Candidate limits now use one 1–50 range for both hand and backup. Both default
   to **Auto**:
   - hand: 15 without Simple Sidearms, 5 with it;
@@ -96,6 +98,9 @@ Verified on isolated live saves:
 - A live SS check confirmed the Upgrades `Slot` values render `Hand`/`Backup`
   with the same colors as the Weapons tab, and Jerry's Simple Sidearms summary no
   longer shows `carries the preferred type`.
+- Trebo's hand-locked bonded melee weapon with SS mode ranged now shows
+  `Backup waiting`, not `Backup ready`; the detail explains that the backup waits
+  for the hand type to match.
 - Build is clean.
 
 Pending: actual equip-job completion and the hand-type override save/load

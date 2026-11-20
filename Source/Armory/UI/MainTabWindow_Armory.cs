@@ -501,6 +501,21 @@ namespace Armory
             return null;
         }
 
+        private static bool WaitsForHandType(PawnAnalysis pawn)
+        {
+            if (!pawn.RoleIsRanged.HasValue || pawn.Current == null || pawn.Current.def == null)
+            {
+                return false;
+            }
+            bool currentRanged = pawn.Current.def.IsRangedWeapon;
+            bool currentMelee = pawn.Current.def.IsMeleeWeapon;
+            if (!currentRanged && !currentMelee)
+            {
+                return false;
+            }
+            return currentRanged != pawn.RoleIsRanged.Value;
+        }
+
         private static string PawnStatus(PawnAnalysis pawn, out Color color)
         {
             if (!pawn.Available)
@@ -531,6 +546,7 @@ namespace Armory
                                  (baseline > 0.01f &&
                                   topReady.Score > baseline * (1f + threshold))));
 
+            bool handTypeWait = pawn.SidearmState != null && WaitsForHandType(pawn);
             bool hasBackupWish = false;
             if (pawn.SidearmState != null && (settings == null || settings.manageSidearms))
             {
@@ -538,6 +554,10 @@ namespace Armory
                 hasBackupWish = carriedBackups == 0
                     ? BestReadyBackup(pawn) != null
                     : BestBackupUpgrade(pawn) != null;
+                if (handTypeWait)
+                {
+                    hasBackupWish = false;
+                }
             }
 
             if (!string.IsNullOrEmpty(pawn.AutomationNote) && (hasHandWish || hasBackupWish))
@@ -554,6 +574,11 @@ namespace Armory
                     return CountBackups(pawn) == 0
                         ? "Backup ready"
                         : "Backup upgrade ready";
+                }
+                if (handTypeWait && BestReadyBackup(pawn) != null)
+                {
+                    color = BlockedSlotColor;
+                    return "Backup waiting";
                 }
                 color = BlockedSlotColor;
                 return "Hand locked";
@@ -573,6 +598,12 @@ namespace Armory
                 }
                 color = BlockedSlotColor;
                 return "No " + target + " weapon";
+            }
+
+            if (handTypeWait && BestReadyBackup(pawn) != null)
+            {
+                color = BlockedSlotColor;
+                return "Backup waiting";
             }
 
             if (pawn.Current == null && topReady != null)
@@ -600,7 +631,7 @@ namespace Armory
             if (settings == null || !settings.manageSidearms)
             {
                 color = new Color(0.72f, 0.72f, 0.72f);
-                return backupCount > 0 ? "Backup carried (not managed)" : "Backup management off";
+                return backupCount > 0 ? "Backup carried" : "Backup management off";
             }
             if (backupCount == 0)
             {
@@ -719,9 +750,10 @@ namespace Armory
 
             if (pawn.HandLocked)
             {
-                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
-                    "Hand locked: " + pawn.HandLockReason +
-                    ". Backups can still be managed; remove it to unlock the hand.",
+                string handLockText = pawn.SidearmState != null && WaitsForHandType(pawn)
+                    ? "Hand locked: bonded weapon. Backup waits for the hand type to match."
+                    : "Hand locked: bonded persona weapon. Remove it to unlock the hand.";
+                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f), handLockText,
                     new Color(1f, 0.82f, 0.45f));
                 y += 22f;
             }
@@ -1116,24 +1148,13 @@ namespace Armory
             {
                 return "No hand weapon yet; the backup waits until the colonist is armed.";
             }
-            if (pawn.Current.def == null)
-            {
-                return null;
-            }
-
-            bool currentRanged = pawn.Current.def.IsRangedWeapon;
-            bool currentMelee = pawn.Current.def.IsMeleeWeapon;
-            if (!currentRanged && !currentMelee)
-            {
-                return null;
-            }
-            if (currentRanged == pawn.RoleIsRanged.Value)
+            if (!WaitsForHandType(pawn))
             {
                 return null;
             }
 
             return string.Format(
-                "Waiting for Simple Sidearms to switch this colonist to a {0} hand weapon before adding the {1} backup.",
+                "Waiting for Simple Sidearms to switch to a {0} hand before adding the {1} backup.",
                 pawn.RoleIsRanged.Value ? "ranged" : "melee",
                 pawn.RoleIsRanged.Value ? "melee" : "ranged");
         }

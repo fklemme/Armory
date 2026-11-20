@@ -2,7 +2,7 @@
 
 **The right weapon, in the right hands.**
 
-**Version 0.10.1** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.10.2** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and automatic manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -29,7 +29,7 @@ Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1 |
+| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1, backup safety/unusable-baseline fixes in 0.10.2 |
 
 ---
 
@@ -402,17 +402,20 @@ Backup management is on by default; when enabled it:
   selection, pacifist-tool, biocoding, and role rules all apply;
 - upgrades only the worst carried weapon of the **same** type; it never drops the
   last weapon of a type and never drops one type to add the other;
-- if SS has a free slot, picks up the better weapon first and drops the old one
-  after; if slots are full, drops the old one first and restores it if SS still
-  rejects the new one;
+- always drops the old backup first, then adds the replacement; if the drop fails,
+  it does not add anything, and if SS rejects the replacement the old one is
+  restored;
 - uses the same claims, per-pawn cooldown, and manual-change protection as hand
   upgrades;
 - never acts on a pawn with a forced/unarmed/prefer-unarmed SS state.
 
-Armory does not add a second backup. Extra same-type weapons the player or SS
-already carries are left alone. If the bag is full of extras, a missing backup
-may have no free slot; Armory reports the blocker rather than dropping a
-hand-type extra.
+Armory never adds a second backup. If more than one backup is already carried
+(for example after a failed drop, SS re-retrieving a dropped weapon, or another
+mod), it stops adding and reports **`Multiple backups`**; drop the extras
+manually. Unusable carried backups, such as a weapon biocoded to another pawn,
+are excluded from the worst-backup baseline and marked `(unusable)`. If the bag
+is full of extras, a missing backup may have no free slot; Armory reports the
+blocker rather than dropping a hand-type extra.
 
 Simple Sidearms reports two different capacity failures with terse text. Armory
 expands them so they cannot be confused:

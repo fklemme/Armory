@@ -1,9 +1,9 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.10.1**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.10.2**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.10.1 are committed; `v0.6.7-stable`
-tags the last pre-Demand-rework build.
+Git repository on `main`; 0.2.3 through 0.10.1 are committed; 0.10.2 is the
+current iteration; `v0.6.7-stable` tags the last pre-Demand-rework build.
 
 **Links:** [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224) ·
 [GitHub](https://github.com/fklemme/Armory)
@@ -31,8 +31,9 @@ into an ideal-loadout build plan; remaining polish is container scanning,
 auto-haul, raid arming, localization, and Workshop prep. The first Workshop item
 (0.9.2) is uploaded and hidden while Steam's content check runs. 0.10.0 added the
 typed hand model, passion-based role assignment and automatic hand-type
-alignment; 0.10.1 polishes the UI and list limits. Upload once the private test is
-good enough.
+alignment; 0.10.1 polished the UI and list limits; 0.10.2 hardens backup
+management and unusable-backup baselines. Upload once the private test is good
+enough.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
@@ -40,9 +41,48 @@ A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.5, the simplified crossed-weapons icon in 0.8.6, the release text, banner and
 default-automation pass in 0.9.0, colonist-bar ordering in 0.9.1, and release
 staging plus the `Best vs current` column in 0.9.2, the typed-hand/auto-align
-pass in 0.10.0, and UI/list-limit polish in 0.10.1. Research, reference-mod
-behaviour, the shipped model and remaining decisions are in
-[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+pass in 0.10.0, UI/list-limit polish in 0.10.1, and backup-safety fixes in 0.10.2.
+Research, reference-mod behaviour, the shipped model and remaining decisions are
+in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+
+---
+
+## 0.10.2 — backup accumulation, biocoded guards and sane upgrade baselines
+
+Investigating a save where Trebo (Green) ended up with three ranged backups:
+Duskgutz's Howl, a revolver, and a biocoded sawed-off shotgun coded to another
+pawn. Simple Sidearms' `rememberedWeapons` contained all four weapons (the bonded
+monosword plus three ranged), so SS considered all three as sidearms. Armory's
+decision log is session-only and was not in the save, so the exact add sequence
+cannot be replayed, but the code had two concrete problems.
+
+- **Add-first upgrades could accumulate.** When a free SS slot existed, Armory
+  queued the replacement backup first and dropped the old one after. If the drop
+  failed or SS re-retrieved the dropped weapon, two backups remained; a later pass
+  could add a third. Backup upgrades now **drop the old backup first**; if the
+  drop fails, nothing is added, and if SS rejects the replacement the old one is
+  restored. If more than one backup is already carried, the planner stops adding
+  and reports **`Multiple backups`**.
+- **The worst-backup baseline counted unusable weapons.** The biocoded sawed-off
+  shotgun had a near-zero score for Trebo, so the Upgrades tab showed thousands of
+  percent gain for ordinary weapons. Carried weapons now record whether they are
+  usable (`Eligibility.CanUseCarriedWeapon`), and unusable backups are excluded
+  from `TryGetWorstBackup`, the best-carried backup, and one-per-pawn demand. The
+  Backup list marks them `(unusable)` and the detail explains:
+  `Multiple backups carried. Drop extras manually; Armory will not add more.`
+- Added an explicit **biocoded-to-another-pawn** guard in `Eligibility`, so Armory
+  can never add such a weapon even if another check misses it.
+- Existing extra backups are **not** dropped automatically; that would risk
+  deleting a player/SS-owned weapon. The status and detail tell the player to drop
+  the extras.
+
+Verified on the current save with SS enabled: Trebo and Gripe show
+`Multiple backups`, the biocoded sawed-off is marked unusable, and the Upgrades
+tab no longer shows five-digit gains (the worst remaining backup produces normal
+percentages; the largest row was +156%). Build is clean.
+
+Pending: after the user manually drops the extra/biocoded backups, verify that
+backup management resumes with exactly one valid backup.
 
 ---
 
@@ -2044,6 +2084,7 @@ polish, not new core behaviour.
 | 0.9.2 | Refreshed icon/banner, `Best vs current` column, clean release staging and the first private Workshop upload checklist |
 | 0.10.0 | Typed hand model without Simple Sidearms, passion-first role assignment, Brawler/shield/bonded handling, automatic hand-type alignment and per-pawn hand-type overrides |
 | 0.10.1 | Corrected hand-type order tooltip, removed duplicate current-weapon text, hid the no-SS Backup column, unified slot labels/colors, dropped the redundant SS "carries the preferred type" line, shortened list statuses, fixed false `Already carried` on persona/unique weapons, and unified Auto candidate limits (15 hand without SS; 5/5 with SS) |
+| 0.10.2 | Drop-first backup upgrades, stop adding when multiple backups are carried, explicit biocoded-owner guard, and exclude unusable backups from the worst-backup/demand baseline |
 
 ---
 

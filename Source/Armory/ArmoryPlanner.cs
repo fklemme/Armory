@@ -306,6 +306,14 @@ namespace Armory
                     }
                 }
 
+                // Armory targets exactly one backup. If something already left extras in
+                // the bag (a failed/reverted drop, SS re-retrieving a dropped weapon, or
+                // another mod), do not add a fourth; report it instead.
+                if (backupCount > 1)
+                {
+                    continue;
+                }
+
                 if (backupCount > 0 && (!settings.replaceWorseSidearms ||
                                         !SimpleSidearmsAdapter.CanDropSidearms || worst == null))
                 {
@@ -358,17 +366,24 @@ namespace Armory
                     string rulesReason;
                     bool hard;
                     bool rulesOk = Eligibility.CheckSidearmRules(pawn, weapon, out rulesReason, out hard);
+                    if (!rulesOk && hard)
+                    {
+                        // Biocoded elsewhere, bonded elsewhere, role/pacifist block, etc.
+                        continue;
+                    }
                     if (!rulesOk && worst == null)
                     {
                         continue;
                     }
 
-                    bool dropFirst = false;
-                    if (!rulesOk)
+                    // Always drop the old backup before adding a replacement. The old
+                    // add-first path could leave two backups when Simple Sidearms
+                    // re-retrieved the dropped weapon or the drop job did not complete.
+                    bool dropFirst = worst != null;
+                    if (dropFirst)
                     {
-                        // At SS's slot or free-space cap, dropping the old backup is the only
-                        // way to fit a better one. Verify the weapon itself is legal first so
-                        // the pawn is not left without a backup for a weapon SS rejects anyway.
+                        // Verify the weapon itself is legal first so the pawn is not left
+                        // without a backup for a weapon SS rejects anyway.
                         if (!SimpleSidearmsAdapter.CanCheckSidearmType ||
                             !SimpleSidearmsAdapter.CanCheckSidearmUse ||
                             !SimpleSidearmsAdapter.CanCheckRelativeLimits)
@@ -382,7 +397,6 @@ namespace Armory
                         {
                             continue;
                         }
-                        dropFirst = true;
                     }
 
                     float gain = worst == null
@@ -407,6 +421,8 @@ namespace Armory
                             failedDropUntil[dropKey] = now + FailedDropMemoryTicks;
                             continue;
                         }
+                        ArmoryGameComponent.Record(now, pawn, worst.Thing,
+                            DecisionKind.DropBackup, "Replaced by " + weapon.LabelCap);
 
                         string postReason;
                         bool postHard;
@@ -463,15 +479,6 @@ namespace Armory
                     {
                         Log.Message(string.Format("[Armory] queued backup {0} for {1} ({2})",
                             weapon.LabelCap, pawn.LabelShort, detail));
-                    }
-
-                    if (!dropFirst && worst != null)
-                    {
-                        if (DropBackup(pawn, worst, now))
-                        {
-                            ArmoryGameComponent.Record(now, pawn, worst.Thing,
-                                DecisionKind.DropBackup, "Replaced by " + weapon.LabelCap);
-                        }
                     }
                     break;
                 }

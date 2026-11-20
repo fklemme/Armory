@@ -40,6 +40,12 @@ namespace Armory
     {
         public ThingWithComps Thing;
         public float Score;
+
+        /// <summary>False when Armory could not legally or safely use this carried weapon.</summary>
+        public bool Usable = true;
+
+        /// <summary>Why the carried weapon is not usable, or null.</summary>
+        public string UnusableReason;
     }
 
     /// <summary>

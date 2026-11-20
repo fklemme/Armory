@@ -95,6 +95,17 @@ namespace Armory
             return CheckWorld(pawn, weapon, deep, out reason);
         }
 
+        /// <summary>
+        /// Lightweight check for a weapon already in a pawn's inventory: can this pawn
+        /// legally use it? Does not apply Simple Sidearms slot/mass rules, because the
+        /// weapon is already carried.
+        /// </summary>
+        public static bool CanUseCarriedWeapon(Pawn pawn, ThingWithComps weapon,
+            out string reason, out bool hard)
+        {
+            return CheckEquippable(pawn, weapon, out reason, out hard);
+        }
+
         private static bool CheckEquippable(Pawn pawn, ThingWithComps weapon, out string reason, out bool hard)
         {
             reason = null;
@@ -103,6 +114,14 @@ namespace Armory
             if (weapon == null || weapon.Destroyed || weapon.def == null)
             {
                 reason = "Destroyed";
+                hard = true;
+                return false;
+            }
+
+            CompBiocodable bio = weapon.GetComp<CompBiocodable>();
+            if (bio != null && bio.Biocoded && bio.CodedPawn != null && bio.CodedPawn != pawn)
+            {
+                reason = "Biocoded to " + bio.CodedPawn.LabelShort;
                 hard = true;
                 return false;
             }

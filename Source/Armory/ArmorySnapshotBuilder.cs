@@ -515,7 +515,7 @@ namespace Armory
             for (int i = 0; i < analysis.CarriedSidearms.Count; i++)
             {
                 CarriedSidearm carried = analysis.CarriedSidearms[i];
-                if (!analysis.IsBackupType(carried.Thing.def))
+                if (!carried.Usable || !analysis.IsBackupType(carried.Thing.def))
                 {
                     continue;
                 }
@@ -636,11 +636,17 @@ namespace Armory
                     continue;
                 }
                 float score = CombatScoring.Compute(context, weapon, out _);
+                string unusableReason;
+                bool unusableHard;
+                bool usable = Eligibility.CanUseCarriedWeapon(pawn, weapon,
+                    out unusableReason, out unusableHard);
                 analysis.Sidearms.Add(weapon);
                 analysis.CarriedSidearms.Add(new CarriedSidearm
                 {
                     Thing = weapon,
-                    Score = score
+                    Score = score,
+                    Usable = usable,
+                    UnusableReason = usable ? null : unusableReason
                 });
                 labels.Add(string.Format("{0} · score {1:0}", weapon.LabelCap, score));
             }
@@ -1101,7 +1107,7 @@ namespace Armory
             for (int i = 0; i < pawn.CarriedSidearms.Count; i++)
             {
                 CarriedSidearm carried = pawn.CarriedSidearms[i];
-                if (!pawn.IsBackupType(carried.Thing.def))
+                if (!carried.Usable || !pawn.IsBackupType(carried.Thing.def))
                 {
                     continue;
                 }

@@ -1,10 +1,11 @@
 # Steam Workshop release copy and checklist
 
-Status: **0.10.1 development build**. The Workshop item was created with 0.9.2
+Status: **0.10.2 development build**. The Workshop item was created with 0.9.2
 and is still hidden while Steam's automated content check runs. 0.10.0 added
 typed hands, passion-based role assignment and automatic hand-type alignment;
-0.10.1 polishes the UI and list limits. Test locally before uploading an update.
-Do not bump to 1.0 yet.
+0.10.1 polished the UI and list limits; 0.10.2 hardens backup management and
+unusable-backup baselines. Test locally before uploading an update. Do not bump
+to 1.0 yet.
 
 - Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224
 - Source and issues: https://github.com/fklemme/Armory
@@ -79,7 +80,7 @@ After the upload:
 - For a true subscriber test, temporarily move the local release copy out of
   `RimWorld\Mods` (or use a separate RimWorld install/Steam account), restart,
   and load a colony with only the Workshop copy active.
-- Check the mod icon, banner, tabs, version `0.10.1`, default-on automation,
+- Check the mod icon, banner, tabs, version `0.10.2`, default-on automation,
   colonist-bar order, the `Best vs current` column, and the `Change type` /
   `Change range` buttons.
 - Test the automatic hand type with and without Simple Sidearms:
@@ -156,7 +157,7 @@ No hard dependencies. Simple Sidearms support is optional and read through refle
 [/list]
 
 [h2]Version[/h2]
-0.10.1 - hand-type/UI polish, unified slot labels and colors, hidden no-SS Backup column and unified Auto list limits.
+0.10.2 - backup safety, multiple-backup reporting and sane unusable-backup baselines.
 
 [h2]Links[/h2]
 [list]

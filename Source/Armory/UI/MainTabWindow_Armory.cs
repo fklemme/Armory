@@ -418,7 +418,9 @@ namespace Armory
                 CarriedSidearm carried = pawn.CarriedSidearms[i];
                 if (pawn.IsBackupType(carried.Thing.def))
                 {
-                    labels.Add(carried.Thing.LabelCap);
+                    labels.Add(carried.Usable
+                        ? carried.Thing.LabelCap
+                        : carried.Thing.LabelCap + " (unusable)");
                 }
             }
             return labels.Count == 0 ? "none" : string.Join(", ", labels);
@@ -430,6 +432,20 @@ namespace Armory
             for (int i = 0; i < pawn.CarriedSidearms.Count; i++)
             {
                 if (pawn.IsBackupType(pawn.CarriedSidearms[i].Thing.def))
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        private static int CountUsableBackups(PawnAnalysis pawn)
+        {
+            int count = 0;
+            for (int i = 0; i < pawn.CarriedSidearms.Count; i++)
+            {
+                CarriedSidearm carried = pawn.CarriedSidearms[i];
+                if (carried.Usable && pawn.IsBackupType(carried.Thing.def))
                 {
                     count++;
                 }
@@ -451,7 +467,8 @@ namespace Armory
             for (int i = 0; i < pawn.CarriedSidearms.Count; i++)
             {
                 CarriedSidearm carried = pawn.CarriedSidearms[i];
-                if (!pawn.IsBackupType(carried.Thing.def) || !IsDroppableBackup(carried.Thing))
+                if (!carried.Usable || !pawn.IsBackupType(carried.Thing.def) ||
+                    !IsDroppableBackup(carried.Thing))
                 {
                     continue;
                 }
@@ -535,6 +552,12 @@ namespace Armory
                 return "Blocked: " + pawn.AutomationNote;
             }
 
+            if (pawn.SidearmState != null && CountBackups(pawn) > 1)
+            {
+                color = BlockedSlotColor;
+                return "Multiple backups";
+            }
+
             ArmorySettings settings = ArmoryMod.Settings;
             float threshold = settings == null ? 0.1f : settings.upgradeThreshold;
             float baseline = pawn.HandBaselineScore;
@@ -547,11 +570,11 @@ namespace Armory
                                   topReady.Score > baseline * (1f + threshold))));
 
             bool handTypeWait = pawn.SidearmState != null && WaitsForHandType(pawn);
+            int usableBackupCount = CountUsableBackups(pawn);
             bool hasBackupWish = false;
             if (pawn.SidearmState != null && (settings == null || settings.manageSidearms))
             {
-                int carriedBackups = CountBackups(pawn);
-                hasBackupWish = carriedBackups == 0
+                hasBackupWish = usableBackupCount == 0
                     ? BestReadyBackup(pawn) != null
                     : BestBackupUpgrade(pawn) != null;
                 if (handTypeWait)
@@ -571,7 +594,7 @@ namespace Armory
                 if (hasBackupWish)
                 {
                     color = BackupSlotColor;
-                    return CountBackups(pawn) == 0
+                    return usableBackupCount == 0
                         ? "Backup ready"
                         : "Backup upgrade ready";
                 }
@@ -1056,6 +1079,13 @@ namespace Armory
                         CarriedBackupText(pawn)),
                     TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.72f, 0.72f, 0.72f));
                 cursor += 18f;
+                if (carriedBackupCount > 1)
+                {
+                    DrawCell(new Rect(4f, cursor, width - 8f, 18f),
+                        "Multiple backups carried. Drop extras manually; Armory will not add more.",
+                        TextAnchor.MiddleLeft, GameFont.Tiny, BlockedSlotColor);
+                    cursor += 18f;
+                }
                 DrawCell(new Rect(4f, cursor, width - 8f, 18f), backupRule,
                     TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.68f, 0.68f, 0.68f));
                 cursor += 18f;
@@ -1200,6 +1230,10 @@ namespace Armory
                 int backupCount = Mathf.Min(pawn.SidearmCandidates.Count, SidearmDisplayLimit);
                 bool manageBackups = ArmoryMod.Settings == null || ArmoryMod.Settings.manageSidearms;
                 height += 8f + 26f + 18f + 18f + backupCount * 22f;
+                if (CountBackups(pawn) > 1)
+                {
+                    height += 18f;
+                }
                 if (manageBackups)
                 {
                     height += 18f;

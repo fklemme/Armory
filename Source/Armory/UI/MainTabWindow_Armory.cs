@@ -606,9 +606,12 @@ namespace Armory
             string handTypeLabel = pawn.RoleIsRanged.HasValue
                 ? (pawn.RoleIsRanged.Value ? "ranged" : "melee")
                 : "not set";
+            string handSource = string.IsNullOrEmpty(pawn.RoleSource)
+                ? string.Empty
+                : " (" + pawn.RoleSource + ")";
             DrawColoredLine(handLine,
-                string.Format("Hand type: {0}    Current: {1}",
-                    handTypeLabel,
+                string.Format("Hand type: {0}{1}    Current: {2}",
+                    handTypeLabel, handSource,
                     pawn.Current == null ? "unarmed" : pawn.Current.LabelCap),
                 new Color(0.78f, 0.86f, 0.96f));
             TipCell(handLine, string.Format(

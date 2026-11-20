@@ -139,7 +139,7 @@ Every colonist has a hand type: Ranged or Melee. Armory chooses it from an expli
 With Simple Sidearms loaded, Armory also models one opposite-type backup. Blockers stay visible: forbidden, outside the allowed area, unreachable, reserved, biocoded, role restrictions, ideoligion dislike, and Simple Sidearms slot or mass limits.
 
 [h2]Automatic management, on by default[/h2]
-When no other weapon manager is active, Armory queues equip jobs for the best ready weapon, claims each weapon for one pawn, respects a swap cooldown, never unforbids anything, and treats unbonded persona weapons as manual-only. Backup management keeps one legal opposite-type weapon and upgrades only the worst same-type weapon. Both automatic equipping and backup management can be disabled in settings.
+When no other weapon manager is active, Armory queues equip jobs for the best ready weapon, claims each weapon for one pawn, respects a swap cooldown, never unforbids anything, and treats unbonded persona weapons as manual-only. With Simple Sidearms, backup management keeps one legal opposite-type weapon and upgrades only the worst same-type weapon. Both automatic equipping and backup management can be disabled in settings.
 
 [h2]Compatibility[/h2]
 No hard dependencies. Simple Sidearms support is optional and read through reflection, so Armory works without it. No Harmony dependency.

@@ -6,8 +6,8 @@ namespace Armory
     public class ArmorySettings : ModSettings
     {
         public float upgradeThreshold = 0.10f;
-        public int maxCandidates = 10;
-        public int maxSidearmCandidates = 5;
+        public int maxCandidates;
+        public int maxSidearmCandidates;
         public int scanIntervalTicks = 120;
         public bool showBlocked = true;
         public bool debugLogging;
@@ -27,7 +27,33 @@ namespace Armory
         public bool manageSidearms = true;
         public bool replaceWorseSidearms = true;
         public int manualCooldownTicks = 15000;
-        public int settingsVersion = 4;
+        public int settingsVersion = 5;
+
+        /// <summary>
+        /// Hand-list limit. Zero means automatic: 15 without Simple Sidearms, 5 with it.
+        /// </summary>
+        public int EffectiveMaxCandidates
+        {
+            get
+            {
+                if (maxCandidates > 0)
+                {
+                    return Mathf.Clamp(maxCandidates, 1, 50);
+                }
+                return ArmoryMod.SimpleSidearmsLoaded ? 5 : 15;
+            }
+        }
+
+        /// <summary>Backup-list limit. Zero means the automatic default of 5.</summary>
+        public int EffectiveMaxSidearmCandidates
+        {
+            get
+            {
+                return maxSidearmCandidates > 0
+                    ? Mathf.Clamp(maxSidearmCandidates, 1, 50)
+                    : 5;
+            }
+        }
 
         private Vector2 scrollPosition;
         private float contentHeight = 1200f;
@@ -36,8 +62,8 @@ namespace Armory
         {
             base.ExposeData();
             Scribe_Values.Look(ref upgradeThreshold, "upgradeThreshold", 0.10f);
-            Scribe_Values.Look(ref maxCandidates, "maxCandidates", 10);
-            Scribe_Values.Look(ref maxSidearmCandidates, "maxSidearmCandidates", 5);
+            Scribe_Values.Look(ref maxCandidates, "maxCandidates", 0);
+            Scribe_Values.Look(ref maxSidearmCandidates, "maxSidearmCandidates", 0);
             Scribe_Values.Look(ref scanIntervalTicks, "scanIntervalTicks", 120);
             Scribe_Values.Look(ref showBlocked, "showBlocked", true);
             Scribe_Values.Look(ref debugLogging, "debugLogging", false);
@@ -96,6 +122,21 @@ namespace Armory
                 // 0.8.0 adds range-aware scoring and variety. The field defaults are
                 // intentional for existing colonies, so no value translation is needed.
                 settingsVersion = 4;
+            }
+
+            if (Scribe.mode == LoadSaveMode.PostLoadInit && settingsVersion < 5)
+            {
+                // 0.10.1 makes the list limits automatic by default. The old defaults
+                // (hand 10, backup 5) become Auto; explicit other values are preserved.
+                if (maxCandidates == 10)
+                {
+                    maxCandidates = 0;
+                }
+                if (maxSidearmCandidates == 5)
+                {
+                    maxSidearmCandidates = 0;
+                }
+                settingsVersion = 5;
             }
         }
 
@@ -196,10 +237,45 @@ namespace Armory
             varietyStrength = listing.Slider(varietyStrength, 0f, 1f);
             listing.Label("Adds a small per-colonist weapon preference and makes duplicate top choices less attractive. Set to 0% to disable both.");
 
-            listing.Label(string.Format("Hand candidates shown per colonist: {0}", maxCandidates));
-            maxCandidates = Mathf.RoundToInt(listing.Slider(maxCandidates, 5f, 100f));
-            listing.Label(string.Format("Backup candidates shown per colonist: {0}", maxSidearmCandidates));
-            maxSidearmCandidates = Mathf.RoundToInt(listing.Slider(maxSidearmCandidates, 1f, 50f));
+            bool autoHandCandidates = maxCandidates <= 0;
+            listing.CheckboxLabeled("Automatic hand candidate limit", ref autoHandCandidates);
+            if (autoHandCandidates)
+            {
+                maxCandidates = 0;
+                listing.Label(string.Format(
+                    "Hand candidates shown per colonist: {0}  (15 without Simple Sidearms, 5 with it)",
+                    EffectiveMaxCandidates));
+            }
+            else
+            {
+                if (maxCandidates < 1)
+                {
+                    maxCandidates = EffectiveMaxCandidates;
+                }
+                listing.Label(string.Format("Hand candidates shown per colonist: {0}", maxCandidates));
+                maxCandidates = Mathf.RoundToInt(listing.Slider(maxCandidates, 1f, 50f));
+            }
+
+            bool autoBackupCandidates = maxSidearmCandidates <= 0;
+            listing.CheckboxLabeled("Automatic backup candidate limit", ref autoBackupCandidates);
+            if (autoBackupCandidates)
+            {
+                maxSidearmCandidates = 0;
+                listing.Label(string.Format(
+                    "Backup candidates shown per colonist: {0}  (automatic; Simple Sidearms only)",
+                    EffectiveMaxSidearmCandidates));
+            }
+            else
+            {
+                if (maxSidearmCandidates < 1)
+                {
+                    maxSidearmCandidates = EffectiveMaxSidearmCandidates;
+                }
+                listing.Label(string.Format(
+                    "Backup candidates shown per colonist (Simple Sidearms only): {0}",
+                    maxSidearmCandidates));
+                maxSidearmCandidates = Mathf.RoundToInt(listing.Slider(maxSidearmCandidates, 1f, 50f));
+            }
 
             listing.CheckboxLabeled("Show blocked candidates by default", ref showBlocked);
 

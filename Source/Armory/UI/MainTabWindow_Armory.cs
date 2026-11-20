@@ -41,7 +41,7 @@ namespace Armory
             {
                 return ArmoryMod.Settings == null
                     ? 5
-                    : Mathf.Max(1, ArmoryMod.Settings.maxSidearmCandidates);
+                    : ArmoryMod.Settings.EffectiveMaxSidearmCandidates;
             }
         }
 
@@ -224,7 +224,8 @@ namespace Armory
             Rect scrollRect = new Rect(listInner.x, listInner.y + HeaderHeight, listInner.width,
                 listInner.height - HeaderHeight);
             float rowWidth = scrollRect.width - 20f;
-            DrawPawnListHeader(new Rect(listInner.x, listInner.y, rowWidth, HeaderHeight));
+            bool showBackup = SimpleSidearmsAdapter.Active;
+            DrawPawnListHeader(new Rect(listInner.x, listInner.y, rowWidth, HeaderHeight), showBackup);
             Widgets.BeginScrollView(scrollRect, ref pawnListScroll,
                 new Rect(0f, 0f, rowWidth, snapshot.Pawns.Count * RowHeight));
 
@@ -245,21 +246,30 @@ namespace Armory
                     selectedCandidate = -1;
                     pawnDetailScroll = Vector2.zero;
                 }
-                DrawPawnRow(row, snapshot.Pawns[i], rowWidth);
+                DrawPawnRow(row, snapshot.Pawns[i], showBackup);
             }
 
             Widgets.EndScrollView();
             DrawPawnDetail(detailRect.ContractedBy(8f), snapshot.Pawns[selectedPawn]);
         }
 
-        private static void PawnColumns(Rect row, out Rect name, out Rect current, out Rect backup,
-            out Rect status, out Rect delta)
+        private static void PawnColumns(Rect row, bool showBackup, out Rect name, out Rect current,
+            out Rect backup, out Rect status, out Rect delta)
         {
             float width = row.width;
             name = new Rect(row.x, row.y, width * 0.12f, row.height);
-            current = new Rect(row.x + width * 0.12f, row.y, width * 0.24f, row.height);
-            backup = new Rect(row.x + width * 0.36f, row.y, width * 0.24f, row.height);
-            status = new Rect(row.x + width * 0.60f, row.y, width * 0.26f, row.height);
+            current = new Rect(row.x + width * 0.12f, row.y, width * (showBackup ? 0.24f : 0.40f),
+                row.height);
+            if (showBackup)
+            {
+                backup = new Rect(row.x + width * 0.36f, row.y, width * 0.24f, row.height);
+                status = new Rect(row.x + width * 0.60f, row.y, width * 0.26f, row.height);
+            }
+            else
+            {
+                backup = new Rect(row.x + width * 0.52f, row.y, 0f, row.height);
+                status = new Rect(row.x + width * 0.52f, row.y, width * 0.34f, row.height);
+            }
             delta = new Rect(row.x + width * 0.86f, row.y, width * 0.14f, row.height);
         }
 
@@ -282,29 +292,39 @@ namespace Armory
                 width - labelWidth - powerWidth - rangeWidth - bestWidth, row.height);
         }
 
-        private static void DrawPawnListHeader(Rect rect)
+        private static void DrawPawnListHeader(Rect rect, bool showBackup)
         {
-            PawnColumns(rect, out Rect name, out Rect current, out Rect backup, out Rect status, out Rect delta);
+            PawnColumns(rect, showBackup, out Rect name, out Rect current, out Rect backup,
+                out Rect status, out Rect delta);
             Color color = new Color(0.68f, 0.68f, 0.68f);
             DrawCell(name, "Colonist", TextAnchor.MiddleLeft, GameFont.Tiny, color);
             DrawCell(current, "Hand", TextAnchor.MiddleLeft, GameFont.Tiny, color);
-            DrawCell(backup, "Backup", TextAnchor.MiddleLeft, GameFont.Tiny, color);
+            if (showBackup)
+            {
+                DrawCell(backup, "Backup", TextAnchor.MiddleLeft, GameFont.Tiny, color);
+            }
             DrawCell(status, "Status", TextAnchor.MiddleLeft, GameFont.Tiny, color);
             DrawCell(delta, "Best vs current", TextAnchor.MiddleRight, GameFont.Tiny, color);
 
             TooltipHandler.TipRegion(current,
-                "The weapon currently equipped in this colonist's hand.");
-            TooltipHandler.TipRegion(backup,
-                "Weapons this colonist carries for the opposite-type backup slot.");
+                showBackup
+                    ? "The weapon currently equipped in this colonist's hand."
+                    : "The weapon currently equipped in this colonist's hand. The Backup column is hidden because Simple Sidearms is not loaded.");
+            if (showBackup)
+            {
+                TooltipHandler.TipRegion(backup,
+                    "Weapons this colonist carries for the opposite-type backup slot.");
+            }
             TooltipHandler.TipRegion(status,
                 "What Armory will do for this colonist, or why it is waiting. Hover a status for the full text.");
             TooltipHandler.TipRegion(delta,
                 "The best available hand candidate compared with the current hand weapon. Negative means the current weapon is still better.");
         }
 
-        private static void DrawPawnRow(Rect rect, PawnAnalysis pawn, float width)
+        private static void DrawPawnRow(Rect rect, PawnAnalysis pawn, bool showBackup)
         {
-            PawnColumns(rect, out Rect name, out Rect current, out Rect backup, out Rect status, out Rect delta);
+            PawnColumns(rect, showBackup, out Rect name, out Rect current, out Rect backup,
+                out Rect status, out Rect delta);
 
             Color rowColor = pawn.Available ? Color.white : new Color(0.58f, 0.58f, 0.58f);
             DrawCell(name, pawn.Pawn.LabelShort, TextAnchor.MiddleLeft, GameFont.Small, rowColor);
@@ -315,12 +335,15 @@ namespace Armory
                 ? "No hand weapon equipped."
                 : string.Format("Equipped hand weapon: {0} (score {1:0}).", currentText, pawn.CurrentScore));
 
-            string backupText = CarriedBackupText(pawn);
-            DrawCell(backup, backupText, TextAnchor.MiddleLeft, GameFont.Small,
-                backupText == "none" ? new Color(0.75f, 0.75f, 0.75f) : rowColor);
-            TipCell(backup, pawn.SidearmState != null
-                ? "Carried backups: " + backupText
-                : "Simple Sidearms is not active for this colonist, so there is no managed backup slot.");
+            if (showBackup)
+            {
+                string backupText = CarriedBackupText(pawn);
+                DrawCell(backup, backupText, TextAnchor.MiddleLeft, GameFont.Small,
+                    backupText == "none" ? new Color(0.75f, 0.75f, 0.75f) : rowColor);
+                TipCell(backup, pawn.SidearmState != null
+                    ? "Carried backups: " + backupText
+                    : "Simple Sidearms is not active for this colonist, so there is no managed backup slot.");
+            }
 
             Color statusColor;
             string statusText = PawnStatus(pawn, out statusColor);
@@ -610,9 +633,7 @@ namespace Armory
                 ? string.Empty
                 : " (" + pawn.RoleSource + ")";
             DrawColoredLine(handLine,
-                string.Format("Hand type: {0}{1}    Current: {2}",
-                    handTypeLabel, handSource,
-                    pawn.Current == null ? "unarmed" : pawn.Current.LabelCap),
+                string.Format("Hand type: {0}{1}", handTypeLabel, handSource),
                 new Color(0.78f, 0.86f, 0.96f));
             TipCell(handLine, string.Format(
                 "Source: {0}. Current hand weapon score: {1:0}.",
@@ -626,7 +647,7 @@ namespace Armory
                     OpenHandTypeMenu(pawn);
                 }
                 TooltipHandler.TipRegion(typeButton,
-                    "Choose this colonist's hand type. Auto uses passion first, then Brawler, shield belt and skill; ranged is the default when no signal prefers melee.");
+                    "Choose this colonist's hand type. Auto respects a bonded weapon, then a worn shield belt, Brawler, the higher Shooting/Melee passion and finally skill; melee needs a 3-level advantage, otherwise ranged is the default. Your manual choice always wins.");
             }
             y += 22f;
 
@@ -661,6 +682,21 @@ namespace Armory
                 TooltipHandler.TipRegion(roleButton,
                     "Choose this colonist's preferred engagement distance. Automatic uses the accuracy curve, skill and genes.");
                 y += 26f;
+            }
+
+            if (!SimpleSidearmsAdapter.Active)
+            {
+                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
+                    "Backup slot: requires Simple Sidearms.",
+                    new Color(0.68f, 0.72f, 0.78f));
+                y += 22f;
+            }
+            else if (pawn.SidearmState == null)
+            {
+                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
+                    "Backup slot: Simple Sidearms sidearm data is unavailable for this colonist.",
+                    new Color(0.68f, 0.72f, 0.78f));
+                y += 22f;
             }
 
             if (!string.IsNullOrEmpty(pawn.AutomationNote))
@@ -764,8 +800,10 @@ namespace Armory
                 }
             }
 
-            int configuredLimit = ArmoryMod.Settings == null ? 10 : ArmoryMod.Settings.maxCandidates;
-            int limit = Mathf.Min(visibleRanked.Count, Mathf.Max(5, configuredLimit));
+            int configuredLimit = ArmoryMod.Settings == null
+                ? 15
+                : ArmoryMod.Settings.EffectiveMaxCandidates;
+            int limit = Mathf.Min(visibleRanked.Count, Mathf.Max(1, configuredLimit));
             if (selectedCandidate >= limit)
             {
                 selectedCandidate = -1;
@@ -911,7 +949,7 @@ namespace Armory
                 TipCell(candidateScore, "Combat score for this colonist.");
                 Rect candidateDelta = new Rect(width - 70f, cursor, 66f, 22f);
                 DrawCell(candidateDelta, pawn.HandTypeMismatch
-                        ? "type switch"
+                        ? "switch"
                         : FormatPct(pawn.DeltaPct(candidate)),
                     TextAnchor.MiddleRight);
                 TipCell(candidateDelta, pawn.HandTypeMismatch
@@ -1107,6 +1145,10 @@ namespace Armory
             if (pawn.RoleIsRanged == true)
             {
                 height += 26f;
+            }
+            if (!SimpleSidearmsAdapter.Active || pawn.SidearmState == null)
+            {
+                height += 22f;
             }
             if (limit < visibleRanked.Count)
             {
@@ -1960,7 +2002,7 @@ namespace Armory
             }
             if (row.TypeSwitchCount > 0)
             {
-                return "switch type";
+                return "switch";
             }
             return "new slot";
         }
@@ -2026,7 +2068,7 @@ namespace Armory
                 want.Hand ? "hand" : "backup", TextAnchor.MiddleLeft, GameFont.Small,
                 new Color(0.66f, 0.74f, 0.82f));
             DrawCell(new Rect(columns.GainX, cursor, DemandColumns.GainWidth, 20f),
-                want.TypeSwitch ? "switch type" : want.IsNew ? "new slot" : FormatPct(want.Gain),
+                want.TypeSwitch ? "switch" : want.IsNew ? "new slot" : FormatPct(want.Gain),
                 TextAnchor.MiddleRight, GameFont.Small,
                 new Color(0.68f, 0.82f, 0.68f));
         }

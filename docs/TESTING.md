@@ -171,6 +171,13 @@ With Simple Sidearms removed from `ModsConfig.xml`:
 - close and reopen the tab after changing the type; the snapshot must rebuild
   immediately rather than keeping the old type for one planner pass.
 
+Without Simple Sidearms, the Colonists list should hide the **Backup** column,
+widen **Hand** and **Status**, and show `Backup slot: requires Simple Sidearms.`
+in the pawn detail. The default hand limit is 15. With Simple Sidearms loaded,
+the Backup column returns and the automatic limits are 5 hand / 5 backup. Both
+Settings sliders use the same 1–50 range; uncheck **Automatic ... candidate limit**
+to set an explicit value.
+
 With Simple Sidearms enabled and respected, every pawn should resolve
 `(Simple Sidearms mode)`, the Armory hand-type override should be ignored, and
 backup jobs should still queue.

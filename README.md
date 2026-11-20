@@ -2,7 +2,7 @@
 
 **The right weapon, in the right hands.**
 
-**Version 0.10.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.10.1** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and automatic manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -29,7 +29,7 @@ Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0 |
+| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1 |
 
 ---
 
@@ -68,7 +68,9 @@ Armory automatically switches to the best ready weapon of the chosen type; the
 old weapon is dropped by the normal equip job. The type is chosen from the
 player's per-pawn override, then a bonded weapon, a ranged-blocking shield belt,
 Brawler, shooting/melee passion, and finally skill. When no signal prefers melee,
-ranged is the default.
+ranged is the default. Without Simple Sidearms the Backup column is hidden and the
+Hand column widens; the pawn detail notes that a backup slot requires Simple
+Sidearms.
 
 ### Weapons
 Every loose weapon on the map with:
@@ -460,13 +462,13 @@ All settings are under **Options → Mod settings → Armory**. The page scrolls
 | Melee score weight | ×1.00 | 0.5–2.0 | Global scoring bias |
 | Combat distance bias | 0 tiles | -5–+5 | Shift all preferred ranges closer (negative) or longer (positive) |
 | Squad variety | 50% | 0–100% | Per-colonist weapon affinity and duplicate top-choice penalty; 0% disables both |
-| Hand candidates shown per colonist | 10 | 5–100 | Hand list limit |
-| Backup candidates shown per colonist | 5 | 1–50 | Backup list limit |
+| Hand candidates shown per colonist | Auto | 1–50 | Auto = 15 without Simple Sidearms, 5 with it |
+| Backup candidates shown per colonist | Auto | 1–50 | Auto = 5; Simple Sidearms only |
 | Show blocked candidates by default | on | — | Include candidates that cannot be equipped now |
 | Snapshot refresh interval | 120 ticks | 30–600 | How often the lists recalculate while open |
 | Write a snapshot summary to the log when a map loads | off | — | One-time diagnostic in `Player.log` |
 
-Internal: `settingsVersion` (currently 4) drives the age, typed-slot, list-limit
+Internal: `settingsVersion` (currently 5) drives the age, typed-slot, list-limit
 and range/variety migrations. The 0.9.0 automation defaults apply to new
 settings only; no migration rewrites an existing `autoEquipEnabled` or
 `manageSidearms` value. Per-pawn ranged-role and hand-type overrides are saved in

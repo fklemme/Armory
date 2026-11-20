@@ -1,9 +1,9 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.10.0**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.10.1**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.10.0 are committed; `v0.6.7-stable`
-tags the last pre-Demand-rework build.
+Git repository on `main`; 0.2.3 through 0.10.0 are committed; 0.10.1 is the
+current iteration; `v0.6.7-stable` tags the last pre-Demand-rework build.
 
 **Links:** [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224) ·
 [GitHub](https://github.com/fklemme/Armory)
@@ -29,18 +29,53 @@ Milestones 0–4 are implemented:
 **Next:** milestone 5, polish and release prep. 0.7.0 turned the Upgrades view
 into an ideal-loadout build plan; remaining polish is container scanning,
 auto-haul, raid arming, localization, and Workshop prep. The first Workshop item
-(0.9.2) is uploaded and hidden while Steam's content check runs. 0.10.0 adds the
+(0.9.2) is uploaded and hidden while Steam's content check runs. 0.10.0 added the
 typed hand model, passion-based role assignment and automatic hand-type
-alignment; upload it as an update after the private test.
+alignment; 0.10.1 polishes the UI and list limits. Upload once the private test is
+good enough.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
 0.8.3, the Colonists/Upgrades tab rename in 0.8.4, the icon/tab-order pass in
 0.8.5, the simplified crossed-weapons icon in 0.8.6, the release text, banner and
 default-automation pass in 0.9.0, colonist-bar ordering in 0.9.1, and release
-staging plus the `Best vs current` column in 0.9.2, and the typed-hand/auto-align
-pass in 0.10.0. Research, reference-mod behaviour, the shipped model and remaining
-decisions are in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+staging plus the `Best vs current` column in 0.9.2, the typed-hand/auto-align
+pass in 0.10.0, and UI/list-limit polish in 0.10.1. Research, reference-mod
+behaviour, the shipped model and remaining decisions are in
+[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+
+---
+
+## 0.10.1 — hand-type order UI, current-weapon cleanup, backup column and list limits
+
+UI and settings polish after the 0.10.0 typed-hand pass.
+
+- Corrected the **Change type** tooltip: the automatic order is a bonded weapon,
+  then a worn ranged-blocking shield belt, Brawler, the higher Shooting/Melee
+  passion, and finally skill (melee needs a 3-level advantage; otherwise ranged).
+  The implementation already followed that order; the tooltip incorrectly said
+  "passion first, then Brawler, shield belt".
+- Removed the current weapon name from the pawn detail's hand-type line. The
+  current weapon already appears in the Colonists list's **Hand** column; the
+  hand-type line now shows only the resolved type and source, with the current
+  score available in the tooltip.
+- The **Backup** column is hidden when Simple Sidearms is not loaded, and the
+  **Hand** and **Status** columns widen to use the space. With Simple Sidearms
+  loaded, the Backup column is unchanged. The pawn detail shows
+  `Backup slot: requires Simple Sidearms.` when the slot is unavailable, or a
+  note when SS has no sidearm data for that pawn.
+- Candidate limits now use one 1–50 range for both hand and backup. Both default
+  to **Auto**:
+  - hand: 15 without Simple Sidearms, 5 with it;
+  - backup: 5.
+  Explicit values are preserved; the old hand default (10) and backup default (5)
+  become Auto on migration. `settingsVersion` is now 5.
+- The hand table's hard minimum is now 1 instead of 5, so a custom value of 1–4
+  is honored.
+
+Verified: clean build; the Settings UI compiles; no runtime test was run for this
+purely UI/settings pass yet. Pending: a live check of the hidden Backup column,
+the Auto limit labels, and the detail layout at 1280x720/1600x900.
 
 ---
 
@@ -82,8 +117,8 @@ pawns. The fix is a typed hand slot, not a cross-type score penalty.
   uses `switch type` instead of `new slot` for the same case.
 - Hand-type and ranged-role override changes invalidate the snapshot so the
   planner cannot queue a job from the old type before the next refresh.
-- Version bumped to **0.10.0**; `settingsVersion` stays 4 because no new settings
-  were added.
+- Version bumped to **0.10.0**; `settingsVersion` stayed 4 in that pass because no new
+  settings were added. 0.10.1 moves it to 5 for the automatic list-limit migration.
 
 Verified on isolated copies of the 13-colonist
 `Northwestern Esora Humanlike Confederacy` save:
@@ -1964,6 +1999,7 @@ polish, not new core behaviour.
 | 0.9.1 | Colonists list follows the colonist-bar display order (join order by default) instead of alphabetical name order |
 | 0.9.2 | Refreshed icon/banner, `Best vs current` column, clean release staging and the first private Workshop upload checklist |
 | 0.10.0 | Typed hand model without Simple Sidearms, passion-first role assignment, Brawler/shield/bonded handling, automatic hand-type alignment and per-pawn hand-type overrides |
+| 0.10.1 | Corrected hand-type order tooltip, removed duplicate current-weapon text, hid the no-SS Backup column, and unified Auto candidate limits (15 hand without SS; 5/5 with SS) |
 
 ---
 

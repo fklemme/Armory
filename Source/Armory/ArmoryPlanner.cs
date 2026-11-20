@@ -336,6 +336,11 @@ namespace Armory
                     {
                         continue;
                     }
+                    if (Eligibility.IsUnbondedPersona(weapon))
+                    {
+                        // Bonding is permanent; leave persona weapons to the player.
+                        continue;
+                    }
 
                     Claim claim;
                     if (claims.TryGetValue(weapon.thingIDNumber, out claim) &&

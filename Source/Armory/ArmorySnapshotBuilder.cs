@@ -561,7 +561,7 @@ namespace Armory
                     continue;
                 }
 
-                bool alreadyCarried = analysis.AlreadyCarries(info.Thing.def);
+                bool alreadyCarried = analysis.AlreadyCarries(info.Thing);
                 SidearmCandidate candidate = new SidearmCandidate
                 {
                     Weapon = info,

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Armory.Compatibility;
+using RimWorld;
 using Verse;
 
 namespace Armory
@@ -61,8 +62,9 @@ namespace Armory
         public bool UpgradeAfterDrop;
 
         /// <summary>
-        /// True when the pawn already has this weapon def in the hand or inventory.
-        /// Armory must not add a second copy of the same weapon type.
+        /// True when the pawn already has this weapon. Ordinary weapons are compared by
+        /// def so Armory never adds a second gladius/axe; persona and unique weapons are
+        /// compared by instance because different named weapons can share a def.
         /// </summary>
         public bool AlreadyCarried;
 
@@ -221,6 +223,40 @@ namespace Armory
             {
                 ThingWithComps thing = CarriedSidearms[i].Thing;
                 if (thing != null && thing.def == def)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Duplicate check for a concrete candidate. Ordinary weapons are compared by def
+        /// as before; persona and unique weapons are compared by instance because two
+        /// different named weapons can share the same def.
+        /// </summary>
+        public bool AlreadyCarries(ThingWithComps weapon)
+        {
+            if (weapon == null || weapon.def == null)
+            {
+                return false;
+            }
+
+            bool unique = weapon.GetComp<CompUniqueWeapon>() != null ||
+                          weapon.GetComp<CompBladelinkWeapon>() != null;
+            if (!unique)
+            {
+                return AlreadyCarries(weapon.def);
+            }
+
+            if (Current == weapon)
+            {
+                return true;
+            }
+            for (int i = 0; i < CarriedSidearms.Count; i++)
+            {
+                ThingWithComps thing = CarriedSidearms[i].Thing;
+                if (thing == weapon)
                 {
                     return true;
                 }

@@ -72,6 +72,12 @@ UI and settings polish after the 0.10.0 typed-hand pass.
   Sidearms summary. It was shown for nearly every SS pawn and used a whole line
   without adding a decision. Specific preferred-pair text is still shown when SS
   actually has a carried default/preferred pair.
+- Fixed a false **`Already carried`** status on persona/unique weapons. Ordinary
+  weapons still compare by def, but persona (`CompBladelinkWeapon`) and unique
+  (`CompUniqueWeapon`) weapons now compare by exact instance. Talia is no longer
+  treated as a duplicate of Trebo's different bonded monosword. Unbonded persona
+  weapons remain manual-only, and the backup planner explicitly skips them so it
+  cannot create a permanent bond as a side effect.
 - Shortened list statuses so they fit the status column:
   `Blocked: ...` instead of `Cannot automate: ...`, `Hand locked` instead of the
   full bonded-weapon sentence, and `Backup ready` / `Backup upgrade ready` when
@@ -101,7 +107,9 @@ Verified on isolated live saves:
 - Trebo's hand-locked bonded melee weapon with SS mode ranged now shows
   `Backup waiting`, not `Backup ready`; the detail explains that the backup waits
   for the hand type to match.
-- Build is clean.
+- Build is clean. The final Talia live screenshot was not possible because the
+  user's RimWorld instance was already running; the change is a compile-clean
+  duplicate-check fix. Pending: confirm Talia now shows `Persona: bond manually`.
 
 Pending: actual equip-job completion and the hand-type override save/load
 round-trip, as before.
@@ -2028,7 +2036,7 @@ polish, not new core behaviour.
 | 0.9.1 | Colonists list follows the colonist-bar display order (join order by default) instead of alphabetical name order |
 | 0.9.2 | Refreshed icon/banner, `Best vs current` column, clean release staging and the first private Workshop upload checklist |
 | 0.10.0 | Typed hand model without Simple Sidearms, passion-first role assignment, Brawler/shield/bonded handling, automatic hand-type alignment and per-pawn hand-type overrides |
-| 0.10.1 | Corrected hand-type order tooltip, removed duplicate current-weapon text, hid the no-SS Backup column, unified slot labels/colors, dropped the redundant SS "carries the preferred type" line, shortened list statuses, and unified Auto candidate limits (15 hand without SS; 5/5 with SS) |
+| 0.10.1 | Corrected hand-type order tooltip, removed duplicate current-weapon text, hid the no-SS Backup column, unified slot labels/colors, dropped the redundant SS "carries the preferred type" line, shortened list statuses, fixed false `Already carried` on persona/unique weapons, and unified Auto candidate limits (15 hand without SS; 5/5 with SS) |
 
 ---
 

@@ -152,6 +152,7 @@ No hard dependencies. Simple Sidearms support is optional and read through refle
 [list]
 [*]One backup per pawn; same-type upgrades only. A bag full of extras can block the first backup.
 [*]Upgrades assume normal quality, so a high-skill crafter's output can beat the estimate.
+[*]Material variants are limited to stock/owned copies plus the best-scoring material; enable Show owned to compare existing copies.
 [*]The DPSA column is a generic all-range comparison, not the per-colonist recommendation.
 [*]No auto-unforbid, auto-haul, or raid arming yet.
 [*]Caravans and weapons inside transport pods are not part of owned supply.

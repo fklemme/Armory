@@ -123,7 +123,9 @@ are separate rows with their own score, cost and owned count. This makes the
 resource trade-off explicit: a plasteel knife may score higher but cost 75
 plasteel per copy, while a steel one is cheaper. The `Craft` button queues the
 bill for the material in that row, with the bill's ingredient filter restricted
-to that stuff.
+to that stuff. To keep the list manageable, only materials with stock or owned
+copies plus the highest-scoring material are shown; Show owned reveals owned
+copies that are not upgrade candidates.
 
 For every colonist and slot, Armory scores every weapon variant the colony could
 obtain: craftable now, craftable after pending research, buyable from a trader,

@@ -67,7 +67,9 @@ per-pawn scoring.
   detail adds a Best by role table.
 - **Material-specific Upgrades:** stuffable weapons are keyed by def + stuff.
   Steel/plasteel/uranium/etc. are separate rows with their own power, gain,
-  owned count, need, per-copy material cost and stock status. The planner scores
+  owned count, need, per-copy material cost and stock status. Only materials
+  with stock/owned copies plus the highest-scoring material are shown, to keep
+  the list manageable; Show owned reveals the rest of the owned copies. The planner scores
   a normal-quality probe of that material.
 - **Material-aware bills:** `DemandCrafting.TryAddBill` accepts a stuff def and
   restricts the `Bill_Production.ingredientFilter` to it while keeping fixed

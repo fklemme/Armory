@@ -182,13 +182,15 @@ With Simple Sidearms enabled and respected, every pawn should resolve
 `(Simple Sidearms mode)`, the Armory hand-type override should be ignored, and
 backup jobs should still queue.
 
-### Testing comparison, materials and role filters (0.10.4)
+### Testing comparison, materials and role filters (0.10.4–0.10.5)
 
-- **Weapons:** the list shows DPS, DPSA, AP, Accuracy C/S/M/L, Range, Best colonist
-  and Best use. Click each header to sort; the active header shows `v`/`^`.
-  DPSA is the generic four-band score, not the colonist-fit score. Switch the role
-  buttons to Line/Marksman and confirm the Best column shows that role's pawn and
-  score. Open a weapon and check the Best by role table.
+- **Weapons:** the list shows DPS, DPSA, AP, separate `aC`/`aS`/`aM`/`aL`
+  accuracy columns, Range, Best colonist and Best use. Click each header to sort;
+  the active header shows `v`/`^`. DPSA is the generic four-band score, not the
+  colonist-fit score. Switch the role buttons to Line/Marksman and confirm the
+  Best column shows that role's pawn and score. Open a ranged weapon and confirm
+  the right detail header shows complete Aim and Cooldown values without
+  clipping.
 - **Upgrades:** stuffable weapons appear once per material. Hover a Cost cell for
   the full ingredients, current stock and total for the needed copies. An orange
   `!` means stock cannot cover all needed copies. Select a role and verify the
@@ -199,6 +201,9 @@ backup jobs should still queue.
   ingredient filter allows only that stuff (plus fixed ingredients), with
   `limitToAllowedStuff` set. The bill should still be queueable when the material
   is short.
+- **Upgrades layout (0.10.5):** the first explanatory line must not be clipped at
+  its bottom, Wanted by/Owned should be compact, and normal bench names in Source
+  should fit without a redundant shortage suffix.
 - **No-SS test:** the Weapons and Upgrades comparisons still work without Simple
   Sidearms; backup-only rows may disappear, as expected.
 

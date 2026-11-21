@@ -33,7 +33,10 @@ namespace Armory
             Dps,
             Dpsa,
             ArmorPen,
-            Accuracy,
+            AccTouch,
+            AccShort,
+            AccMedium,
+            AccLong,
             Range,
             Best,
             Label
@@ -346,33 +349,33 @@ namespace Armory
         }
 
         private static void WeaponColumns(Rect row, out Rect label, out Rect dps, out Rect dpsa,
-            out Rect ap, out Rect acc, out Rect range, out Rect best, out Rect status)
+            out Rect ap, out Rect accC, out Rect accS, out Rect accM, out Rect accL,
+            out Rect range, out Rect best, out Rect status)
         {
             const float gap = 5f;
             float width = row.width;
-            float labelWidth = width * 0.27f;
-            float dpsWidth = width * 0.07f;
-            float dpsaWidth = width * 0.07f;
-            float apWidth = width * 0.06f;
-            float accWidth = width * 0.16f;
-            float rangeWidth = width * 0.06f;
-            float bestWidth = width * 0.14f;
-
-            label = new Rect(row.x, row.y, labelWidth - gap, row.height);
-            dps = new Rect(row.x + labelWidth, row.y, dpsWidth - gap, row.height);
-            dpsa = new Rect(row.x + labelWidth + dpsWidth, row.y, dpsaWidth - gap, row.height);
-            ap = new Rect(row.x + labelWidth + dpsWidth + dpsaWidth, row.y,
-                apWidth - gap, row.height);
-            acc = new Rect(row.x + labelWidth + dpsWidth + dpsaWidth + apWidth, row.y,
-                accWidth - gap, row.height);
-            range = new Rect(row.x + labelWidth + dpsWidth + dpsaWidth + apWidth + accWidth,
-                row.y, rangeWidth - gap, row.height);
-            best = new Rect(row.x + labelWidth + dpsWidth + dpsaWidth + apWidth + accWidth +
-                            rangeWidth, row.y, bestWidth - gap, row.height);
-            status = new Rect(row.x + labelWidth + dpsWidth + dpsaWidth + apWidth + accWidth +
-                              rangeWidth + bestWidth, row.y,
-                width - labelWidth - dpsWidth - dpsaWidth - apWidth - accWidth - rangeWidth -
-                bestWidth, row.height);
+            float x = row.x;
+            label = new Rect(x, row.y, width * 0.21f - gap, row.height);
+            x += width * 0.21f;
+            dps = new Rect(x, row.y, width * 0.07f - gap, row.height);
+            x += width * 0.07f;
+            dpsa = new Rect(x, row.y, width * 0.07f - gap, row.height);
+            x += width * 0.07f;
+            ap = new Rect(x, row.y, width * 0.05f - gap, row.height);
+            x += width * 0.05f;
+            accC = new Rect(x, row.y, width * 0.055f - gap, row.height);
+            x += width * 0.055f;
+            accS = new Rect(x, row.y, width * 0.055f - gap, row.height);
+            x += width * 0.055f;
+            accM = new Rect(x, row.y, width * 0.055f - gap, row.height);
+            x += width * 0.055f;
+            accL = new Rect(x, row.y, width * 0.055f - gap, row.height);
+            x += width * 0.055f;
+            range = new Rect(x, row.y, width * 0.055f - gap, row.height);
+            x += width * 0.055f;
+            best = new Rect(x, row.y, width * 0.13f - gap, row.height);
+            x += width * 0.13f;
+            status = new Rect(x, row.y, width - (x - row.x), row.height);
         }
 
         private static void DrawPawnListHeader(Rect rect, bool showBackup)
@@ -1427,7 +1430,7 @@ namespace Armory
 
             BuildWeaponView(snapshot);
 
-            float listWidth = Mathf.Floor(area.width * 0.60f);
+            float listWidth = Mathf.Floor(area.width * 0.66f);
             Rect listRect = new Rect(area.x, area.y, listWidth, area.height);
             Rect detailRect = new Rect(listRect.xMax + 8f, area.y, area.width - listWidth - 8f, area.height);
 
@@ -1582,8 +1585,17 @@ namespace Armory
                 case WeaponSort.ArmorPen:
                     cmp = Stat(a).ArmorPen.CompareTo(Stat(b).ArmorPen);
                     break;
-                case WeaponSort.Accuracy:
-                    cmp = Stat(a).AccuracyAverage.CompareTo(Stat(b).AccuracyAverage);
+                case WeaponSort.AccTouch:
+                    cmp = Stat(a).AccuracyTouch.CompareTo(Stat(b).AccuracyTouch);
+                    break;
+                case WeaponSort.AccShort:
+                    cmp = Stat(a).AccuracyShort.CompareTo(Stat(b).AccuracyShort);
+                    break;
+                case WeaponSort.AccMedium:
+                    cmp = Stat(a).AccuracyMedium.CompareTo(Stat(b).AccuracyMedium);
+                    break;
+                case WeaponSort.AccLong:
+                    cmp = Stat(a).AccuracyLong.CompareTo(Stat(b).AccuracyLong);
                     break;
                 case WeaponSort.Range:
                     cmp = Stat(a).Range.CompareTo(Stat(b).Range);
@@ -1636,12 +1648,38 @@ namespace Armory
             return row.Weapon.Comparison ?? new WeaponPower.ComparisonStats();
         }
 
+        private static string AccuracyValue(WeaponPower.ComparisonStats stats, int band)
+        {
+            if (stats == null || !stats.IsRanged)
+            {
+                return "-";
+            }
+            float value;
+            switch (band)
+            {
+                case 0:
+                    value = stats.AccuracyTouch;
+                    break;
+                case 1:
+                    value = stats.AccuracyShort;
+                    break;
+                case 2:
+                    value = stats.AccuracyMedium;
+                    break;
+                default:
+                    value = stats.AccuracyLong;
+                    break;
+            }
+            return (value * 100f).ToString("0");
+        }
+
         private void DrawWeaponRow(Rect rowRect, WeaponAnalysis row,
             ArmorySnapshot snapshot)
         {
             WeaponPower.ComparisonStats stats = Stat(row);
             WeaponColumns(rowRect, out Rect label, out Rect dps, out Rect dpsa, out Rect ap,
-                out Rect acc, out Rect range, out Rect best, out Rect status);
+                out Rect accC, out Rect accS, out Rect accM, out Rect accL, out Rect range,
+                out Rect best, out Rect status);
             DrawCell(label, row.Weapon.Label, TextAnchor.MiddleLeft);
             TipCell(label, row.Weapon.Label);
             DrawCell(dps, stats.IsRanged ? stats.RawDps.ToString("0.0") : stats.RawDps.ToString("0"),
@@ -1655,9 +1693,19 @@ namespace Armory
             DrawCell(ap, stats.ArmorPen > 0f ? stats.ArmorPen.ToStringPercent() : "-",
                 TextAnchor.MiddleRight, GameFont.Small, new Color(0.9f, 0.82f, 0.62f));
             TipCell(ap, "Armor penetration. Armory treats it as a damage multiplier; real value depends on enemy armor.");
-            DrawCell(acc, stats.AccuracyText, TextAnchor.MiddleRight, GameFont.Small,
-                new Color(0.72f, 0.82f, 0.92f));
-            TipCell(acc, "Accuracy at close / short / medium / long range. The generic DPSA counts unreachable selected bands as zero; Armory's colonist score uses the pawn's real range and skill.");
+            Color accuracyColor = new Color(0.72f, 0.82f, 0.92f);
+            DrawCell(accC, AccuracyValue(stats, 0), TextAnchor.MiddleRight, GameFont.Small,
+                accuracyColor);
+            TipCell(accC, "Accuracy at close range (3 cells). Click the header to sort.");
+            DrawCell(accS, AccuracyValue(stats, 1), TextAnchor.MiddleRight, GameFont.Small,
+                accuracyColor);
+            TipCell(accS, "Accuracy at short range (12 cells). Click the header to sort.");
+            DrawCell(accM, AccuracyValue(stats, 2), TextAnchor.MiddleRight, GameFont.Small,
+                accuracyColor);
+            TipCell(accM, "Accuracy at medium range (25 cells). Click the header to sort.");
+            DrawCell(accL, AccuracyValue(stats, 3), TextAnchor.MiddleRight, GameFont.Small,
+                accuracyColor);
+            TipCell(accL, "Accuracy at long range (40 cells). Unreachable bands count as zero in DPSA. Click the header to sort.");
             DrawCell(range, RangeText(stats.Range), TextAnchor.MiddleRight, GameFont.Small,
                 new Color(0.72f, 0.82f, 0.92f));
             TipCell(range, "Maximum firing range in tiles.");
@@ -1966,7 +2014,8 @@ namespace Armory
         private void DrawWeaponListHeader(Rect rect)
         {
             WeaponColumns(rect, out Rect label, out Rect dps, out Rect dpsa, out Rect ap,
-                out Rect acc, out Rect range, out Rect best, out Rect status);
+                out Rect accC, out Rect accS, out Rect accM, out Rect accL, out Rect range,
+                out Rect best, out Rect status);
             Color color = new Color(0.68f, 0.68f, 0.68f);
             DrawCell(label, SortLabel("Weapon", WeaponSort.Label), TextAnchor.MiddleLeft,
                 GameFont.Tiny, SortColor(WeaponSort.Label, color));
@@ -1976,8 +2025,14 @@ namespace Armory
                 GameFont.Tiny, SortColor(WeaponSort.Dpsa, color));
             DrawCell(ap, SortLabel("AP", WeaponSort.ArmorPen), TextAnchor.MiddleRight,
                 GameFont.Tiny, SortColor(WeaponSort.ArmorPen, color));
-            DrawCell(acc, SortLabel("Acc C/S/M/L", WeaponSort.Accuracy), TextAnchor.MiddleRight,
-                GameFont.Tiny, SortColor(WeaponSort.Accuracy, color));
+            DrawCell(accC, SortLabel("aC", WeaponSort.AccTouch), TextAnchor.MiddleRight,
+                GameFont.Tiny, SortColor(WeaponSort.AccTouch, color));
+            DrawCell(accS, SortLabel("aS", WeaponSort.AccShort), TextAnchor.MiddleRight,
+                GameFont.Tiny, SortColor(WeaponSort.AccShort, color));
+            DrawCell(accM, SortLabel("aM", WeaponSort.AccMedium), TextAnchor.MiddleRight,
+                GameFont.Tiny, SortColor(WeaponSort.AccMedium, color));
+            DrawCell(accL, SortLabel("aL", WeaponSort.AccLong), TextAnchor.MiddleRight,
+                GameFont.Tiny, SortColor(WeaponSort.AccLong, color));
             DrawCell(range, SortLabel("Range", WeaponSort.Range), TextAnchor.MiddleRight,
                 GameFont.Tiny, SortColor(WeaponSort.Range, color));
             DrawCell(best, weaponRoleFilter == RoleFilter.All ? "Best colonist" : "Best " +
@@ -1989,7 +2044,10 @@ namespace Armory
             TipCell(dps, "Raw damage per second before accuracy, aim, skill or colonist fit. Click to sort.");
             TipCell(dpsa, "Generic DPSA: raw DPS x average accuracy over Close/Short/Medium/Long, with unreachable bands counted as zero. Catalog comparison only. Click to sort.");
             TipCell(ap, "Armor penetration. Click to sort.");
-            TipCell(acc, "Accuracy at close / short / medium / long range. Generic comparison only; the Best colonist score uses the pawn's real range and skill. Click to sort.");
+            TipCell(accC, "Accuracy at close range (3 cells). Click to sort.");
+            TipCell(accS, "Accuracy at short range (12 cells). Click to sort.");
+            TipCell(accM, "Accuracy at medium range (25 cells). Click to sort.");
+            TipCell(accL, "Accuracy at long range (40 cells). Unreachable bands count as zero in DPSA. Click to sort.");
             TipCell(range, "Maximum firing range in tiles. Click to sort.");
             TipCell(best, "Colonist with the highest score for this weapon in its best ready slot. Click to sort.");
             TipCell(status, "Where this loose weapon is the best choice: hand, backup, or blocked in that slot.");
@@ -2010,9 +2068,21 @@ namespace Armory
             {
                 SetWeaponSort(WeaponSort.ArmorPen);
             }
-            if (Widgets.ButtonInvisible(acc))
+            if (Widgets.ButtonInvisible(accC))
             {
-                SetWeaponSort(WeaponSort.Accuracy);
+                SetWeaponSort(WeaponSort.AccTouch);
+            }
+            if (Widgets.ButtonInvisible(accS))
+            {
+                SetWeaponSort(WeaponSort.AccShort);
+            }
+            if (Widgets.ButtonInvisible(accM))
+            {
+                SetWeaponSort(WeaponSort.AccMedium);
+            }
+            if (Widgets.ButtonInvisible(accL))
+            {
+                SetWeaponSort(WeaponSort.AccLong);
             }
             if (Widgets.ButtonInvisible(range))
             {
@@ -2111,20 +2181,25 @@ namespace Armory
             float y = rect.y + 32f;
             WeaponPower.ComparisonStats stats = row.Weapon.Comparison ??
                                                  new WeaponPower.ComparisonStats();
-            Widgets.Label(new Rect(rect.x, y, rect.width, 22f),
-                string.Format("{0}    |    DPS {1:0.0}    |    DPSA {2:0.0}    |    AP {3}    |    Mass {4:0.0}{5}",
+            Color statsColor = new Color(0.86f, 0.88f, 0.9f);
+            DrawCell(new Rect(rect.x, y, rect.width, 17f),
+                string.Format("{0} | DPS {1:0.0} | DPSA {2:0.0} | AP {3} | Mass {4:0.0}",
                     row.Weapon.IsRanged ? "Ranged" : "Melee", stats.RawDps, stats.Dpsa,
-                    stats.ArmorPen.ToStringPercent(), stats.Mass,
-                    row.Weapon.IsRanged
-                        ? "    |    Range " + row.Weapon.Range.ToString("0.0") + "t"
-                        : string.Empty));
-            y += 20f;
+                    stats.ArmorPen.ToStringPercent(), stats.Mass),
+                TextAnchor.MiddleLeft, GameFont.Tiny, statsColor);
+            y += 17f;
             if (row.Weapon.IsRanged)
             {
-                Widgets.Label(new Rect(rect.x, y, rect.width, 18f),
-                    string.Format("Accuracy C/S/M/L {0}    |    Burst {1}    |    Aim {2:0.0}s    |    Cooldown {3:0.0}s",
-                        stats.AccuracyText, stats.Burst, stats.Warmup, stats.Cooldown));
-                y += 18f;
+                DrawCell(new Rect(rect.x, y, rect.width, 17f),
+                    string.Format("Rng {0:0.0}t | Acc {1} | Brst {2}", stats.Range,
+                        stats.AccuracyText, stats.Burst),
+                    TextAnchor.MiddleLeft, GameFont.Tiny, statsColor);
+                y += 17f;
+                DrawCell(new Rect(rect.x, y, rect.width, 17f),
+                    string.Format("Aim {0:0.0}s | Cooldown {1:0.0}s", stats.Warmup,
+                        stats.Cooldown),
+                    TextAnchor.MiddleLeft, GameFont.Tiny, statsColor);
+                y += 17f;
             }
             GUI.color = new Color(0.66f, 0.68f, 0.64f);
             Rect formulaRect = new Rect(rect.x, y, rect.width, 18f);
@@ -2133,7 +2208,7 @@ namespace Armory
             TooltipHandler.TipRegion(formulaRect,
                 "Armory's combat score: expected DPS around the colonist's preferred range, multiplied by pawn fit, armor penetration, the burst-support penalty and variety. The DPSA column is a generic catalog comparison only.");
             GUI.color = Color.white;
-            y += 22f;
+            y += 21f;
 
             if (row.BestHandPawn != null)
             {
@@ -2353,11 +2428,11 @@ namespace Armory
             public const float CostWidth = 92f;
             public const float ScoreWidth = 58f;
             public const float SlotWidth = 60f;
-            public const float WantedWidth = 74f;
-            public const float OwnedWidth = 92f;
+            public const float WantedWidth = 62f;
+            public const float OwnedWidth = 76f;
             public const float NeedWidth = 58f;
             public const float GainWidth = 58f;
-            public const float SourceWidth = 214f;
+            public const float SourceWidth = 246f;
             public const float CraftButtonWidth = 52f;
             public const float BestMarkerWidth = 20f;
             private const float Gap = 6f;
@@ -2402,17 +2477,17 @@ namespace Armory
             bool previousWrap = Text.WordWrap;
             Text.WordWrap = false;
             GUI.color = new Color(0.8f, 0.8f, 0.8f);
-            Widgets.LabelEllipses(new Rect(inner.x, inner.y, inner.width, 18f),
+            Widgets.LabelEllipses(new Rect(inner.x, inner.y - 2f, inner.width, 21f),
                 "Upgrade variants: material costs and owned copies. Score = sum of colonist range-aware DPS x fit x (1+AP) x support x variety x 10. Cost is per copy.");
             GUI.color = Color.white;
-            if (DrawRoleButtons(new Rect(inner.x, inner.y + 20f, inner.width - 130f, 24f),
+            if (DrawRoleButtons(new Rect(inner.x, inner.y + 21f, inner.width - 130f, 24f),
                     ref demandRoleFilter, "upgrades"))
             {
                 demandScroll = Vector2.zero;
             }
-            Widgets.CheckboxLabeled(new Rect(inner.xMax - 124f, inner.y + 20f, 124f, 24f),
+            Widgets.CheckboxLabeled(new Rect(inner.xMax - 124f, inner.y + 21f, 124f, 24f),
                 "Show owned", ref showOwnedDemand);
-            TooltipHandler.TipRegion(new Rect(inner.xMax - 124f, inner.y + 20f, 124f, 24f),
+            TooltipHandler.TipRegion(new Rect(inner.xMax - 124f, inner.y + 21f, 124f, 24f),
                 "Also list owned material variants in an Owned section, so craft rows can be compared with what you already have. Owned rows are shown regardless of the role filter.");
             Text.WordWrap = previousWrap;
 
@@ -2430,7 +2505,7 @@ namespace Armory
                 return;
             }
 
-            float headerY = inner.y + 48f;
+            float headerY = inner.y + 50f;
             Rect scrollRect = new Rect(inner.x, headerY + HeaderHeight, inner.width,
                 Mathf.Max(40f, inner.yMax - (headerY + HeaderHeight)));
             float rowWidth = scrollRect.width - 20f;
@@ -2631,6 +2706,7 @@ namespace Armory
                     (showCraft ? DemandColumns.CraftButtonWidth + 4f : 0f), RowHeight);
                 DrawCell(sourceTextRect, SourceText(row), TextAnchor.MiddleLeft, GameFont.Small,
                     SourceColor(row));
+                TipCell(sourceTextRect, SourceText(row));
                 if (showCraft)
                 {
                     if (Widgets.ButtonText(craftButton, "Craft"))
@@ -2985,7 +3061,7 @@ namespace Armory
                     string craft = string.IsNullOrEmpty(row.BenchLabel)
                         ? "craft"
                         : "craft · " + row.BenchLabel;
-                    return row.MaterialsAvailable ? craft : craft + " · shortage";
+                    return craft;
             }
         }
 

@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.10.4**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.10.5**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.10.4 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.10.5 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 **Links:** [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224) ·
@@ -34,7 +34,8 @@ typed hand model, passion-based role assignment and automatic hand-type
 alignment; 0.10.1 polished the UI and list limits; 0.10.2 hardens backup
 management and unusable-backup baselines; 0.10.3 adds double-click map jumps;
 0.10.4 adds weapon comparison, material-specific upgrade variants and role
-filters. Upload once the private test is good enough.
+filters; 0.10.5 polishes the accuracy columns, table widths and detail header.
+Upload once the private test is good enough.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
@@ -43,9 +44,34 @@ A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 default-automation pass in 0.9.0, colonist-bar ordering in 0.9.1, and release
 staging plus the `Best vs current` column in 0.9.2, the typed-hand/auto-align
 pass in 0.10.0, UI/list-limit polish in 0.10.1, backup-safety fixes in 0.10.2,
-double-click map jumps in 0.10.3, and comparison/material/role insights in 0.10.4.
-Research, reference-mod behaviour, the shipped model and remaining decisions are
-in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4,
+and accuracy-column/table-layout polish in 0.10.5. Research, reference-mod
+behaviour, the shipped model and remaining decisions are in
+[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+
+---
+
+## 0.10.5 — accuracy columns and table-layout polish
+
+Follow-up to 0.10.4 after inspecting the new screens on the live save.
+
+- Upgrades header text moved up 2 px with a taller text rect so the descenders
+  are no longer clipped; the role row and table header moved down 1–2 px to
+  match.
+- Upgrades `Wanted by` narrowed from 74 to 62 px and `Owned` from 92 to 76 px;
+  `Source` grew from 214 to 246 px. Removed the redundant ` · shortage` suffix
+  from Source (the orange cost `!` already marks it), so bench names now fit.
+- Weapons table widened from 60% to 66%; each accuracy band is now its own
+  sortable column (`aC`, `aS`, `aM`, `aL`) instead of one packed string.
+- Weapons detail pane narrowed to 34%; its stat header is split into compact
+  Tiny rows:
+  - `Melee/Ranged | DPS | DPSA | AP | Mass`
+  - `Rng | Acc C/S/M/L | Brst`
+  - `Aim | Cooldown`
+  This removes the clipped `Cooldown` value on ranged weapons.
+- Verified with the isolated live save at 1600x900: Upgrades header fully
+  visible and source names no longer truncated for normal benches; Weapons shows
+  separate accuracy columns and a compact, complete detail header. Build clean.
 
 ---
 
@@ -2153,6 +2179,7 @@ polish, not new core behaviour.
 | 0.10.2 | Drop-first backup upgrades, stop adding when multiple backups are carried, explicit biocoded-owner guard, and exclude unusable backups from the worst-backup/demand baseline |
 | 0.10.3 | Double-click a Colonists or Weapons row to close Armory, jump the camera to that pawn or weapon, and select it |
 | 0.10.4 | Weapon comparison columns and sorting, role filters and Best by role, material-specific upgrade variants with per-copy costs and material-locked bills, and an optional Owned section |
+| 0.10.5 | Split accuracy into sortable columns, widened the Weapons/Upgrades tables, narrowed the detail pane, moved the Upgrades header text up, and compacted the ranged stat header |
 
 ---
 

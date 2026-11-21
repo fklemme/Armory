@@ -182,7 +182,7 @@ With Simple Sidearms enabled and respected, every pawn should resolve
 `(Simple Sidearms mode)`, the Armory hand-type override should be ignored, and
 backup jobs should still queue.
 
-### Testing comparison, materials and role filters (0.10.4–0.10.6)
+### Testing comparison, materials and role filters (0.10.4–0.10.7)
 
 - **Weapons:** the list shows DPS, DPSA, AP, separate percentage
   `aC`/`aS`/`aM`/`aL` columns, Range, Best colonist and Best use. Click each
@@ -200,8 +200,10 @@ backup jobs should still queue.
   quality/material copies with no cost.
 - **Material bills:** click Craft on a specific material row and verify the bill's
   ingredient filter allows only that stuff (plus fixed ingredients), with
-  `limitToAllowedStuff` set. The bill should still be queueable when the material
-  is short.
+  `limitToAllowedStuff` set. Verify the bill is named `Armory: <material item>`
+  (or `Armory <material item>` when the 28-character rename limit requires it)
+  instead of the generic recipe name. The bill should still be queueable when
+  the material is short.
 - **Upgrades layout (0.10.5):** the first explanatory line must not be clipped at
   its bottom, Wanted by/Owned should be compact, and normal bench names in Source
   should fit without a redundant shortage suffix.

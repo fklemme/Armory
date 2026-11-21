@@ -65,10 +65,15 @@ namespace Armory
             {
                 Bill bill = source.Recipe.MakeNewBill();
                 Bill_Production production = bill as Bill_Production;
+                string itemLabel = stuff == null
+                    ? source.Def.LabelCap
+                    : GenLabel.ThingLabel(source.Def, stuff, 1).CapitalizeFirst();
+                string billName = BillName(source.Def, itemLabel);
                 if (production != null)
                 {
                     production.repeatMode = BillRepeatModeDefOf.RepeatCount;
                     production.repeatCount = 1;
+                    production.RenamableLabel = billName;
                     if (stuff != null)
                     {
                         RestrictToStuff(production, source.Recipe, def, stuff);
@@ -78,10 +83,7 @@ namespace Armory
 
                 Thing benchThing = bench as Thing;
                 string benchLabel = benchThing == null ? bench.LabelShort : benchThing.LabelShort;
-                string itemLabel = stuff == null
-                    ? source.Def.LabelCap
-                    : GenLabel.ThingLabel(source.Def, stuff, 1).CapitalizeFirst();
-                message = "Added a 1x " + itemLabel + " bill at " + benchLabel + ".";
+                message = "Added a 1x " + billName + " bill at " + benchLabel + ".";
                 Messages.Message(message,
                     benchThing == null ? null : new LookTargets(benchThing),
                     MessageTypeDefOf.PositiveEvent);
@@ -99,6 +101,31 @@ namespace Armory
                 Messages.Message(message, MessageTypeDefOf.RejectInput);
                 return false;
             }
+        }
+
+        /// <summary>
+        /// A recognizable bill name. RimWorld's rename dialog caps names at 28 chars, so
+        /// prefer "Armory: item", then "Armory item", then the base def label.
+        /// </summary>
+        private static string BillName(ThingDef def, string itemLabel)
+        {
+            const int maxLength = 28;
+            string name = "Armory: " + itemLabel;
+            if (name.Length <= maxLength)
+            {
+                return name;
+            }
+            name = "Armory " + itemLabel;
+            if (name.Length <= maxLength)
+            {
+                return name;
+            }
+            name = "Armory: " + def.LabelCap;
+            if (name.Length <= maxLength)
+            {
+                return name;
+            }
+            return name.Substring(0, maxLength).TrimEnd();
         }
 
         /// <summary>

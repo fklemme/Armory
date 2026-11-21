@@ -182,6 +182,16 @@ With Simple Sidearms enabled and respected, every pawn should resolve
 `(Simple Sidearms mode)`, the Armory hand-type override should be ignored, and
 backup jobs should still queue.
 
+### Testing double-click map jumps (0.10.3)
+
+Double-click a spawned colonist row in **Colonists** and a loose weapon row in
+**Weapons**. Armory should close, the camera should center on that pawn or item,
+and the inspect pane should show it selected. The first click still selects the
+row normally. A despawned colonist (pod, casket, caravan, another map) does not
+jump because there is no spawned thing to select; that is intentional. The live
+harness can call `MainTabWindow_Armory.JumpToThing` through reflection to verify
+the camera and selection, but it does not synthesize the double-click itself.
+
 ---
 
 ## Pitfalls (learned the hard way)

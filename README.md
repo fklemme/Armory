@@ -2,7 +2,7 @@
 
 **The right weapon, in the right hands.**
 
-**Version 0.10.2** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.10.3** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and automatic manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -29,7 +29,7 @@ Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1, backup safety/unusable-baseline fixes in 0.10.2 |
+| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1, backup safety/unusable-baseline fixes in 0.10.2, double-click map jumps in 0.10.3 |
 
 ---
 
@@ -55,6 +55,8 @@ the bar and this list.
   or fixed with a per-colonist override; melee pawns have no ranged role;
 - with Simple Sidearms, a **backup slot** ranking of the opposite type, with SS's
   slot/mass/selection blockers and the currently carried backup;
+- double-click a row to close Armory, move the camera to that colonist and select
+  them on the map;
 - a full ranked list with a status per candidate and an expandable factor ledger;
 - a separate `Cannot equip` list for biocoded/bonded/role-restricted weapons;
 - an `Automation blocked:` or `Automation paused:` reason when the planner cannot
@@ -79,6 +81,8 @@ Every loose weapon on the map with:
 - best-fit colonist per slot;
 - best use (`Hand`, `Backup`, `Hand (blocked)`, `Backup (blocked)`,
   `No colonist can use it`);
+- double-click a row to close Armory, move the camera to that weapon and select it
+  on the map;
 - a colonist-by-score detail view with deep checks (reachability, reservations) and
   separate hand/backup readiness.
 

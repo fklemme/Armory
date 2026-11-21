@@ -1,11 +1,11 @@
 # Steam Workshop release copy and checklist
 
-Status: **0.10.2 development build**. The Workshop item was created with 0.9.2
+Status: **0.10.3 development build**. The Workshop item was created with 0.9.2
 and is still hidden while Steam's automated content check runs. 0.10.0 added
 typed hands, passion-based role assignment and automatic hand-type alignment;
 0.10.1 polished the UI and list limits; 0.10.2 hardens backup management and
-unusable-backup baselines. Test locally before uploading an update. Do not bump
-to 1.0 yet.
+unusable-backup baselines; 0.10.3 adds double-click map jumps. Test locally
+before uploading an update. Do not bump to 1.0 yet.
 
 - Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224
 - Source and issues: https://github.com/fklemme/Armory
@@ -80,7 +80,7 @@ After the upload:
 - For a true subscriber test, temporarily move the local release copy out of
   `RimWorld\Mods` (or use a separate RimWorld install/Steam account), restart,
   and load a colony with only the Workshop copy active.
-- Check the mod icon, banner, tabs, version `0.10.2`, default-on automation,
+- Check the mod icon, banner, tabs, version `0.10.3`, default-on automation,
   colonist-bar order, the `Best vs current` column, and the `Change type` /
   `Change range` buttons.
 - Test the automatic hand type with and without Simple Sidearms:
@@ -125,8 +125,8 @@ Armory is a weapon inspector and automatic manager for RimWorld 1.6. It shows wh
 
 [h2]Four tabs[/h2]
 [list]
-[*][b]Colonists[/b] - each pawn's hand and backup weapon, hand type, ranged role, blockers, ranked alternatives, and a Best vs current comparison.
-[*][b]Weapons[/b] - every loose weapon on the map, its power, range, best colonist and best slot.
+[*][b]Colonists[/b] - each pawn's hand and backup weapon, hand type, ranged role, blockers, ranked alternatives, and a Best vs current comparison. Double-click a row to jump to that colonist on the map.
+[*][b]Weapons[/b] - every loose weapon on the map, its power, range, best colonist and best slot. Double-click a row to jump to that weapon on the map.
 [*][b]Upgrades[/b] - every obtainable weapon that would improve a colonist, grouped into Craft, Research and Buy, with owned and missing copies, score, gain and source.
 [*][b]Log[/b] - the automatic decisions Armory made this session, with the reason for each.
 [/list]
@@ -157,7 +157,7 @@ No hard dependencies. Simple Sidearms support is optional and read through refle
 [/list]
 
 [h2]Version[/h2]
-0.10.2 - backup safety, multiple-backup reporting and sane unusable-backup baselines.
+0.10.3 - double-click a Colonists or Weapons row to jump to it on the map.
 
 [h2]Links[/h2]
 [list]

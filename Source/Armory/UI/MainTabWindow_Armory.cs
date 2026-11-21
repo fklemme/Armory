@@ -122,14 +122,14 @@ namespace Armory
         {
             float x = rect.x;
             if (TabButton(new Rect(x, rect.y, 110f, rect.height), "Colonists", view == ArmoryView.Colonists,
-                    "Each colonist's current hand and backup weapon, status and ranked alternatives. Listed in colonist-bar order; drag portraits to reorder."))
+                    "Each colonist's current hand and backup weapon, status and ranked alternatives. Listed in colonist-bar order; drag portraits to reorder. Double-click a row to jump to that colonist on the map."))
             {
                 view = ArmoryView.Colonists;
                 selectedCandidate = -1;
             }
             x += 114f;
             if (TabButton(new Rect(x, rect.y, 110f, rect.height), "Weapons", view == ArmoryView.Weapons,
-                    "Loose weapons on this map, their best colonist and best slot."))
+                    "Loose weapons on this map, their best colonist and best slot. Double-click a row to jump to that weapon on the map."))
             {
                 view = ArmoryView.Weapons;
                 selectedCandidate = -1;
@@ -206,6 +206,28 @@ namespace Armory
 
         // ---------------------------------------------------------------- Pawns
 
+        private static bool IsRowDoubleClick(Rect row)
+        {
+            return Event.current.type == EventType.MouseDown &&
+                   Event.current.button == 0 &&
+                   Event.current.clickCount == 2 &&
+                   Mouse.IsOver(row);
+        }
+
+        /// <summary>
+        /// Move the camera to a map thing and select it, then close Armory. Used by
+        /// double-clicking a colonist or loose weapon row.
+        /// </summary>
+        private static void JumpToThing(Thing thing)
+        {
+            if (thing == null || !thing.Spawned || thing.Map == null)
+            {
+                return;
+            }
+            CameraJumper.TryJumpAndSelect(thing);
+            Find.MainTabsRoot.EscapeCurrentTab(false);
+        }
+
         private void DrawPawns(Rect area, ArmorySnapshot snapshot)
         {
             if (snapshot.Pawns.Count == 0)
@@ -234,6 +256,7 @@ namespace Armory
             Widgets.BeginScrollView(scrollRect, ref pawnListScroll,
                 new Rect(0f, 0f, rowWidth, snapshot.Pawns.Count * RowHeight));
 
+            Pawn jumpPawn = null;
             for (int i = 0; i < snapshot.Pawns.Count; i++)
             {
                 Rect row = new Rect(0f, i * RowHeight, rowWidth, RowHeight);
@@ -244,6 +267,11 @@ namespace Armory
                 else
                 {
                     Widgets.DrawHighlightIfMouseover(row);
+                }
+                if (IsRowDoubleClick(row))
+                {
+                    Event.current.Use();
+                    jumpPawn = snapshot.Pawns[i].Pawn;
                 }
                 if (Widgets.ButtonInvisible(row) && selectedPawn != i)
                 {
@@ -256,6 +284,10 @@ namespace Armory
 
             Widgets.EndScrollView();
             DrawPawnDetail(detailRect.ContractedBy(8f), snapshot.Pawns[selectedPawn]);
+            if (jumpPawn != null)
+            {
+                JumpToThing(jumpPawn);
+            }
         }
 
         private static void PawnColumns(Rect row, bool showBackup, out Rect name, out Rect current,
@@ -1360,7 +1392,7 @@ namespace Armory
 
             Rect inner = listRect.ContractedBy(6f);
             DrawCell(new Rect(inner.x, inner.y, inner.width, 18f),
-                "Only loose weapons on this map are listed here. Equipped and carried weapons appear under Colonists.",
+                "Only loose weapons on this map are listed here. Double-click a row to jump to it. Equipped and carried weapons appear under Colonists.",
                 TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.68f, 0.68f, 0.68f));
             Rect scrollRect = new Rect(inner.x, inner.y + 18f + HeaderHeight, inner.width,
                 inner.height - 18f - HeaderHeight);
@@ -1369,6 +1401,7 @@ namespace Armory
             Widgets.BeginScrollView(scrollRect, ref weaponListScroll,
                 new Rect(0f, 0f, rowWidth, snapshot.WeaponRows.Count * RowHeight));
 
+            Thing jumpThing = null;
             for (int i = 0; i < snapshot.WeaponRows.Count; i++)
             {
                 WeaponAnalysis row = snapshot.WeaponRows[i];
@@ -1380,6 +1413,11 @@ namespace Armory
                 else
                 {
                     Widgets.DrawHighlightIfMouseover(rowRect);
+                }
+                if (IsRowDoubleClick(rowRect))
+                {
+                    Event.current.Use();
+                    jumpThing = row.Weapon.Thing;
                 }
                 if (Widgets.ButtonInvisible(rowRect) && selectedWeapon != i)
                 {
@@ -1425,6 +1463,10 @@ namespace Armory
 
             Widgets.EndScrollView();
             DrawWeaponDetail(detailRect.ContractedBy(8f), snapshot, snapshot.WeaponRows[selectedWeapon]);
+            if (jumpThing != null)
+            {
+                JumpToThing(jumpThing);
+            }
         }
 
         private static string WeaponStatusTip(WeaponAnalysis row)

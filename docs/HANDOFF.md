@@ -1,6 +1,6 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.10.2**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.10.3**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
 Git repository on `main`; 0.2.3 through 0.10.2 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
@@ -32,8 +32,8 @@ auto-haul, raid arming, localization, and Workshop prep. The first Workshop item
 (0.9.2) is uploaded and hidden while Steam's content check runs. 0.10.0 added the
 typed hand model, passion-based role assignment and automatic hand-type
 alignment; 0.10.1 polished the UI and list limits; 0.10.2 hardens backup
-management and unusable-backup baselines. Upload once the private test is good
-enough.
+management and unusable-backup baselines; 0.10.3 adds double-click map jumps.
+Upload once the private test is good enough.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
@@ -41,9 +41,30 @@ A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.5, the simplified crossed-weapons icon in 0.8.6, the release text, banner and
 default-automation pass in 0.9.0, colonist-bar ordering in 0.9.1, and release
 staging plus the `Best vs current` column in 0.9.2, the typed-hand/auto-align
-pass in 0.10.0, UI/list-limit polish in 0.10.1, and backup-safety fixes in 0.10.2.
-Research, reference-mod behaviour, the shipped model and remaining decisions are
-in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+pass in 0.10.0, UI/list-limit polish in 0.10.1, backup-safety fixes in 0.10.2,
+and double-click map jumps in 0.10.3. Research, reference-mod behaviour, the
+shipped model and remaining decisions are in
+[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+
+---
+
+## 0.10.3 — double-click map jumps
+
+Double-clicking a row in the **Colonists** or **Weapons** list now closes Armory,
+moves the camera to that pawn or loose weapon, and selects it, so a listed item
+can be found on the map in one gesture.
+
+- Uses `CameraJumper.TryJumpAndSelect`, the same path as the colonist bar, so
+  selecting an item on another map works if one is ever listed.
+- Only spawned things jump. A despawned colonist (pod, casket, caravan, another
+  map) is a no-op rather than a misleading camera move.
+- Detection uses a left `MouseDown` with `clickCount == 2` inside the row and
+  consumes that event so the normal single-click selection does not race it.
+- Tab tooltips and the Weapons-tab note mention the double-click action.
+- Verified with the isolated live harness on the current save: jumping to Trebo
+  centered the camera on him with the inspect pane open; jumping to Talia's
+  persona monosword did the same for the weapon. Both left Armory closed with
+  `openTab=Inspect`. Build is clean.
 
 ---
 
@@ -2085,6 +2106,7 @@ polish, not new core behaviour.
 | 0.10.0 | Typed hand model without Simple Sidearms, passion-first role assignment, Brawler/shield/bonded handling, automatic hand-type alignment and per-pawn hand-type overrides |
 | 0.10.1 | Corrected hand-type order tooltip, removed duplicate current-weapon text, hid the no-SS Backup column, unified slot labels/colors, dropped the redundant SS "carries the preferred type" line, shortened list statuses, fixed false `Already carried` on persona/unique weapons, and unified Auto candidate limits (15 hand without SS; 5/5 with SS) |
 | 0.10.2 | Drop-first backup upgrades, stop adding when multiple backups are carried, explicit biocoded-owner guard, and exclude unusable backups from the worst-backup/demand baseline |
+| 0.10.3 | Double-click a Colonists or Weapons row to close Armory, jump the camera to that pawn or weapon, and select it |
 
 ---
 

@@ -28,10 +28,10 @@ Milestones 0–4 are implemented:
 
 **Next:** milestone 5, polish and release prep. 0.7.0 turned the Upgrades view
 into an ideal-loadout build plan; remaining polish is container scanning,
-auto-haul, raid arming, localization, and Workshop prep. The first Workshop item
-(0.9.2) is uploaded and hidden while Steam's content check runs. 0.10.0 added the
-typed hand model, passion-based role assignment and automatic hand-type
-alignment; 0.10.1 polished the UI and list limits; 0.10.2 hardens backup
+auto-haul, raid arming, localization, and Workshop prep. The Workshop item was
+created with 0.9.2 and updated to 0.10.8; its page is being made public.
+0.10.0 added the typed hand model, passion-based role assignment and automatic
+hand-type alignment; 0.10.1 polished the UI and list limits; 0.10.2 hardens backup
 management and unusable-backup baselines; 0.10.3 adds double-click map jumps;
 0.10.4 adds weapon comparison, material-specific upgrade variants and role
 filters; 0.10.5 polishes the accuracy columns, table widths and detail header;
@@ -2273,7 +2273,8 @@ polish, not new core behaviour.
 | `docs/RANGE_AND_ROLES.md` | Range/role research, shipped model and pending decisions |
 | `docs/HANDOFF.md` | This file |
 | `docs/TESTING.md` | Quick harness + live-save procedure, pitfalls, cleanup |
-| `docs/WORKSHOP.md` | Clean release contents, private upload checklist and Workshop page copy |
+| `docs/WORKSHOP.md` | Clean release contents, upload checklist and Workshop page copy |
+| `docs/screenshots/` | Current Workshop gallery images and upload order |
 | `tools/Setup-LiveTest.ps1` | Copies a real save/config into an isolated folder |
 | `tools/LiveTestScaffold.cs.txt` | Temporary load/screenshot scaffold template |
 | `tools/Generate-ArmoryIcon.ps1` | Regenerates the 64px tab glyph and transparent ModIcon |

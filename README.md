@@ -563,6 +563,7 @@ Armory/
   docs/HANDOFF.md                  exact state and next-step plan
   docs/TESTING.md                  quick + live-save testing procedure
   docs/WORKSHOP.md                 Steam Workshop copy + release checklist
+  docs/screenshots/                Workshop gallery images
   tools/Quicktest-Armory.ps1       isolated quicktest harness
   tools/Setup-LiveTest.ps1         copies a real save into an isolated folder
   tools/LiveTestScaffold.cs.txt    temporary auto-load/screenshot scaffold

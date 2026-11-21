@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using RimWorld;
 using Verse;
+using Verse.AI;
 
 namespace Armory.Compatibility
 {
@@ -199,15 +200,43 @@ namespace Armory.Compatibility
             get { return ArmoryMod.Settings == null || ArmoryMod.Settings.respectSimpleSidearms; }
         }
 
-        /// <summary>True while Simple Sidearms is equipping or re-equipping a sidearm for this pawn.</summary>
+        /// <summary>
+        /// True while Simple Sidearms is equipping or re-equipping a sidearm for this pawn,
+        /// including a sidearm job waiting in the pawn's job queue. Queued jobs matter:
+        /// TryTakeOrderedJob with requestQueueing only appends, so a resting pawn can
+        /// otherwise accumulate several identical pickup jobs and execute them all later.
+        /// </summary>
         public static bool IsSidearmJobRunning(Pawn pawn)
         {
-            if (pawn == null || pawn.jobs == null || pawn.jobs.curJob == null ||
-                pawn.jobs.curJob.def == null)
+            if (pawn == null || pawn.jobs == null)
             {
                 return false;
             }
-            string defName = pawn.jobs.curJob.def.defName;
+            if (IsSidearmJob(pawn.jobs.curJob))
+            {
+                return true;
+            }
+            if (pawn.jobs.jobQueue != null)
+            {
+                for (int i = 0; i < pawn.jobs.jobQueue.Count; i++)
+                {
+                    QueuedJob queued = pawn.jobs.jobQueue[i];
+                    if (queued != null && IsSidearmJob(queued.job))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private static bool IsSidearmJob(Job job)
+        {
+            if (job == null || job.def == null)
+            {
+                return false;
+            }
+            string defName = job.def.defName;
             return defName == "EquipSecondary" || defName == "ReequipSecondary" ||
                    defName == "ReequipSecondaryCombat";
         }

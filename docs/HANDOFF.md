@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.10.7**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.10.8**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.10.7 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.10.8 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 **Links:** [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224) ·
@@ -36,8 +36,8 @@ management and unusable-backup baselines; 0.10.3 adds double-click map jumps;
 0.10.4 adds weapon comparison, material-specific upgrade variants and role
 filters; 0.10.5 polishes the accuracy columns, table widths and detail header;
 0.10.6 shows accuracy as percentages and replaces text costs with icon/count
-groups; 0.10.7 names Armory-created bills. Upload once the private test is good
-enough.
+groups; 0.10.7 names Armory-created bills; 0.10.8 prevents duplicate pickup jobs
+from accumulating on resting pawns. Upload once the private test is good enough.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
@@ -48,9 +48,46 @@ staging plus the `Best vs current` column in 0.9.2, the typed-hand/auto-align
 pass in 0.10.0, UI/list-limit polish in 0.10.1, backup-safety fixes in 0.10.2,
 double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4,
 accuracy-column/table-layout polish in 0.10.5, percentage accuracy/icon costs
-in 0.10.6, and named craft bills in 0.10.7. Research, reference-mod behaviour,
-the shipped model and remaining decisions are in
-[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+in 0.10.6, named craft bills in 0.10.7, and a pending-job duplicate guard in
+0.10.8. Research, reference-mod behaviour, the shipped model and remaining
+decisions are in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+
+---
+
+## 0.10.8 — queued-job duplicate guard
+
+Grant ended up with two steel gladiuses in the user's save. The save showed both
+were loose on the map at 2:22 AM and in his inventory later, and the autosave
+already contained **two queued `EquipSecondary` jobs for the same gladius**.
+
+Root cause: `TryTakeOrderedJob(..., requestQueueing: true)` appends without
+interrupting. Armory checked only `pawn.jobs.curJob` for an `Equip`/sidearm job,
+so while Grant was resting it queued another pickup every 2500-tick cooldown.
+Seven jobs accumulated in the isolated repro. When he woke, the queued jobs ran
+in sequence; jobs targeting different same-def copies could each succeed, and
+Simple Sidearms remembers every successful pickup.
+
+- `SimpleSidearmsAdapter.IsSidearmJobRunning` now checks the current job **and**
+  the pawn's job queue.
+- The `Equip` hard gate also checks queued `Equip` jobs, not only the current
+  job, so hand jobs cannot accumulate the same way.
+- Immediately before ordering a backup pickup, Armory re-checks the live pawn
+  (equipment, inventory, current job and queued job targets) with the same
+  ordinary-by-def / unique-by-instance rule. A lagging snapshot can no longer
+  add a second gladius.
+- Existing queued sidearm jobs are left alone; they drain normally, and once one
+  valid backup is carried the normal `Multiple backups`/`Already carried`
+  guards stop further additions.
+
+Verified on the Autosave-3 repro at 1600x900: before the fix, seven identical
+`EquipSecondary` jobs for gladius 855038 accumulated while Grant rested. After
+the fix, the queue stayed at one job; waking him produced exactly one steel
+gladius, and the saved two-job queue drained to exactly one gladius with no new
+jobs. Release build clean.
+
+Pending: the user's existing Grant save still carries two steel gladiuses; one
+must be dropped manually. Verify the next live session keeps the queue to one
+job and that other pawns with old duplicate backups no longer receive additions.
 
 ---
 
@@ -677,9 +714,11 @@ No planner behaviour changed. Build clean.
 
 Observation from the user's live log: the same pawn could be re-queued every
 ~41 s (the 2500-tick swap cooldown) when the queued job had not been taken yet
-(pawns sleeping/busy, or a job the pawn cannot start). That is expected retry
-behaviour, not a swap loop; if it persists while a pawn is idle and awake, the
-next suspect is Simple Sidearms re-promoting its remembered primary.
+(pawns sleeping/busy, or a job the pawn cannot start). This was originally
+recorded as expected retry behaviour, but 0.10.8 showed it was harmful:
+`requestQueueing: true` appended every retry, so a resting pawn could wake and
+execute several duplicate pickup jobs. Queued jobs now block further automation,
+and a live duplicate check runs before each pickup order.
 
 ---
 
@@ -2221,6 +2260,7 @@ polish, not new core behaviour.
 | 0.10.5 | Split accuracy into sortable columns, widened the Weapons/Upgrades tables, narrowed the detail pane, moved the Upgrades header text up, and compacted the ranged stat header |
 | 0.10.6 | Show accuracy as percentages, render Upgrades costs as icon/count groups with orange shortage counts, and equalize Wanted/Owned/Needed widths |
 | 0.10.7 | Set a recognizable `Armory: <item>` custom name on bills queued from Upgrades, with a 28-character fallback |
+| 0.10.8 | Treat current and queued Equip/EquipSecondary jobs as busy, and re-check live carried/pending weapons before a backup pickup, so resting pawns cannot accumulate duplicate pickup jobs |
 
 ---
 

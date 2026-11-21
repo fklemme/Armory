@@ -182,7 +182,7 @@ With Simple Sidearms enabled and respected, every pawn should resolve
 `(Simple Sidearms mode)`, the Armory hand-type override should be ignored, and
 backup jobs should still queue.
 
-### Testing comparison, materials and role filters (0.10.4–0.10.7)
+### Testing comparison, materials and role filters (0.10.4–0.10.8)
 
 - **Weapons:** the list shows DPS, DPSA, AP, separate percentage
   `aC`/`aS`/`aM`/`aL` columns, Range, Best colonist and Best use. Click each
@@ -207,6 +207,13 @@ backup jobs should still queue.
 - **Upgrades layout (0.10.5):** the first explanatory line must not be clipped at
   its bottom, Wanted by/Owned should be compact, and normal bench names in Source
   should fit without a redundant shortage suffix.
+- **Pending pickup jobs (0.10.8):** put a colonist who needs a backup in bed or
+  otherwise busy for several planner cycles. The pawn must have at most one
+  `EquipSecondary` job in `pawn.jobs.jobQueue` at any time; Armory should add no
+  further pickup jobs while it is queued. Wake the pawn and verify exactly one
+  backup is added. A save that already contains duplicate queued jobs should
+  drain without Armory adding more; any same-def extras that already reached the
+  inventory still have to be dropped manually.
 - **No-SS test:** the Weapons and Upgrades comparisons still work without Simple
   Sidearms; backup-only rows may disappear, as expected.
 

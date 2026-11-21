@@ -6,7 +6,7 @@
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
-  <modVersion>0.10.7</modVersion>
+  <modVersion>0.10.8</modVersion>
   <url>https://github.com/fklemme/Armory</url>
   <description>Armory is a weapon inspector and automatic manager for RimWorld 1.6. It shows what every colonist wants to carry, why they are not carrying it, and what the colony should craft, research or buy next.
 
@@ -14,7 +14,7 @@ Every free colonist gets range-aware rankings based on RimWorld's real accuracy 
 
 The Upgrades tab lists every obtainable weapon variant that would improve a colonist, grouped into Craft, Research and Buy. Stuffable weapons are split by material, so a steel knife and a plasteel knife are separate rows with their own score, per-copy material cost and owned count, and the Craft button queues the bill for that material and names it Armory: Uranium mace (for example) so it stands out from ordinary recipe bills. It shows owned and missing copies, expected gain and the best bench, and can queue one bill when a built bench can make the missing weapon. The Weapons tab compares loose weapons with raw DPS, generic DPSA, armor penetration, separate sortable accuracy columns and role filters; its detail view shows the best colonist per role. The Colonists tab shows each pawn's current hand and backup weapon, status and ranked alternatives. Double-click a colonist or loose weapon row to close Armory and jump to it on the map.
 
-When no other weapon manager is active, automatic weapon management is on by default. Armory queues equip jobs for the best ready weapon, claims each weapon for one pawn, respects a swap cooldown, never unforbids anything, and treats unbonded persona weapons as manual-only. With Simple Sidearms, backup management keeps one legal opposite-type weapon and upgrades only the worst same-type weapon. Armory never adds a second backup; if extras are already carried, it reports them instead of adding more, and unusable biocoded backups are ignored when comparing upgrades. Automatic equipping and backup management can each be disabled in settings, and the Log tab records every decision with its reason.
+When no other weapon manager is active, automatic weapon management is on by default. Armory queues equip jobs for the best ready weapon, claims each weapon for one pawn, respects a swap cooldown, never unforbids anything, and treats unbonded persona weapons as manual-only. With Simple Sidearms, backup management keeps one legal opposite-type weapon and upgrades only the worst same-type weapon. Armory never adds a second backup; if extras are already carried, it reports them instead of adding more, and unusable biocoded backups are ignored when comparing upgrades. It also counts current and queued jobs as busy, so a resting colonist cannot accumulate duplicate pickup orders. Automatic equipping and backup management can each be disabled in settings, and the Log tab records every decision with its reason.
 
 Simple Sidearms support is optional and read through reflection, so Armory still works without it. No Harmony dependency.
 

@@ -1,14 +1,15 @@
 # Steam Workshop release copy and checklist
 
-Status: **0.10.7 development build**. The Workshop item was created with 0.9.2
+Status: **0.10.8 development build**. The Workshop item was created with 0.9.2
 and is still hidden while Steam's automated content check runs. 0.10.0 added
 typed hands, passion-based role assignment and automatic hand-type alignment;
 0.10.1 polished the UI and list limits; 0.10.2 hardens backup management and
 unusable-backup baselines; 0.10.3 adds double-click map jumps; 0.10.4 adds
 weapon comparison, material-specific upgrade variants and role filters; 0.10.5
 polishes the accuracy columns and table widths; 0.10.6 shows accuracy as
-percentages and costs as icon/count groups; 0.10.7 names Armory-created bills.
-Test locally before uploading an update. Do not bump to 1.0 yet.
+percentages and costs as icon/count groups; 0.10.7 names Armory-created bills;
+0.10.8 stops resting pawns from accumulating duplicate pickup jobs. Test
+locally before uploading an update. Do not bump to 1.0 yet.
 
 - Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224
 - Source and issues: https://github.com/fklemme/Armory
@@ -83,11 +84,14 @@ After the upload:
 - For a true subscriber test, temporarily move the local release copy out of
   `RimWorld\Mods` (or use a separate RimWorld install/Steam account), restart,
   and load a colony with only the Workshop copy active.
-- Check the mod icon, banner, tabs, version `0.10.7`, default-on automation,
+- Check the mod icon, banner, tabs, version `0.10.8`, default-on automation,
   colonist-bar order, the `Best vs current` column, the `Change type` /
   `Change range` buttons, the Weapons percentage accuracy columns/role filters,
   the material-specific Upgrades rows/icon costs, and that Crafted bills are
   named `Armory: …`.
+- Let a colonist with a pending backup pickup rest for several planner cycles
+  and verify the queue never holds more than one `EquipSecondary` job. After
+  waking, exactly one backup should be added.
 - Test the automatic hand type with and without Simple Sidearms:
   - without SS, a clear shooter holding a melee weapon should be marked
     `switch type` and the planner should queue a ranged weapon;
@@ -146,7 +150,7 @@ Every colonist has a hand type: Ranged or Melee. Armory chooses it from an expli
 With Simple Sidearms loaded, Armory also models one opposite-type backup. Blockers stay visible: forbidden, outside the allowed area, unreachable, reserved, biocoded, role restrictions, ideoligion dislike, and Simple Sidearms slot or mass limits.
 
 [h2]Automatic management, on by default[/h2]
-When no other weapon manager is active, Armory queues equip jobs for the best ready weapon, claims each weapon for one pawn, respects a swap cooldown, never unforbids anything, and treats unbonded persona weapons as manual-only. With Simple Sidearms, backup management keeps one legal opposite-type weapon and upgrades only the worst same-type weapon. Both automatic equipping and backup management can be disabled in settings.
+When no other weapon manager is active, Armory queues equip jobs for the best ready weapon, claims each weapon for one pawn, respects a swap cooldown, never unforbids anything, and treats unbonded persona weapons as manual-only. With Simple Sidearms, backup management keeps one legal opposite-type weapon and upgrades only the worst same-type weapon. Current and queued pickup jobs count as busy, so a resting colonist cannot accumulate duplicate orders. Both automatic equipping and backup management can be disabled in settings.
 
 [h2]Compatibility[/h2]
 No hard dependencies. Simple Sidearms support is optional and read through reflection, so Armory works without it. No Harmony dependency.
@@ -164,6 +168,7 @@ No hard dependencies. Simple Sidearms support is optional and read through refle
 [/list]
 
 [h2]Version[/h2]
+0.10.8 - Stop duplicate pickup jobs from accumulating on resting colonists; harden the live duplicate-backup check.
 0.10.7 - Armory-created bills get a recognizable Armory: cost/material name.
 
 [h2]Links[/h2]

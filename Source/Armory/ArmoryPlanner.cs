@@ -340,6 +340,13 @@ namespace Armory
                     }
 
                     ThingWithComps weapon = chosen.Weapon.Thing;
+                    if (AlreadyCarriesLive(pawn, weapon))
+                    {
+                        // The snapshot can be up to one scan interval old. Re-check the live
+                        // pawn and its queued jobs so a weapon picked up or already ordered
+                        // in the meantime cannot be added a second time.
+                        continue;
+                    }
                     if (weapon == null || !weapon.Spawned || weapon.Map != map)
                     {
                         continue;
@@ -505,6 +512,98 @@ namespace Armory
             return score;
         }
 
+        /// <summary>
+        /// Live duplicate check used just before ordering a pickup. The snapshot can lag one
+        /// scan interval, and a queued job may already target the same def. Ordinary weapons
+        /// compare by def; persona and unique weapons compare by instance.
+        /// </summary>
+        private static bool AlreadyCarriesLive(Pawn pawn, ThingWithComps candidate)
+        {
+            if (pawn == null || candidate == null || candidate.def == null)
+            {
+                return false;
+            }
+
+            bool unique = candidate.GetComp<CompUniqueWeapon>() != null ||
+                          candidate.GetComp<CompBladelinkWeapon>() != null;
+            if (pawn.equipment != null &&
+                IsSameWeapon(pawn.equipment.Primary, candidate, unique))
+            {
+                return true;
+            }
+            if (pawn.inventory != null && pawn.inventory.innerContainer != null)
+            {
+                for (int i = 0; i < pawn.inventory.innerContainer.Count; i++)
+                {
+                    ThingWithComps carried = pawn.inventory.innerContainer[i] as ThingWithComps;
+                    if (IsSameWeapon(carried, candidate, unique))
+                    {
+                        return true;
+                    }
+                }
+            }
+            if (pawn.jobs == null)
+            {
+                return false;
+            }
+            if (JobTargetsWeapon(pawn.jobs.curJob, candidate, unique))
+            {
+                return true;
+            }
+            if (pawn.jobs.jobQueue != null)
+            {
+                for (int i = 0; i < pawn.jobs.jobQueue.Count; i++)
+                {
+                    QueuedJob queued = pawn.jobs.jobQueue[i];
+                    if (queued != null && JobTargetsWeapon(queued.job, candidate, unique))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private static bool IsSameWeapon(ThingWithComps carried, ThingWithComps candidate,
+            bool unique)
+        {
+            if (carried == null || carried.def == null)
+            {
+                return false;
+            }
+            return unique ? carried == candidate : carried.def == candidate.def;
+        }
+
+        private static bool JobTargetsWeapon(Job job, ThingWithComps candidate, bool unique)
+        {
+            return job != null &&
+                   IsSameWeapon(job.targetA.Thing as ThingWithComps, candidate, unique);
+        }
+
+        private static bool HasCurrentOrQueuedJob(Pawn pawn, JobDef def)
+        {
+            if (pawn == null || pawn.jobs == null || def == null)
+            {
+                return false;
+            }
+            if (pawn.jobs.curJob != null && pawn.jobs.curJob.def == def)
+            {
+                return true;
+            }
+            if (pawn.jobs.jobQueue != null)
+            {
+                for (int i = 0; i < pawn.jobs.jobQueue.Count; i++)
+                {
+                    QueuedJob queued = pawn.jobs.jobQueue[i];
+                    if (queued != null && queued.job != null && queued.job.def == def)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         private static bool IsDroppableBackup(ThingWithComps thing)
         {
             return thing != null && !thing.Destroyed && thing.def != null &&
@@ -639,7 +738,7 @@ namespace Armory
             {
                 return "no job tracker";
             }
-            if (pawn.jobs.curJob != null && pawn.jobs.curJob.def == JobDefOf.Equip)
+            if (HasCurrentOrQueuedJob(pawn, JobDefOf.Equip))
             {
                 return "already equipping";
             }

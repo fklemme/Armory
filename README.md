@@ -2,7 +2,7 @@
 
 **The right weapon, in the right hands.**
 
-**Version 0.10.7** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.10.8** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and automatic manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -29,7 +29,7 @@ Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1, backup safety/unusable-baseline fixes in 0.10.2, double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4, accuracy-column/table-layout polish in 0.10.5, percent accuracy/cost icons in 0.10.6, named craft bills in 0.10.7 |
+| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1, backup safety/unusable-baseline fixes in 0.10.2, double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4, accuracy-column/table-layout polish in 0.10.5, percent accuracy/cost icons in 0.10.6, named craft bills in 0.10.7, pending-job duplicate guard in 0.10.8 |
 
 ---
 
@@ -247,7 +247,9 @@ not make every pawn want one.
 tooltip shows how many unforbidding would cover. A research-locked def you
 already own shows `more: <project>` when only extra copies need the research.
 A pawn is never offered a second copy of a weapon def they already carry as a
-backup; hand swaps of the same def are still allowed for quality upgrades.
+backup; hand swaps of the same def are still allowed for quality upgrades. The
+same duplicate check runs against the pawn's live inventory and queued jobs
+immediately before a pickup is ordered, not only against the cached snapshot.
 
 Unlike the planner, the Upgrades tab ignores transient state: a drafted, asleep, or
 full-bagged colonist still counts, because the plan is about what the colony
@@ -382,7 +384,8 @@ Automation is on by default. While enabled:
 - one claim per weapon instance (900 ticks), per-pawn swap cooldown;
 - minimum upgrade gain gate;
 - equip jobs are queued with `requestQueueing: true`, so work is not
-  interrupted;
+  interrupted; a pawn with a current or queued Armory job is skipped, so a
+  resting pawn cannot accumulate duplicate pickup jobs that all run later;
 - manual weapon changes pause that pawn for a configurable period;
 - skips pacifists, prisoners, slaves, downed/mental pawns, under-age pawns, and
   drafted pawns by default;

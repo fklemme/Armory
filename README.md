@@ -2,7 +2,7 @@
 
 **The right weapon, in the right hands.**
 
-**Version 0.10.5** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.10.6** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and automatic manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -29,7 +29,7 @@ Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1, backup safety/unusable-baseline fixes in 0.10.2, double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4, accuracy-column/table-layout polish in 0.10.5 |
+| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1, backup safety/unusable-baseline fixes in 0.10.2, double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4, accuracy-column/table-layout polish in 0.10.5, percent accuracy/cost icons in 0.10.6 |
 
 ---
 
@@ -78,7 +78,7 @@ Sidearms.
 Every loose weapon on the map with:
 
 - raw DPS, generic DPSA, armor penetration, separate accuracy columns for
-  Close/Short/Medium/Long, range and the best-ready colonist;
+  Close/Short/Medium/Long (shown as percentages), range and the best-ready colonist;
 - sortable comparison headers for every stat, including each accuracy band;
 - role filters for **All / Melee / CQB / Assault / Line / Marksman**, so the same
   list can answer "what is best for a line shooter?" without changing the pawns;
@@ -149,9 +149,9 @@ Columns:
 
 - `Power`: normal-quality base strength before range and pawn fit;
 - `Range`: maximum firing range in tiles (`-` for melee);
-- `Cost`: material cost per copy for this variant, with an orange `!` when the
-  current stockpiles cannot cover all needed copies; hover for the full
-  ingredient list and the total for the needed copies;
+- `Cost`: per-copy ingredients shown as item icons with `x` counts; a count is
+  orange when current stockpiles cannot cover all needed copies. Hover for the
+  full ingredient list, current stock and the total for the needed copies;
 - `Score`: range-aware expected value for the selected role (or all roles),
   summed over the colonists who would take it; this is the main sort key;
 - `Slot`: `Hand`, `Backup`, or `Both`, using the same green/blue/cyan colors as

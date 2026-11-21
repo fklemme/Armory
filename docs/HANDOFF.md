@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.10.5**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.10.6**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.10.5 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.10.6 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 **Links:** [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224) ·
@@ -34,8 +34,9 @@ typed hand model, passion-based role assignment and automatic hand-type
 alignment; 0.10.1 polished the UI and list limits; 0.10.2 hardens backup
 management and unusable-backup baselines; 0.10.3 adds double-click map jumps;
 0.10.4 adds weapon comparison, material-specific upgrade variants and role
-filters; 0.10.5 polishes the accuracy columns, table widths and detail header.
-Upload once the private test is good enough.
+filters; 0.10.5 polishes the accuracy columns, table widths and detail header;
+0.10.6 shows accuracy as percentages and replaces text costs with icon/count
+groups. Upload once the private test is good enough.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
@@ -45,9 +46,26 @@ default-automation pass in 0.9.0, colonist-bar ordering in 0.9.1, and release
 staging plus the `Best vs current` column in 0.9.2, the typed-hand/auto-align
 pass in 0.10.0, UI/list-limit polish in 0.10.1, backup-safety fixes in 0.10.2,
 double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4,
-and accuracy-column/table-layout polish in 0.10.5. Research, reference-mod
-behaviour, the shipped model and remaining decisions are in
-[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+accuracy-column/table-layout polish in 0.10.5, and percentage accuracy/icon costs
+in 0.10.6. Research, reference-mod behaviour, the shipped model and remaining
+decisions are in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+
+---
+
+## 0.10.6 — percentage accuracy and icon costs
+
+- Accuracy values in the separate Weapons columns now include `%`, matching AP.
+  The detail line uses the same percentage format.
+- Upgrades Cost now draws each ingredient as its item icon followed by an `x`
+  count, like the crafting menu. Multiple ingredients fit in one cell; overflow
+  shows `+N` and the tooltip still lists everything.
+- Each count is orange when current stock cannot cover all needed copies; the
+  redundant `!` suffix is gone.
+- `Wanted by`, `Owned` and `Needed` are all 58 px wide for a clean integer
+  column group; Cost grew to 136 px and Source remains 246 px.
+- Verified on the isolated live save at 1600x900: obsidian/plasteel counts are
+  orange, uranium is normal, and multi-ingredient rows show icons for both
+  resources (e.g. plasteel x140 + advanced component x10). Build clean.
 
 ---
 
@@ -2180,6 +2198,7 @@ polish, not new core behaviour.
 | 0.10.3 | Double-click a Colonists or Weapons row to close Armory, jump the camera to that pawn or weapon, and select it |
 | 0.10.4 | Weapon comparison columns and sorting, role filters and Best by role, material-specific upgrade variants with per-copy costs and material-locked bills, and an optional Owned section |
 | 0.10.5 | Split accuracy into sortable columns, widened the Weapons/Upgrades tables, narrowed the detail pane, moved the Upgrades header text up, and compacted the ranged stat header |
+| 0.10.6 | Show accuracy as percentages, render Upgrades costs as icon/count groups with orange shortage counts, and equalize Wanted/Owned/Needed widths |
 
 ---
 

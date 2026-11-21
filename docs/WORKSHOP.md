@@ -1,12 +1,13 @@
 # Steam Workshop release copy and checklist
 
-Status: **0.10.5 development build**. The Workshop item was created with 0.9.2
+Status: **0.10.6 development build**. The Workshop item was created with 0.9.2
 and is still hidden while Steam's automated content check runs. 0.10.0 added
 typed hands, passion-based role assignment and automatic hand-type alignment;
 0.10.1 polished the UI and list limits; 0.10.2 hardens backup management and
 unusable-backup baselines; 0.10.3 adds double-click map jumps; 0.10.4 adds
 weapon comparison, material-specific upgrade variants and role filters; 0.10.5
-polishes the accuracy columns and table widths. Test locally before uploading an
+polishes the accuracy columns and table widths; 0.10.6 shows accuracy as
+percentages and costs as icon/count groups. Test locally before uploading an
 update. Do not bump to 1.0 yet.
 
 - Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224
@@ -82,10 +83,10 @@ After the upload:
 - For a true subscriber test, temporarily move the local release copy out of
   `RimWorld\Mods` (or use a separate RimWorld install/Steam account), restart,
   and load a colony with only the Workshop copy active.
-- Check the mod icon, banner, tabs, version `0.10.5`, default-on automation,
+- Check the mod icon, banner, tabs, version `0.10.6`, default-on automation,
   colonist-bar order, the `Best vs current` column, the `Change type` /
-  `Change range` buttons, the Weapons accuracy columns/role filters, and the
-  material-specific Upgrades rows/costs.
+  `Change range` buttons, the Weapons percentage accuracy columns/role filters,
+  and the material-specific Upgrades rows/icon costs.
 - Test the automatic hand type with and without Simple Sidearms:
   - without SS, a clear shooter holding a melee weapon should be marked
     `switch type` and the planner should queue a ranged weapon;
@@ -130,7 +131,7 @@ Armory is a weapon inspector and automatic manager for RimWorld 1.6. It shows wh
 [list]
 [*][b]Colonists[/b] - each pawn's hand and backup weapon, hand type, ranged role, blockers, ranked alternatives, and a Best vs current comparison. Double-click a row to jump to that colonist on the map.
 [*][b]Weapons[/b] - every loose weapon on the map, with raw DPS, generic DPSA, armor penetration, accuracy at four ranges, sortable comparison columns and role filters. Double-click a row to jump to that weapon on the map.
-[*][b]Upgrades[/b] - every obtainable weapon variant that would improve a colonist, grouped into Craft, Research and Buy. Stuffable weapons are split by material (steel knife vs plasteel knife) with per-copy cost, stock shortage markers, owned and missing copies, score, gain and source. A Show owned toggle adds an Owned comparison section.
+[*][b]Upgrades[/b] - every obtainable weapon variant that would improve a colonist, grouped into Craft, Research and Buy. Stuffable weapons are split by material (steel knife vs plasteel knife) with per-copy ingredient icons, orange shortage counts, owned and missing copies, score, gain and source. A Show owned toggle adds an Owned comparison section.
 [*][b]Log[/b] - the automatic decisions Armory made this session, with the reason for each.
 [/list]
 
@@ -162,7 +163,7 @@ No hard dependencies. Simple Sidearms support is optional and read through refle
 [/list]
 
 [h2]Version[/h2]
-0.10.5 - separate sortable accuracy columns, wider tables, compact ranged detail header and Upgrades spacing polish.
+0.10.6 - percentage accuracy columns, icon/count cost cells with orange shortage counts, and symmetrical integer columns.
 
 [h2]Links[/h2]
 [list]

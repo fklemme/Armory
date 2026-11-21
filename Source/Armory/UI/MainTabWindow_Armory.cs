@@ -1670,7 +1670,7 @@ namespace Armory
                     value = stats.AccuracyLong;
                     break;
             }
-            return (value * 100f).ToString("0");
+            return (value * 100f).ToString("0") + "%";
         }
 
         private void DrawWeaponRow(Rect rowRect, WeaponAnalysis row,
@@ -2425,11 +2425,11 @@ namespace Armory
         {
             public const float PowerWidth = 50f;
             public const float RangeWidth = 42f;
-            public const float CostWidth = 92f;
+            public const float CostWidth = 136f;
             public const float ScoreWidth = 58f;
             public const float SlotWidth = 60f;
-            public const float WantedWidth = 62f;
-            public const float OwnedWidth = 76f;
+            public const float WantedWidth = 58f;
+            public const float OwnedWidth = 58f;
             public const float NeedWidth = 58f;
             public const float GainWidth = 58f;
             public const float SourceWidth = 246f;
@@ -2604,38 +2604,7 @@ namespace Armory
                 TooltipHandler.TipRegion(rangeCell, "Maximum firing range in tiles.");
 
                 Rect costCell = new Rect(columns.CostX, cursor, DemandColumns.CostWidth, RowHeight);
-                string costText = row.Section == DemandSection.Owned
-                    ? "-"
-                    : (row.CostText ?? "-");
-                bool shortOnNeed = row.Section != DemandSection.Owned &&
-                                   (!row.MaterialsAvailable ||
-                                    (row.CraftableCopies >= 0 &&
-                                     row.CraftableCopies < row.Need));
-                if (shortOnNeed && costText != "-")
-                {
-                    costText += " !";
-                }
-                DrawCell(costCell, costText, TextAnchor.MiddleRight, GameFont.Tiny,
-                    row.Section == DemandSection.Owned
-                        ? new Color(0.62f, 0.62f, 0.62f)
-                        : !shortOnNeed
-                            ? new Color(0.78f, 0.82f, 0.72f)
-                            : BlockedSlotColor);
-                string costTip = row.Section == DemandSection.Owned
-                    ? "Owned copy; no crafting cost applies."
-                    : (row.CostTooltip ??
-                       "Materials needed for one copy. Stock is read from the current map.");
-                if (row.Section != DemandSection.Owned && row.Need > 1 && row.Costs.Count > 0)
-                {
-                    List<string> totals = new List<string>();
-                    for (int c = 0; c < row.Costs.Count; c++)
-                    {
-                        ThingDefCountClass cost = row.Costs[c];
-                        totals.Add((cost.count * row.Need) + " " + cost.thingDef.label);
-                    }
-                    costTip += "\nFor " + row.Need + " copies: " + string.Join(", ", totals);
-                }
-                TipCell(costCell, costTip);
+                DrawDemandCost(costCell, row, snapshot.Map);
 
                 Rect scoreCell = new Rect(columns.ScoreX, cursor, DemandColumns.ScoreWidth, RowHeight);
                 float shownScore = demandRoleFilter == RoleFilter.All
@@ -2733,6 +2702,80 @@ namespace Armory
             }
 
             Widgets.EndScrollView();
+        }
+
+        private static void DrawDemandCost(Rect cell, DemandRow row, Map map)
+        {
+            if (row.Section == DemandSection.Owned)
+            {
+                DrawCell(cell, "-", TextAnchor.MiddleRight, GameFont.Tiny,
+                    new Color(0.62f, 0.62f, 0.62f));
+                TipCell(cell, "Owned copy; no crafting cost applies.");
+                return;
+            }
+
+            if (row.Costs.Count == 0)
+            {
+                DrawCell(cell, "-", TextAnchor.MiddleRight, GameFont.Tiny,
+                    new Color(0.62f, 0.62f, 0.62f));
+                TipCell(cell, row.CostTooltip ?? "No material cost is known for this variant.");
+                return;
+            }
+
+            GameFont previousFont = Text.Font;
+            Text.Font = GameFont.Tiny;
+            float x = cell.x + 2f;
+            float right = cell.xMax - 2f;
+            int shown = 0;
+            for (int i = 0; i < row.Costs.Count; i++)
+            {
+                ThingDefCountClass cost = row.Costs[i];
+                string amount = "x" + cost.count;
+                float amountWidth = Text.CalcSize(amount).x + 2f;
+                float groupWidth = 20f + amountWidth + 6f;
+                if (x + groupWidth > right)
+                {
+                    break;
+                }
+
+                Rect iconRect = new Rect(x, cell.y + 4f, 18f, 18f);
+                Color previousColor = GUI.color;
+                GUI.color = Color.white;
+                Widgets.ThingIcon(iconRect, cost.thingDef, null, null, 1f);
+                GUI.color = previousColor;
+                x += 20f;
+
+                int needed = Mathf.Max(1, row.Need);
+                int stock = map == null ? int.MaxValue : map.resourceCounter.GetCount(cost.thingDef);
+                bool enough = stock >= cost.count * needed;
+                DrawCell(new Rect(x, cell.y, amountWidth, cell.height), amount,
+                    TextAnchor.MiddleLeft, GameFont.Tiny,
+                    enough ? new Color(0.78f, 0.82f, 0.72f) : BlockedSlotColor);
+                x += amountWidth + 6f;
+                shown++;
+            }
+
+            if (shown < row.Costs.Count)
+            {
+                DrawCell(new Rect(x, cell.y, Mathf.Max(20f, right - x), cell.height),
+                    "+" + (row.Costs.Count - shown), TextAnchor.MiddleLeft, GameFont.Tiny,
+                    new Color(0.72f, 0.72f, 0.72f));
+            }
+            Text.Font = previousFont;
+
+            string costTip = row.CostTooltip ??
+                             "Materials needed for one copy. Stock is read from the current map.";
+            if (row.Need > 1)
+            {
+                List<string> totals = new List<string>();
+                for (int i = 0; i < row.Costs.Count; i++)
+                {
+                    ThingDefCountClass cost = row.Costs[i];
+                    totals.Add((cost.count * row.Need) + " " + cost.thingDef.label);
+                }
+                costTip += "\nFor " + row.Need + " copies: " + string.Join(", ", totals);
+            }
+            TipCell(cell, costTip);
         }
 
         private void BuildDemandView(ArmorySnapshot snapshot)
@@ -2864,9 +2907,9 @@ namespace Armory
             TooltipHandler.TipRegion(rangeRect, "Maximum firing range in tiles.");
             Rect costRect = new Rect(rect.x + columns.CostX, rect.y, DemandColumns.CostWidth,
                 rect.height);
-            DrawCell(costRect, "Cost", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            DrawCell(costRect, "Cost", TextAnchor.MiddleLeft, GameFont.Tiny, color);
             TooltipHandler.TipRegion(costRect,
-                "Materials needed for one copy of this material variant. Stock is read from the current map; red means a shortage, but a bill can still be queued. Hover a cost for the full ingredient list.");
+                "Per-copy ingredients as icons with x counts. An orange count means stock cannot cover all needed copies; you can still queue the bill. Hover for the full ingredient list, current stock and total for the needed copies.");
             Rect scoreRect = new Rect(rect.x + columns.ScoreX, rect.y, DemandColumns.ScoreWidth,
                 rect.height);
             DrawCell(scoreRect, "Score", TextAnchor.MiddleRight, GameFont.Tiny, color);
@@ -2921,12 +2964,7 @@ namespace Armory
 
         private static string OwnedText(DemandRow row)
         {
-            string text = row.Owned.ToString();
-            if (row.Forbidden > 0)
-            {
-                text += " · " + row.Forbidden + " forbidden";
-            }
-            return text;
+            return row.Owned.ToString();
         }
 
         private static string SlotText(DemandRow row)

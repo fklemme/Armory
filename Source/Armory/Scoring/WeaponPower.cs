@@ -92,10 +92,10 @@ namespace Armory
                     {
                         return "-";
                     }
-                    return (AccuracyTouch * 100f).ToString("0") + "/" +
-                           (AccuracyShort * 100f).ToString("0") + "/" +
-                           (AccuracyMedium * 100f).ToString("0") + "/" +
-                           (AccuracyLong * 100f).ToString("0");
+                    return (AccuracyTouch * 100f).ToString("0") + "%/" +
+                           (AccuracyShort * 100f).ToString("0") + "%/" +
+                           (AccuracyMedium * 100f).ToString("0") + "%/" +
+                           (AccuracyLong * 100f).ToString("0") + "%";
                 }
             }
         }

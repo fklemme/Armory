@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.10.3**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.10.4**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.10.3 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.10.4 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 **Links:** [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224) ·
@@ -32,8 +32,9 @@ auto-haul, raid arming, localization, and Workshop prep. The first Workshop item
 (0.9.2) is uploaded and hidden while Steam's content check runs. 0.10.0 added the
 typed hand model, passion-based role assignment and automatic hand-type
 alignment; 0.10.1 polished the UI and list limits; 0.10.2 hardens backup
-management and unusable-backup baselines; 0.10.3 adds double-click map jumps.
-Upload once the private test is good enough.
+management and unusable-backup baselines; 0.10.3 adds double-click map jumps;
+0.10.4 adds weapon comparison, material-specific upgrade variants and role
+filters. Upload once the private test is good enough.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
@@ -42,9 +43,51 @@ A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 default-automation pass in 0.9.0, colonist-bar ordering in 0.9.1, and release
 staging plus the `Best vs current` column in 0.9.2, the typed-hand/auto-align
 pass in 0.10.0, UI/list-limit polish in 0.10.1, backup-safety fixes in 0.10.2,
-and double-click map jumps in 0.10.3. Research, reference-mod behaviour, the
-shipped model and remaining decisions are in
-[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+double-click map jumps in 0.10.3, and comparison/material/role insights in 0.10.4.
+Research, reference-mod behaviour, the shipped model and remaining decisions are
+in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+
+---
+
+## 0.10.4 — comparison stats, material variants, owned rows and role filters
+
+Quartermaster research showed that its Weapons tab ranks a global catalog by an
+intrinsic `DPSA x (1 + 0.75 AP)` score, not by per-colonist fit. 0.10.4 applies
+the useful presentation and craft-planning lessons without replacing Armory's
+per-pawn scoring.
+
+- **Weapons comparison columns:** raw DPS, generic DPSA, AP, accuracy at
+  Close/Short/Medium/Long, range and best-ready colonist. Headers sort the list;
+  the default sort is DPSA. DPSA is explicitly catalog-only (unreachable bands
+  count as zero), while the recommendation still uses the pawn's real range,
+  skill and fit.
+- **Role filters:** All / Melee / CQB / Assault / Line / Marksman on both
+  Weapons and Upgrades. Weapons show the best pawn and role score; Upgrades
+  restrict rows to wants from that role and show that role's score. The weapon
+  detail adds a Best by role table.
+- **Material-specific Upgrades:** stuffable weapons are keyed by def + stuff.
+  Steel/plasteel/uranium/etc. are separate rows with their own power, gain,
+  owned count, need, per-copy material cost and stock status. The planner scores
+  a normal-quality probe of that material.
+- **Material-aware bills:** `DemandCrafting.TryAddBill` accepts a stuff def and
+  restricts the `Bill_Production.ingredientFilter` to it while keeping fixed
+  ingredients allowed. Verified in the isolated save: an obsidian combat knife
+  bill allowed obsidian and rejected steel/plasteel, with
+  `limitToAllowedStuff=true`.
+- **Cost and shortage display:** `Cost` shows the main material per copy and an
+  orange `!` when stock cannot cover all needed copies; the tooltip lists every
+  ingredient, current stock and the total for the needed copies. Bills can still
+  be queued while short, matching the intended material trade-off.
+- **Show owned:** adds an Owned section for owned material variants, using the
+  best actual quality/material copy's label and power, with no crafting cost.
+  Owned rows are optional and remain visible under role filters.
+- **Score transparency:** the formula is in the Upgrades header and weapon
+  detail; tooltips explain DPS/DPSA, AP, accuracy, cost and role scores.
+
+Verified on the current save with the isolated live harness: 55 demand rows,
+18 material variants, 39 owned rows; Upgrades renders material costs and
+shortages, role filtering changes the score/order, Weapons shows DPSA and role
+best fits, and the material-specific bill filter works. Build clean.
 
 ---
 
@@ -2107,6 +2150,7 @@ polish, not new core behaviour.
 | 0.10.1 | Corrected hand-type order tooltip, removed duplicate current-weapon text, hid the no-SS Backup column, unified slot labels/colors, dropped the redundant SS "carries the preferred type" line, shortened list statuses, fixed false `Already carried` on persona/unique weapons, and unified Auto candidate limits (15 hand without SS; 5/5 with SS) |
 | 0.10.2 | Drop-first backup upgrades, stop adding when multiple backups are carried, explicit biocoded-owner guard, and exclude unusable backups from the worst-backup/demand baseline |
 | 0.10.3 | Double-click a Colonists or Weapons row to close Armory, jump the camera to that pawn or weapon, and select it |
+| 0.10.4 | Weapon comparison columns and sorting, role filters and Best by role, material-specific upgrade variants with per-copy costs and material-locked bills, and an optional Owned section |
 
 ---
 

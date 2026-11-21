@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Armory.Compatibility;
 using RimWorld;
@@ -16,9 +17,33 @@ namespace Armory
             Log
         }
 
+        private enum RoleFilter
+        {
+            All,
+            Melee,
+            Cqb,
+            Assault,
+            Line,
+            Marksman
+        }
+
+        private enum WeaponSort
+        {
+            Power,
+            Dps,
+            Dpsa,
+            ArmorPen,
+            Accuracy,
+            Range,
+            Best,
+            Label
+        }
+
         private ArmoryView view = ArmoryView.Colonists;
         private int selectedPawn;
         private int selectedWeapon;
+        private WeaponInfo selectedWeaponInfo;
+        private int selectedWeaponThingId = -1;
         private int selectedCandidate = -1;
         private Vector2 pawnListScroll;
         private Vector2 pawnDetailScroll;
@@ -27,10 +52,20 @@ namespace Armory
         private Vector2 demandScroll;
         private Vector2 decisionScroll;
         private ThingDef expandedDemandDef;
+        private ThingDef expandedDemandStuff;
+        private bool showOwnedDemand;
+        private RoleFilter weaponRoleFilter = RoleFilter.All;
+        private RoleFilter demandRoleFilter = RoleFilter.All;
+        private WeaponSort weaponSort = WeaponSort.Dpsa;
+        private bool weaponSortDesc = true;
         private bool refreshRequested;
 
         private readonly List<Candidate> visibleRanked = new List<Candidate>();
         private readonly List<PawnAnalysis> pawnScratch = new List<PawnAnalysis>();
+        private readonly List<WeaponAnalysis> weaponView = new List<WeaponAnalysis>();
+        private readonly Dictionary<WeaponAnalysis, float> weaponViewScores =
+            new Dictionary<WeaponAnalysis, float>();
+        private readonly List<DemandRow> demandView = new List<DemandRow>();
 
         private const float RowHeight = 26f;
         private const float HeaderHeight = 22f;
@@ -310,23 +345,34 @@ namespace Armory
             delta = new Rect(row.x + width * 0.86f, row.y, width * 0.14f, row.height);
         }
 
-        private static void WeaponColumns(Rect row, out Rect label, out Rect power, out Rect range,
-            out Rect best, out Rect status)
+        private static void WeaponColumns(Rect row, out Rect label, out Rect dps, out Rect dpsa,
+            out Rect ap, out Rect acc, out Rect range, out Rect best, out Rect status)
         {
-            const float gap = 8f;
+            const float gap = 5f;
             float width = row.width;
-            float labelWidth = width * 0.42f;
-            float powerWidth = width * 0.09f;
-            float rangeWidth = width * 0.09f;
-            float bestWidth = width * 0.19f;
+            float labelWidth = width * 0.27f;
+            float dpsWidth = width * 0.07f;
+            float dpsaWidth = width * 0.07f;
+            float apWidth = width * 0.06f;
+            float accWidth = width * 0.16f;
+            float rangeWidth = width * 0.06f;
+            float bestWidth = width * 0.14f;
 
             label = new Rect(row.x, row.y, labelWidth - gap, row.height);
-            power = new Rect(row.x + labelWidth, row.y, powerWidth - gap, row.height);
-            range = new Rect(row.x + labelWidth + powerWidth, row.y, rangeWidth - gap, row.height);
-            best = new Rect(row.x + labelWidth + powerWidth + rangeWidth, row.y,
-                bestWidth - gap, row.height);
-            status = new Rect(row.x + labelWidth + powerWidth + rangeWidth + bestWidth, row.y,
-                width - labelWidth - powerWidth - rangeWidth - bestWidth, row.height);
+            dps = new Rect(row.x + labelWidth, row.y, dpsWidth - gap, row.height);
+            dpsa = new Rect(row.x + labelWidth + dpsWidth, row.y, dpsaWidth - gap, row.height);
+            ap = new Rect(row.x + labelWidth + dpsWidth + dpsaWidth, row.y,
+                apWidth - gap, row.height);
+            acc = new Rect(row.x + labelWidth + dpsWidth + dpsaWidth + apWidth, row.y,
+                accWidth - gap, row.height);
+            range = new Rect(row.x + labelWidth + dpsWidth + dpsaWidth + apWidth + accWidth,
+                row.y, rangeWidth - gap, row.height);
+            best = new Rect(row.x + labelWidth + dpsWidth + dpsaWidth + apWidth + accWidth +
+                            rangeWidth, row.y, bestWidth - gap, row.height);
+            status = new Rect(row.x + labelWidth + dpsWidth + dpsaWidth + apWidth + accWidth +
+                              rangeWidth + bestWidth, row.y,
+                width - labelWidth - dpsWidth - dpsaWidth - apWidth - accWidth - rangeWidth -
+                bestWidth, row.height);
         }
 
         private static void DrawPawnListHeader(Rect rect, bool showBackup)
@@ -1378,12 +1424,10 @@ namespace Armory
                 Widgets.Label(area, "No loose weapons on this map.");
                 return;
             }
-            if (selectedWeapon < 0 || selectedWeapon >= snapshot.WeaponRows.Count)
-            {
-                selectedWeapon = 0;
-            }
 
-            float listWidth = Mathf.Floor(area.width * 0.55f);
+            BuildWeaponView(snapshot);
+
+            float listWidth = Mathf.Floor(area.width * 0.60f);
             Rect listRect = new Rect(area.x, area.y, listWidth, area.height);
             Rect detailRect = new Rect(listRect.xMax + 8f, area.y, area.width - listWidth - 8f, area.height);
 
@@ -1392,19 +1436,35 @@ namespace Armory
 
             Rect inner = listRect.ContractedBy(6f);
             DrawCell(new Rect(inner.x, inner.y, inner.width, 18f),
-                "Only loose weapons on this map are listed here. Double-click a row to jump to it. Equipped and carried weapons appear under Colonists.",
+                "Loose weapons only. Double-click a row to jump to it. DPSA is generic; Best use is colonist-fit.",
                 TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.68f, 0.68f, 0.68f));
-            Rect scrollRect = new Rect(inner.x, inner.y + 18f + HeaderHeight, inner.width,
-                inner.height - 18f - HeaderHeight);
+            Rect roleRow = new Rect(inner.x, inner.y + 20f, inner.width, 24f);
+            if (DrawRoleButtons(roleRow, ref weaponRoleFilter, "weapon"))
+            {
+                weaponSort = WeaponSort.Best;
+                weaponSortDesc = true;
+                BuildWeaponView(snapshot);
+            }
+
+            Rect scrollRect = new Rect(inner.x, inner.y + 46f + HeaderHeight, inner.width,
+                inner.height - 46f - HeaderHeight);
             float rowWidth = scrollRect.width - 20f;
-            DrawWeaponListHeader(new Rect(inner.x, inner.y + 18f, rowWidth, HeaderHeight));
+            DrawWeaponListHeader(new Rect(inner.x, inner.y + 46f, rowWidth, HeaderHeight));
+
+            if (weaponView.Count == 0)
+            {
+                Widgets.Label(new Rect(inner.x, inner.y + 76f, inner.width, 24f),
+                    "No loose weapon has a fit for this role.");
+                return;
+            }
+
             Widgets.BeginScrollView(scrollRect, ref weaponListScroll,
-                new Rect(0f, 0f, rowWidth, snapshot.WeaponRows.Count * RowHeight));
+                new Rect(0f, 0f, rowWidth, weaponView.Count * RowHeight));
 
             Thing jumpThing = null;
-            for (int i = 0; i < snapshot.WeaponRows.Count; i++)
+            for (int i = 0; i < weaponView.Count; i++)
             {
-                WeaponAnalysis row = snapshot.WeaponRows[i];
+                WeaponAnalysis row = weaponView[i];
                 Rect rowRect = new Rect(0f, i * RowHeight, rowWidth, RowHeight);
                 if (i == selectedWeapon)
                 {
@@ -1419,54 +1479,467 @@ namespace Armory
                     Event.current.Use();
                     jumpThing = row.Weapon.Thing;
                 }
-                if (Widgets.ButtonInvisible(rowRect) && selectedWeapon != i)
+                if (Widgets.ButtonInvisible(rowRect))
                 {
                     selectedWeapon = i;
+                    selectedWeaponInfo = row.Weapon;
+                    selectedWeaponThingId = row.Weapon.Thing == null
+                        ? -1
+                        : row.Weapon.Thing.thingIDNumber;
                     weaponDetailScroll = Vector2.zero;
                 }
 
-                PawnAnalysis best = row.BestHandPawn ?? row.BestBackupPawn ??
-                                    row.BestAnyHandPawn ?? row.BestAnyBackupPawn;
-                WeaponColumns(rowRect, out Rect label, out Rect power, out Rect range,
-                    out Rect bestPawn, out Rect status);
-                DrawCell(label, row.Weapon.Label, TextAnchor.MiddleLeft);
-                TipCell(label, row.Weapon.Label);
-                DrawCell(power, row.Weapon.Power.ToString("0"), TextAnchor.MiddleRight);
-                TipCell(power, "Normal-quality base strength before range and colonist fit.");
-                DrawCell(range, RangeText(row.Weapon.Range), TextAnchor.MiddleRight,
-                    GameFont.Small, new Color(0.72f, 0.82f, 0.92f));
-                TipCell(range, "Maximum firing range in tiles.");
-                DrawCell(bestPawn, best == null ? "-" : best.Pawn.LabelShort, TextAnchor.MiddleLeft);
-                TipCell(bestPawn, best == null
-                    ? "No colonist can use this weapon."
-                    : "Best colonist for this weapon: " + best.Pawn.LabelShort);
-                Color statusColor;
-                if (row.BestHandPawn != null)
-                {
-                    statusColor = HandSlotColor;
-                }
-                else if (row.BestBackupPawn != null)
-                {
-                    statusColor = BackupSlotColor;
-                }
-                else if (row.BestAnyHandPawn != null || row.BestAnyBackupPawn != null)
-                {
-                    statusColor = BlockedSlotColor;
-                }
-                else
-                {
-                    statusColor = new Color(0.62f, 0.62f, 0.62f);
-                }
-                DrawCell(status, row.Status, TextAnchor.MiddleRight, GameFont.Small, statusColor);
-                TipCell(status, WeaponStatusTip(row));
+                DrawWeaponRow(rowRect, row, snapshot);
             }
 
             Widgets.EndScrollView();
-            DrawWeaponDetail(detailRect.ContractedBy(8f), snapshot, snapshot.WeaponRows[selectedWeapon]);
+            if (selectedWeapon >= 0 && selectedWeapon < weaponView.Count)
+            {
+                DrawWeaponDetail(detailRect.ContractedBy(8f), snapshot,
+                    weaponView[selectedWeapon]);
+            }
             if (jumpThing != null)
             {
                 JumpToThing(jumpThing);
             }
+        }
+
+        private void BuildWeaponView(ArmorySnapshot snapshot)
+        {
+            weaponView.Clear();
+            weaponViewScores.Clear();
+            for (int i = 0; i < snapshot.WeaponRows.Count; i++)
+            {
+                WeaponAnalysis row = snapshot.WeaponRows[i];
+                float score;
+                if (weaponRoleFilter == RoleFilter.All)
+                {
+                    score = MaxExistingScore(row);
+                }
+                else
+                {
+                    RoleBest roleBest;
+                    if (!TryBestForRole(snapshot, row, weaponRoleFilter, out roleBest))
+                    {
+                        continue;
+                    }
+                    score = roleBest.Score;
+                }
+                weaponView.Add(row);
+                weaponViewScores[row] = score;
+            }
+
+            weaponView.Sort(CompareWeaponRows);
+
+            if (selectedWeaponInfo == null && selectedWeaponThingId < 0)
+            {
+                selectedWeapon = 0;
+                if (weaponView.Count > 0)
+                {
+                    selectedWeaponInfo = weaponView[0].Weapon;
+                    selectedWeaponThingId = selectedWeaponInfo.Thing == null
+                        ? -1
+                        : selectedWeaponInfo.Thing.thingIDNumber;
+                }
+                return;
+            }
+
+            int selected = -1;
+            for (int i = 0; i < weaponView.Count; i++)
+            {
+                ThingWithComps thing = weaponView[i].Weapon.Thing;
+                if ((selectedWeaponThingId >= 0 && thing != null &&
+                     thing.thingIDNumber == selectedWeaponThingId) ||
+                    (selectedWeaponThingId < 0 && weaponView[i].Weapon == selectedWeaponInfo))
+                {
+                    selected = i;
+                    break;
+                }
+            }
+            if (selected < 0)
+            {
+                selected = 0;
+                selectedWeaponInfo = weaponView.Count > 0 ? weaponView[0].Weapon : null;
+                selectedWeaponThingId = selectedWeaponInfo == null ||
+                                        selectedWeaponInfo.Thing == null
+                    ? -1
+                    : selectedWeaponInfo.Thing.thingIDNumber;
+            }
+            selectedWeapon = selected;
+        }
+
+        private int CompareWeaponRows(WeaponAnalysis a, WeaponAnalysis b)
+        {
+            int cmp;
+            switch (weaponSort)
+            {
+                case WeaponSort.Dps:
+                    cmp = Stat(a).RawDps.CompareTo(Stat(b).RawDps);
+                    break;
+                case WeaponSort.Dpsa:
+                    cmp = Stat(a).Dpsa.CompareTo(Stat(b).Dpsa);
+                    break;
+                case WeaponSort.ArmorPen:
+                    cmp = Stat(a).ArmorPen.CompareTo(Stat(b).ArmorPen);
+                    break;
+                case WeaponSort.Accuracy:
+                    cmp = Stat(a).AccuracyAverage.CompareTo(Stat(b).AccuracyAverage);
+                    break;
+                case WeaponSort.Range:
+                    cmp = Stat(a).Range.CompareTo(Stat(b).Range);
+                    break;
+                case WeaponSort.Best:
+                    cmp = WeaponScore(a).CompareTo(WeaponScore(b));
+                    break;
+                case WeaponSort.Label:
+                    cmp = string.Compare(a.Weapon.Label, b.Weapon.Label,
+                        System.StringComparison.OrdinalIgnoreCase);
+                    break;
+                default:
+                    cmp = a.Weapon.Power.CompareTo(b.Weapon.Power);
+                    break;
+            }
+            if (cmp == 0)
+            {
+                cmp = string.Compare(a.Weapon.Label, b.Weapon.Label,
+                    System.StringComparison.OrdinalIgnoreCase);
+            }
+            return weaponSortDesc ? -cmp : cmp;
+        }
+
+        private static float MaxExistingScore(WeaponAnalysis row)
+        {
+            float best = row.BestHandScore;
+            if (row.BestBackupScore > best)
+            {
+                best = row.BestBackupScore;
+            }
+            if (row.BestAnyHandScore > best)
+            {
+                best = row.BestAnyHandScore;
+            }
+            if (row.BestAnyBackupScore > best)
+            {
+                best = row.BestAnyBackupScore;
+            }
+            return best;
+        }
+
+        private float WeaponScore(WeaponAnalysis row)
+        {
+            float score;
+            return weaponViewScores.TryGetValue(row, out score) ? score : 0f;
+        }
+
+        private static WeaponPower.ComparisonStats Stat(WeaponAnalysis row)
+        {
+            return row.Weapon.Comparison ?? new WeaponPower.ComparisonStats();
+        }
+
+        private void DrawWeaponRow(Rect rowRect, WeaponAnalysis row,
+            ArmorySnapshot snapshot)
+        {
+            WeaponPower.ComparisonStats stats = Stat(row);
+            WeaponColumns(rowRect, out Rect label, out Rect dps, out Rect dpsa, out Rect ap,
+                out Rect acc, out Rect range, out Rect best, out Rect status);
+            DrawCell(label, row.Weapon.Label, TextAnchor.MiddleLeft);
+            TipCell(label, row.Weapon.Label);
+            DrawCell(dps, stats.IsRanged ? stats.RawDps.ToString("0.0") : stats.RawDps.ToString("0"),
+                TextAnchor.MiddleRight, GameFont.Small, new Color(0.82f, 0.82f, 0.82f));
+            TipCell(dps, stats.IsRanged
+                ? "Raw ranged DPS before accuracy, aim, skill or colonist fit."
+                : "Average melee DPS before colonist fit.");
+            DrawCell(dpsa, stats.Dpsa.ToString("0.0"), TextAnchor.MiddleRight, GameFont.Small,
+                new Color(0.86f, 0.84f, 0.7f));
+            TipCell(dpsa, "Generic DPSA: raw DPS x average accuracy over Close/Short/Medium/Long, counting unreachable bands as zero. Catalog comparison only; Armory's colonist score uses the pawn's real range and skill.");
+            DrawCell(ap, stats.ArmorPen > 0f ? stats.ArmorPen.ToStringPercent() : "-",
+                TextAnchor.MiddleRight, GameFont.Small, new Color(0.9f, 0.82f, 0.62f));
+            TipCell(ap, "Armor penetration. Armory treats it as a damage multiplier; real value depends on enemy armor.");
+            DrawCell(acc, stats.AccuracyText, TextAnchor.MiddleRight, GameFont.Small,
+                new Color(0.72f, 0.82f, 0.92f));
+            TipCell(acc, "Accuracy at close / short / medium / long range. The generic DPSA counts unreachable selected bands as zero; Armory's colonist score uses the pawn's real range and skill.");
+            DrawCell(range, RangeText(stats.Range), TextAnchor.MiddleRight, GameFont.Small,
+                new Color(0.72f, 0.82f, 0.92f));
+            TipCell(range, "Maximum firing range in tiles.");
+
+            bool hasBest = false;
+            PawnAnalysis bestPawn = null;
+            bool bestBackup = false;
+            bool bestReady = false;
+            float roleBestScore = 0f;
+            if (weaponRoleFilter == RoleFilter.All)
+            {
+                if (row.BestHandPawn != null)
+                {
+                    hasBest = true;
+                    bestPawn = row.BestHandPawn;
+                    bestReady = true;
+                }
+                else if (row.BestBackupPawn != null)
+                {
+                    hasBest = true;
+                    bestPawn = row.BestBackupPawn;
+                    bestBackup = true;
+                    bestReady = true;
+                }
+                else if (row.BestAnyHandPawn != null)
+                {
+                    hasBest = true;
+                    bestPawn = row.BestAnyHandPawn;
+                }
+                else if (row.BestAnyBackupPawn != null)
+                {
+                    hasBest = true;
+                    bestPawn = row.BestAnyBackupPawn;
+                    bestBackup = true;
+                }
+            }
+            else
+            {
+                RoleBest roleBest;
+                if (TryBestForRole(snapshot, row, weaponRoleFilter, out roleBest))
+                {
+                    hasBest = true;
+                    bestPawn = roleBest.Pawn;
+                    bestBackup = roleBest.Backup;
+                    bestReady = roleBest.Ready;
+                    roleBestScore = roleBest.Score;
+                }
+            }
+
+            string bestText = hasBest ? bestPawn.Pawn.LabelShort : "-";
+            if (hasBest && weaponRoleFilter != RoleFilter.All)
+            {
+                bestText += " · " + roleBestScore.ToString("0");
+            }
+            DrawCell(best, bestText, TextAnchor.MiddleLeft,
+                GameFont.Small, hasBest ? Color.white : new Color(0.62f, 0.62f, 0.62f));
+            TipCell(best, hasBest
+                ? "Best colonist for this weapon" +
+                  (weaponRoleFilter == RoleFilter.All ? "." : " in the selected role.")
+                : "No colonist of this role can use this weapon.");
+
+            string statusText;
+            Color statusColor;
+            if (weaponRoleFilter == RoleFilter.All)
+            {
+                statusText = row.Status;
+                statusColor = WeaponStatusColor(row);
+            }
+            else if (!hasBest)
+            {
+                statusText = "No fit";
+                statusColor = new Color(0.62f, 0.62f, 0.62f);
+            }
+            else
+            {
+                statusText = bestReady
+                    ? (bestBackup ? "Backup" : "Hand")
+                    : (bestBackup ? "Backup (blocked)" : "Hand (blocked)");
+                statusColor = bestReady
+                    ? (bestBackup ? BackupSlotColor : HandSlotColor)
+                    : BlockedSlotColor;
+            }
+            DrawCell(status, statusText, TextAnchor.MiddleRight, GameFont.Small, statusColor);
+            TipCell(status, weaponRoleFilter == RoleFilter.All
+                ? WeaponStatusTip(row)
+                : "Best use for the selected role. A blocked status means that colonist cannot get it right now.");
+        }
+
+        private static Color WeaponStatusColor(WeaponAnalysis row)
+        {
+            if (row.BestHandPawn != null)
+            {
+                return HandSlotColor;
+            }
+            if (row.BestBackupPawn != null)
+            {
+                return BackupSlotColor;
+            }
+            if (row.BestAnyHandPawn != null || row.BestAnyBackupPawn != null)
+            {
+                return BlockedSlotColor;
+            }
+            return new Color(0.62f, 0.62f, 0.62f);
+        }
+
+        private struct RoleBest
+        {
+            public PawnAnalysis Pawn;
+            public float Score;
+            public bool Backup;
+            public bool Ready;
+        }
+
+        private static bool TryBestForRole(ArmorySnapshot snapshot, WeaponAnalysis row,
+            RoleFilter filter, out RoleBest best)
+        {
+            best = default(RoleBest);
+            if (snapshot == null || row == null)
+            {
+                return false;
+            }
+
+            RoleBest ready = default(RoleBest);
+            RoleBest any = default(RoleBest);
+            bool hasReady = false;
+            bool hasAny = false;
+            for (int i = 0; i < snapshot.Pawns.Count; i++)
+            {
+                PawnAnalysis pawn = snapshot.Pawns[i];
+                if (pawn == null || !pawn.Available || !RoleMatches(pawn, filter))
+                {
+                    continue;
+                }
+
+                Candidate hand = FindCandidate(pawn, row.Weapon);
+                if (hand != null && !hand.Hard)
+                {
+                    ConsiderRoleCandidate(pawn, hand.Score, hand.Ready, false, ref ready,
+                        ref hasReady, ref any, ref hasAny);
+                }
+
+                SidearmCandidate backup = FindSidearmCandidate(pawn, row.Weapon);
+                if (backup != null && !backup.AlreadyCarried)
+                {
+                    ConsiderRoleCandidate(pawn, backup.Score, backup.Ready, true, ref ready,
+                        ref hasReady, ref any, ref hasAny);
+                }
+            }
+
+            if (hasReady)
+            {
+                best = ready;
+                return true;
+            }
+            if (hasAny)
+            {
+                best = any;
+                return true;
+            }
+            return false;
+        }
+
+        private static void ConsiderRoleCandidate(PawnAnalysis pawn, float score, bool ready,
+            bool backup, ref RoleBest bestReady, ref bool hasReady, ref RoleBest bestAny,
+            ref bool hasAny)
+        {
+            if (score <= 0.99f)
+            {
+                return;
+            }
+            if (ready && (!hasReady || score > bestReady.Score))
+            {
+                bestReady = new RoleBest
+                {
+                    Pawn = pawn,
+                    Score = score,
+                    Backup = backup,
+                    Ready = true
+                };
+                hasReady = true;
+            }
+            if (!hasAny || score > bestAny.Score)
+            {
+                bestAny = new RoleBest
+                {
+                    Pawn = pawn,
+                    Score = score,
+                    Backup = backup,
+                    Ready = ready
+                };
+                hasAny = true;
+            }
+        }
+
+        private static bool RoleMatches(PawnAnalysis pawn, RoleFilter filter)
+        {
+            if (pawn == null)
+            {
+                return false;
+            }
+            switch (filter)
+            {
+                case RoleFilter.Melee:
+                    return pawn.RoleIsRanged == false;
+                case RoleFilter.Cqb:
+                    return pawn.RoleIsRanged == true && pawn.CombatRole == CombatRole.Cqb;
+                case RoleFilter.Assault:
+                    return pawn.RoleIsRanged == true && pawn.CombatRole == CombatRole.Assault;
+                case RoleFilter.Line:
+                    return pawn.RoleIsRanged == true && pawn.CombatRole == CombatRole.Line;
+                case RoleFilter.Marksman:
+                    return pawn.RoleIsRanged == true && pawn.CombatRole == CombatRole.Marksman;
+                default:
+                    return true;
+            }
+        }
+
+        private static string RoleFilterLabel(RoleFilter filter)
+        {
+            switch (filter)
+            {
+                case RoleFilter.Melee:
+                    return "Melee";
+                case RoleFilter.Cqb:
+                    return "CQB";
+                case RoleFilter.Assault:
+                    return "Assault";
+                case RoleFilter.Line:
+                    return "Line";
+                case RoleFilter.Marksman:
+                    return "Marksman";
+                default:
+                    return "All";
+            }
+        }
+
+        private static bool DrawRoleButtons(Rect row, ref RoleFilter filter, string context)
+        {
+            bool changed = false;
+            float x = row.x;
+            RoleFilter[] values =
+            {
+                RoleFilter.All,
+                RoleFilter.Melee,
+                RoleFilter.Cqb,
+                RoleFilter.Assault,
+                RoleFilter.Line,
+                RoleFilter.Marksman
+            };
+            float[] widths = { 42f, 58f, 48f, 70f, 46f, 78f };
+            for (int i = 0; i < values.Length; i++)
+            {
+                Rect rect = new Rect(x, row.y + 1f, widths[i], row.height - 2f);
+                bool selected = filter == values[i];
+                if (selected)
+                {
+                    Widgets.DrawBoxSolidWithOutline(rect, new Color(0.24f, 0.34f, 0.44f),
+                        new Color(0.7f, 0.8f, 0.9f));
+                }
+                else
+                {
+                    Widgets.DrawBoxSolid(rect, new Color(0.16f, 0.16f, 0.16f));
+                }
+                GameFont previousFont = Text.Font;
+                Text.Font = GameFont.Tiny;
+                Text.Anchor = TextAnchor.MiddleCenter;
+                Widgets.Label(rect, RoleFilterLabel(values[i]));
+                Text.Anchor = TextAnchor.UpperLeft;
+                Text.Font = previousFont;
+                string tip = values[i] == RoleFilter.All
+                    ? "Show all " + context + " and use each one's best fit."
+                    : "Rank " + context + " by the best " + RoleFilterLabel(values[i]) +
+                      " colonist.";
+                TooltipHandler.TipRegion(rect, tip);
+                if (Widgets.ButtonInvisible(rect) && !selected)
+                {
+                    filter = values[i];
+                    changed = true;
+                }
+                x += widths[i] + 4f;
+            }
+            return changed;
         }
 
         private static string WeaponStatusTip(WeaponAnalysis row)
@@ -1490,24 +1963,143 @@ namespace Armory
             return "No colonist can use this weapon: it is not a fit, or every candidate is permanently blocked.";
         }
 
-        private static void DrawWeaponListHeader(Rect rect)
+        private void DrawWeaponListHeader(Rect rect)
         {
-            WeaponColumns(rect, out Rect label, out Rect power, out Rect range,
-                out Rect best, out Rect status);
+            WeaponColumns(rect, out Rect label, out Rect dps, out Rect dpsa, out Rect ap,
+                out Rect acc, out Rect range, out Rect best, out Rect status);
             Color color = new Color(0.68f, 0.68f, 0.68f);
-            DrawCell(label, "Weapon", TextAnchor.MiddleLeft, GameFont.Tiny, color);
-            DrawCell(power, "Power", TextAnchor.MiddleRight, GameFont.Tiny, color);
-            DrawCell(range, "Range", TextAnchor.MiddleRight, GameFont.Tiny, color);
-            DrawCell(best, "Best colonist", TextAnchor.MiddleLeft, GameFont.Tiny, color);
+            DrawCell(label, SortLabel("Weapon", WeaponSort.Label), TextAnchor.MiddleLeft,
+                GameFont.Tiny, SortColor(WeaponSort.Label, color));
+            DrawCell(dps, SortLabel("DPS", WeaponSort.Dps), TextAnchor.MiddleRight,
+                GameFont.Tiny, SortColor(WeaponSort.Dps, color));
+            DrawCell(dpsa, SortLabel("DPSA", WeaponSort.Dpsa), TextAnchor.MiddleRight,
+                GameFont.Tiny, SortColor(WeaponSort.Dpsa, color));
+            DrawCell(ap, SortLabel("AP", WeaponSort.ArmorPen), TextAnchor.MiddleRight,
+                GameFont.Tiny, SortColor(WeaponSort.ArmorPen, color));
+            DrawCell(acc, SortLabel("Acc C/S/M/L", WeaponSort.Accuracy), TextAnchor.MiddleRight,
+                GameFont.Tiny, SortColor(WeaponSort.Accuracy, color));
+            DrawCell(range, SortLabel("Range", WeaponSort.Range), TextAnchor.MiddleRight,
+                GameFont.Tiny, SortColor(WeaponSort.Range, color));
+            DrawCell(best, weaponRoleFilter == RoleFilter.All ? "Best colonist" : "Best " +
+                RoleFilterLabel(weaponRoleFilter), TextAnchor.MiddleLeft, GameFont.Tiny,
+                SortColor(WeaponSort.Best, color));
             DrawCell(status, "Best use", TextAnchor.MiddleRight, GameFont.Tiny, color);
 
-            TooltipHandler.TipRegion(power,
-                "Normal-quality base strength before range and colonist fit. The Upgrades tab's Score adds both.");
-            TooltipHandler.TipRegion(range, "Maximum firing range in tiles.");
-            TooltipHandler.TipRegion(best,
-                "Colonist with the highest score for this weapon in its best ready slot.");
-            TooltipHandler.TipRegion(status,
-                "Where this loose weapon is the best choice: hand, backup, or blocked in that slot.");
+            TooltipHandler.TipRegion(label, "Click to sort by weapon name.");
+            TipCell(dps, "Raw damage per second before accuracy, aim, skill or colonist fit. Click to sort.");
+            TipCell(dpsa, "Generic DPSA: raw DPS x average accuracy over Close/Short/Medium/Long, with unreachable bands counted as zero. Catalog comparison only. Click to sort.");
+            TipCell(ap, "Armor penetration. Click to sort.");
+            TipCell(acc, "Accuracy at close / short / medium / long range. Generic comparison only; the Best colonist score uses the pawn's real range and skill. Click to sort.");
+            TipCell(range, "Maximum firing range in tiles. Click to sort.");
+            TipCell(best, "Colonist with the highest score for this weapon in its best ready slot. Click to sort.");
+            TipCell(status, "Where this loose weapon is the best choice: hand, backup, or blocked in that slot.");
+
+            if (Widgets.ButtonInvisible(label))
+            {
+                SetWeaponSort(WeaponSort.Label);
+            }
+            if (Widgets.ButtonInvisible(dps))
+            {
+                SetWeaponSort(WeaponSort.Dps);
+            }
+            if (Widgets.ButtonInvisible(dpsa))
+            {
+                SetWeaponSort(WeaponSort.Dpsa);
+            }
+            if (Widgets.ButtonInvisible(ap))
+            {
+                SetWeaponSort(WeaponSort.ArmorPen);
+            }
+            if (Widgets.ButtonInvisible(acc))
+            {
+                SetWeaponSort(WeaponSort.Accuracy);
+            }
+            if (Widgets.ButtonInvisible(range))
+            {
+                SetWeaponSort(WeaponSort.Range);
+            }
+            if (Widgets.ButtonInvisible(best))
+            {
+                SetWeaponSort(WeaponSort.Best);
+            }
+        }
+
+        private void SetWeaponSort(WeaponSort sort)
+        {
+            if (weaponSort == sort)
+            {
+                weaponSortDesc = !weaponSortDesc;
+            }
+            else
+            {
+                weaponSort = sort;
+                weaponSortDesc = sort != WeaponSort.Label;
+            }
+        }
+
+        private string SortLabel(string text, WeaponSort sort)
+        {
+            return weaponSort == sort ? text + (weaponSortDesc ? " v" : " ^") : text;
+        }
+
+        private Color SortColor(WeaponSort sort, Color normal)
+        {
+            return weaponSort == sort ? new Color(0.95f, 0.9f, 0.68f) : normal;
+        }
+
+        private static float DrawRoleComparison(Rect rect, ArmorySnapshot snapshot,
+            WeaponAnalysis row, float y)
+        {
+            RoleFilter[] roles =
+            {
+                RoleFilter.Melee,
+                RoleFilter.Cqb,
+                RoleFilter.Assault,
+                RoleFilter.Line,
+                RoleFilter.Marksman
+            };
+            bool wroteHeader = false;
+            Color headerColor = new Color(0.6f, 0.6f, 0.6f);
+            for (int i = 0; i < roles.Length; i++)
+            {
+                RoleBest best;
+                if (!TryBestForRole(snapshot, row, roles[i], out best))
+                {
+                    continue;
+                }
+                if (!wroteHeader)
+                {
+                    DrawCell(new Rect(rect.x + 4f, y, rect.width - 8f, 16f), "Best by role",
+                        TextAnchor.MiddleLeft, GameFont.Tiny, headerColor);
+                    y += 16f;
+                    wroteHeader = true;
+                }
+
+                float roleWidth = 58f;
+                float nameWidth = 88f;
+                float scoreWidth = 42f;
+                float gap = 8f;
+                DrawCell(new Rect(rect.x + 4f, y, roleWidth, 18f),
+                    RoleFilterLabel(roles[i]), TextAnchor.MiddleLeft, GameFont.Tiny,
+                    new Color(0.78f, 0.82f, 0.86f));
+                DrawCell(new Rect(rect.x + 4f + roleWidth + gap, y, nameWidth, 18f),
+                    best.Pawn.Pawn.LabelShort, TextAnchor.MiddleLeft, GameFont.Tiny);
+                DrawCell(new Rect(rect.x + 4f + roleWidth + gap + nameWidth + gap, y,
+                        scoreWidth, 18f), best.Score.ToString("0"), TextAnchor.MiddleRight,
+                    GameFont.Tiny, new Color(0.86f, 0.82f, 0.68f));
+                string status = best.Ready
+                    ? (best.Backup ? "Backup" : "Hand")
+                    : (best.Backup ? "Backup (blocked)" : "Hand (blocked)");
+                Color statusColor = best.Ready
+                    ? (best.Backup ? BackupSlotColor : HandSlotColor)
+                    : BlockedSlotColor;
+                float statusX = rect.x + 4f + roleWidth + gap + nameWidth + gap +
+                                scoreWidth + gap;
+                DrawCell(new Rect(statusX, y, Mathf.Max(40f, rect.xMax - statusX - 4f), 18f),
+                    status, TextAnchor.MiddleLeft, GameFont.Tiny, statusColor);
+                y += 18f;
+            }
+            return wroteHeader ? y + 4f : y;
         }
 
         private void DrawWeaponDetail(Rect rect, ArmorySnapshot snapshot, WeaponAnalysis row)
@@ -1517,11 +2109,31 @@ namespace Armory
             Text.Font = GameFont.Small;
 
             float y = rect.y + 32f;
+            WeaponPower.ComparisonStats stats = row.Weapon.Comparison ??
+                                                 new WeaponPower.ComparisonStats();
             Widgets.Label(new Rect(rect.x, y, rect.width, 22f),
-                string.Format("{0}    |    Power {1:0}{2}",
-                    row.Weapon.IsRanged ? "Ranged" : "Melee", row.Weapon.Power,
-                    row.Weapon.IsRanged ? "    |    Range " + row.Weapon.Range.ToString("0.0") + " tiles" : string.Empty));
-            y += 24f;
+                string.Format("{0}    |    DPS {1:0.0}    |    DPSA {2:0.0}    |    AP {3}    |    Mass {4:0.0}{5}",
+                    row.Weapon.IsRanged ? "Ranged" : "Melee", stats.RawDps, stats.Dpsa,
+                    stats.ArmorPen.ToStringPercent(), stats.Mass,
+                    row.Weapon.IsRanged
+                        ? "    |    Range " + row.Weapon.Range.ToString("0.0") + "t"
+                        : string.Empty));
+            y += 20f;
+            if (row.Weapon.IsRanged)
+            {
+                Widgets.Label(new Rect(rect.x, y, rect.width, 18f),
+                    string.Format("Accuracy C/S/M/L {0}    |    Burst {1}    |    Aim {2:0.0}s    |    Cooldown {3:0.0}s",
+                        stats.AccuracyText, stats.Burst, stats.Warmup, stats.Cooldown));
+                y += 18f;
+            }
+            GUI.color = new Color(0.66f, 0.68f, 0.64f);
+            Rect formulaRect = new Rect(rect.x, y, rect.width, 18f);
+            Widgets.LabelEllipses(formulaRect,
+                "Score = range DPS x fit x (1+AP) x support x variety x 10");
+            TooltipHandler.TipRegion(formulaRect,
+                "Armory's combat score: expected DPS around the colonist's preferred range, multiplied by pawn fit, armor penetration, the burst-support penalty and variety. The DPSA column is a generic catalog comparison only.");
+            GUI.color = Color.white;
+            y += 22f;
 
             if (row.BestHandPawn != null)
             {
@@ -1581,6 +2193,8 @@ namespace Armory
                 y += 22f;
             }
             y += 2f;
+
+            y = DrawRoleComparison(rect, snapshot, row, y);
 
             Widgets.DrawLineHorizontal(rect.x, y, rect.width);
             y += 8f;
@@ -1734,23 +2348,25 @@ namespace Armory
         /// <summary>Fixed column layout shared by the Demand header and rows.</summary>
         private struct DemandColumns
         {
-            public const float PowerWidth = 58f;
-            public const float RangeWidth = 48f;
-            public const float ScoreWidth = 64f;
-            public const float SlotWidth = 64f;
-            public const float WantedWidth = 80f;
-            public const float OwnedWidth = 100f;
-            public const float NeedWidth = 64f;
-            public const float GainWidth = 64f;
-            public const float SourceWidth = 238f;
+            public const float PowerWidth = 50f;
+            public const float RangeWidth = 42f;
+            public const float CostWidth = 92f;
+            public const float ScoreWidth = 58f;
+            public const float SlotWidth = 60f;
+            public const float WantedWidth = 74f;
+            public const float OwnedWidth = 92f;
+            public const float NeedWidth = 58f;
+            public const float GainWidth = 58f;
+            public const float SourceWidth = 214f;
             public const float CraftButtonWidth = 52f;
             public const float BestMarkerWidth = 20f;
-            private const float Gap = 8f;
+            private const float Gap = 6f;
 
             public float WeaponX;
             public float WeaponWidth;
             public float PowerX;
             public float RangeX;
+            public float CostX;
             public float ScoreX;
             public float SlotX;
             public float WantedX;
@@ -1769,10 +2385,11 @@ namespace Armory
                 columns.WantedX = columns.OwnedX - Gap - WantedWidth;
                 columns.SlotX = columns.WantedX - Gap - SlotWidth;
                 columns.ScoreX = columns.SlotX - Gap - ScoreWidth;
-                columns.RangeX = columns.ScoreX - Gap - RangeWidth;
+                columns.CostX = columns.ScoreX - Gap - CostWidth;
+                columns.RangeX = columns.CostX - Gap - RangeWidth;
                 columns.PowerX = columns.RangeX - Gap - PowerWidth;
                 columns.WeaponX = 4f;
-                columns.WeaponWidth = Mathf.Max(140f, columns.PowerX - Gap - columns.WeaponX);
+                columns.WeaponWidth = Mathf.Max(120f, columns.PowerX - Gap - columns.WeaponX);
                 return columns;
             }
         }
@@ -1786,24 +2403,34 @@ namespace Armory
             Text.WordWrap = false;
             GUI.color = new Color(0.8f, 0.8f, 0.8f);
             Widgets.LabelEllipses(new Rect(inner.x, inner.y, inner.width, 18f),
-                "Upgrade options compared with the weapons you own. A colonist can appear in several rows.");
-            Widgets.LabelEllipses(new Rect(inner.x, inner.y + 18f, inner.width, 18f),
-                "Sections: Craft, Research, Buy. Forbidden stock counts only after you unforbid it.");
+                "Upgrade variants: material costs and owned copies. Score = sum of colonist range-aware DPS x fit x (1+AP) x support x variety x 10. Cost is per copy.");
             GUI.color = Color.white;
+            if (DrawRoleButtons(new Rect(inner.x, inner.y + 20f, inner.width - 130f, 24f),
+                    ref demandRoleFilter, "upgrades"))
+            {
+                demandScroll = Vector2.zero;
+            }
+            Widgets.CheckboxLabeled(new Rect(inner.xMax - 124f, inner.y + 20f, 124f, 24f),
+                "Show owned", ref showOwnedDemand);
+            TooltipHandler.TipRegion(new Rect(inner.xMax - 124f, inner.y + 20f, 124f, 24f),
+                "Also list owned material variants in an Owned section, so craft rows can be compared with what you already have. Owned rows are shown regardless of the role filter.");
             Text.WordWrap = previousWrap;
 
-            if (snapshot.Demand.Count == 0)
+            BuildDemandView(snapshot);
+            if (demandView.Count == 0)
             {
-                string message = WeaponCatalog.HasObtainable
-                    ? "Every colonist already has their best obtainable weapon for each slot."
-                    : "No obtainable weapon defs were found. Run Armory > Log weapon snapshot and check the log.";
+                string message = snapshot.Demand.Count == 0
+                    ? (WeaponCatalog.HasObtainable
+                        ? "Every colonist already has their best obtainable weapon for each slot."
+                        : "No obtainable weapon defs were found. Run Armory > Log weapon snapshot and check the log.")
+                    : "No upgrade rows match this role/filter. Enable Show owned or choose All.";
                 GUI.color = new Color(0.72f, 0.72f, 0.72f);
-                Widgets.Label(new Rect(inner.x, inner.y + 42f, inner.width, 24f), message);
+                Widgets.Label(new Rect(inner.x, inner.y + 52f, inner.width, 24f), message);
                 GUI.color = Color.white;
                 return;
             }
 
-            float headerY = inner.y + 40f;
+            float headerY = inner.y + 48f;
             Rect scrollRect = new Rect(inner.x, headerY + HeaderHeight, inner.width,
                 Mathf.Max(40f, inner.yMax - (headerY + HeaderHeight)));
             float rowWidth = scrollRect.width - 20f;
@@ -1812,16 +2439,16 @@ namespace Armory
 
             float contentHeight = 0f;
             DemandSection lastSection = (DemandSection)(-1);
-            for (int i = 0; i < snapshot.Demand.Count; i++)
+            for (int i = 0; i < demandView.Count; i++)
             {
-                DemandRow row = snapshot.Demand[i];
+                DemandRow row = demandView[i];
                 if (row.Section != lastSection)
                 {
                     contentHeight += 28f;
                     lastSection = row.Section;
                 }
                 contentHeight += RowHeight;
-                if (expandedDemandDef == row.Def)
+                if (IsExpandedDemand(row))
                 {
                     contentHeight += row.Wants.Count * 20f;
                 }
@@ -1832,9 +2459,9 @@ namespace Armory
 
             float cursor = 0f;
             lastSection = (DemandSection)(-1);
-            for (int i = 0; i < snapshot.Demand.Count; i++)
+            for (int i = 0; i < demandView.Count; i++)
             {
-                DemandRow row = snapshot.Demand[i];
+                DemandRow row = demandView[i];
                 if (row.Section != lastSection)
                 {
                     SectionHeader(ref cursor, rowWidth, DemandSectionTitle(row.Section));
@@ -1853,7 +2480,16 @@ namespace Armory
                     rowRect.height);
                 if (Widgets.ButtonInvisible(rowClickRect))
                 {
-                    expandedDemandDef = expandedDemandDef == row.Def ? null : row.Def;
+                    if (IsExpandedDemand(row))
+                    {
+                        expandedDemandDef = null;
+                        expandedDemandStuff = null;
+                    }
+                    else
+                    {
+                        expandedDemandDef = row.Def;
+                        expandedDemandStuff = row.Stuff;
+                    }
                 }
 
                 Color needColor = row.Need <= 0
@@ -1873,14 +2509,17 @@ namespace Armory
                 if (row.BestCount > 0)
                 {
                     TooltipHandler.TipRegion(weaponCell, string.Format(
-                        "Best option in this section for {0} colonist{1}.",
-                        row.BestCount, row.BestCount == 1 ? string.Empty : "s"));
+                        "Best option in this section for {0} colonist{1}. Material: {2}.",
+                        row.BestCount, row.BestCount == 1 ? string.Empty : "s",
+                        row.Stuff == null ? "fixed" : row.Stuff.label));
                 }
                 else
                 {
-                    TooltipHandler.TipRegion(weaponCell,
-                        "An upgrade, but not the best option in this section for any colonist.");
+                    TooltipHandler.TipRegion(weaponCell, row.Section == DemandSection.Owned
+                        ? "Owned copy shown for comparison. Enable Show owned to keep this section visible."
+                        : "An upgrade, but not the best option in this section for any colonist.");
                 }
+
                 DrawCell(new Rect(columns.PowerX, cursor, DemandColumns.PowerWidth, RowHeight),
                     row.Power.ToString("0"), TextAnchor.MiddleRight, GameFont.Small,
                     new Color(0.82f, 0.82f, 0.82f));
@@ -1888,11 +2527,53 @@ namespace Armory
                 DrawCell(rangeCell, RangeText(row.Range), TextAnchor.MiddleRight, GameFont.Small,
                     new Color(0.72f, 0.82f, 0.92f));
                 TooltipHandler.TipRegion(rangeCell, "Maximum firing range in tiles.");
+
+                Rect costCell = new Rect(columns.CostX, cursor, DemandColumns.CostWidth, RowHeight);
+                string costText = row.Section == DemandSection.Owned
+                    ? "-"
+                    : (row.CostText ?? "-");
+                bool shortOnNeed = row.Section != DemandSection.Owned &&
+                                   (!row.MaterialsAvailable ||
+                                    (row.CraftableCopies >= 0 &&
+                                     row.CraftableCopies < row.Need));
+                if (shortOnNeed && costText != "-")
+                {
+                    costText += " !";
+                }
+                DrawCell(costCell, costText, TextAnchor.MiddleRight, GameFont.Tiny,
+                    row.Section == DemandSection.Owned
+                        ? new Color(0.62f, 0.62f, 0.62f)
+                        : !shortOnNeed
+                            ? new Color(0.78f, 0.82f, 0.72f)
+                            : BlockedSlotColor);
+                string costTip = row.Section == DemandSection.Owned
+                    ? "Owned copy; no crafting cost applies."
+                    : (row.CostTooltip ??
+                       "Materials needed for one copy. Stock is read from the current map.");
+                if (row.Section != DemandSection.Owned && row.Need > 1 && row.Costs.Count > 0)
+                {
+                    List<string> totals = new List<string>();
+                    for (int c = 0; c < row.Costs.Count; c++)
+                    {
+                        ThingDefCountClass cost = row.Costs[c];
+                        totals.Add((cost.count * row.Need) + " " + cost.thingDef.label);
+                    }
+                    costTip += "\nFor " + row.Need + " copies: " + string.Join(", ", totals);
+                }
+                TipCell(costCell, costTip);
+
                 Rect scoreCell = new Rect(columns.ScoreX, cursor, DemandColumns.ScoreWidth, RowHeight);
-                DrawCell(scoreCell, row.TotalScore.ToString("0"), TextAnchor.MiddleRight, GameFont.Small,
+                float shownScore = demandRoleFilter == RoleFilter.All
+                    ? row.TotalScore
+                    : DemandRoleScore(row, demandRoleFilter);
+                DrawCell(scoreCell, shownScore.ToString("0"), TextAnchor.MiddleRight, GameFont.Small,
                     new Color(0.9f, 0.86f, 0.7f));
                 TooltipHandler.TipRegion(scoreCell,
-                    "Range-aware expected value for the colonists who want it: effective DPS at each colonist's preferred distance, multiplied by fit and variety. Expand the row to see each contribution.");
+                    demandRoleFilter == RoleFilter.All
+                        ? "Range-aware expected value for the colonists who want it: effective DPS at each colonist's preferred distance, multiplied by fit and variety. This is the sum across interested colonists, not a single weapon score."
+                        : "Range-aware expected value from " + RoleFilterLabel(demandRoleFilter) +
+                          " colonists only. Switch to All to see the total across every interested colonist.");
+
                 Rect slotCell = new Rect(columns.SlotX, cursor, DemandColumns.SlotWidth, RowHeight);
                 DrawCell(slotCell, SlotText(row), TextAnchor.MiddleLeft, GameFont.Small,
                     SlotColor(row));
@@ -1904,15 +2585,16 @@ namespace Armory
                     row.Forbidden > 0 ? new Color(1f, 0.8f, 0.42f) : Color.white);
                 Rect ownedCell = new Rect(columns.OwnedX, cursor, DemandColumns.OwnedWidth, RowHeight);
                 TipCell(ownedCell, row.Forbidden > 0
-                    ? string.Format("{0} owned copies, including {1} forbidden. Forbidden copies count as owned but cannot be used until you unforbid them.", row.Owned, row.Forbidden)
-                    : string.Format("{0} owned copies.", row.Owned));
+                    ? string.Format("{0} owned copies of this material, including {1} forbidden. Forbidden copies count as owned but cannot be used until you unforbid them.", row.Owned, row.Forbidden)
+                    : string.Format("{0} owned copies of this material.", row.Owned));
+
                 Rect needCell = new Rect(columns.NeedX, cursor, DemandColumns.NeedWidth, RowHeight);
                 DrawCell(needCell, row.Need <= 0 ? "enough" : row.Need.ToString(),
                     TextAnchor.MiddleRight, GameFont.Small, needColor);
                 if (row.Need <= 0)
                 {
                     TooltipHandler.TipRegion(needCell,
-                        "Enough copies already owned. This row is the current ideal for at least one colonist, not a missing item.");
+                        "Enough copies of this material are already owned. This row is either the current ideal or an owned comparison row.");
                 }
                 else if (row.Forbidden > 0)
                 {
@@ -1940,8 +2622,9 @@ namespace Armory
                     }
                     TooltipHandler.TipRegion(needCell, tip);
                 }
+
                 DrawCell(new Rect(columns.GainX, cursor, DemandColumns.GainWidth, RowHeight),
-                    GainText(row), TextAnchor.MiddleRight, GameFont.Small,
+                    GainText(row, demandRoleFilter), TextAnchor.MiddleRight, GameFont.Small,
                     new Color(0.72f, 0.9f, 0.72f));
                 Rect sourceTextRect = new Rect(columns.SourceX, cursor,
                     DemandColumns.SourceWidth -
@@ -1952,15 +2635,18 @@ namespace Armory
                 {
                     if (Widgets.ButtonText(craftButton, "Craft"))
                     {
-                        DemandCrafting.TryAddBill(row.Def, snapshot.Map, out _);
+                        DemandCrafting.TryAddBill(row.Def, row.Stuff, snapshot.Map, out _);
                     }
                     TooltipHandler.TipRegion(craftButton,
-                        "Add a 1x bill at " + row.BenchLabel + ". This does not equip the weapon.");
+                        (string.IsNullOrEmpty(row.CostTooltip) ? string.Empty : row.CostTooltip + "\n") +
+                        "Add a 1x " + (row.Stuff == null ? string.Empty : row.Stuff.label + " ") +
+                        row.Def.label + " bill at " + row.BenchLabel +
+                        ". This does not equip the weapon.");
                 }
 
                 cursor += RowHeight;
 
-                if (expandedDemandDef == row.Def)
+                if (IsExpandedDemand(row))
                 {
                     for (int j = 0; j < row.Wants.Count; j++)
                     {
@@ -1971,6 +2657,91 @@ namespace Armory
             }
 
             Widgets.EndScrollView();
+        }
+
+        private void BuildDemandView(ArmorySnapshot snapshot)
+        {
+            demandView.Clear();
+            for (int i = 0; i < snapshot.Demand.Count; i++)
+            {
+                DemandRow row = snapshot.Demand[i];
+                if (row.Section == DemandSection.Owned)
+                {
+                    if (showOwnedDemand)
+                    {
+                        demandView.Add(row);
+                    }
+                    continue;
+                }
+                if (!DemandMatchesRole(row, demandRoleFilter))
+                {
+                    continue;
+                }
+                demandView.Add(row);
+            }
+
+            if (demandRoleFilter != RoleFilter.All)
+            {
+                demandView.Sort((a, b) =>
+                {
+                    int bySection = a.Section.CompareTo(b.Section);
+                    if (bySection != 0)
+                    {
+                        return bySection;
+                    }
+                    int byRole = DemandRoleScore(b, demandRoleFilter)
+                        .CompareTo(DemandRoleScore(a, demandRoleFilter));
+                    if (byRole != 0)
+                    {
+                        return byRole;
+                    }
+                    int byScore = b.TotalScore.CompareTo(a.TotalScore);
+                    return byScore != 0
+                        ? byScore
+                        : string.Compare(a.Label, b.Label, StringComparison.OrdinalIgnoreCase);
+                });
+            }
+        }
+
+        private static bool DemandMatchesRole(DemandRow row, RoleFilter filter)
+        {
+            if (filter == RoleFilter.All)
+            {
+                return true;
+            }
+            string role = RoleFilterLabel(filter);
+            for (int i = 0; i < row.Wants.Count; i++)
+            {
+                if (row.Wants[i].Role == role)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static float DemandRoleScore(DemandRow row, RoleFilter filter)
+        {
+            if (filter == RoleFilter.All)
+            {
+                return row.TotalScore;
+            }
+            string role = RoleFilterLabel(filter);
+            float score = 0f;
+            for (int i = 0; i < row.Wants.Count; i++)
+            {
+                if (row.Wants[i].Role == role)
+                {
+                    score += row.Wants[i].Score;
+                }
+            }
+            return score;
+        }
+
+        private bool IsExpandedDemand(DemandRow row)
+        {
+            return row != null && expandedDemandDef == row.Def &&
+                   expandedDemandStuff == row.Stuff;
         }
 
         private static Texture2D bestStar;
@@ -2015,6 +2786,11 @@ namespace Armory
                 rect.height);
             DrawCell(rangeRect, "Range", TextAnchor.MiddleRight, GameFont.Tiny, color);
             TooltipHandler.TipRegion(rangeRect, "Maximum firing range in tiles.");
+            Rect costRect = new Rect(rect.x + columns.CostX, rect.y, DemandColumns.CostWidth,
+                rect.height);
+            DrawCell(costRect, "Cost", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            TooltipHandler.TipRegion(costRect,
+                "Materials needed for one copy of this material variant. Stock is read from the current map; red means a shortage, but a bill can still be queued. Hover a cost for the full ingredient list.");
             Rect scoreRect = new Rect(rect.x + columns.ScoreX, rect.y, DemandColumns.ScoreWidth,
                 rect.height);
             DrawCell(scoreRect, "Score", TextAnchor.MiddleRight, GameFont.Tiny, color);
@@ -2049,7 +2825,7 @@ namespace Armory
                 DemandColumns.SourceWidth, rect.height);
             DrawCell(sourceRect, "Source", TextAnchor.MiddleLeft, GameFont.Tiny, color);
             TooltipHandler.TipRegion(sourceRect,
-                "Craft: the best built bench, or the best unlocked bench if none is built yet. Research: the named project unlocks it. Buy: a trader is the only source. Craft rows with a built bench also show a Craft button that creates one 1x bill.");
+                "Craft: the best built bench, or the best unlocked bench if none is built yet. Research: the named project unlocks it. Buy: a trader is the only source. Owned: an existing copy shown by Show owned. Craft rows with a built bench also show a Craft button that creates one 1x bill for that row's material.");
         }
 
         private static string DemandSectionTitle(DemandSection section)
@@ -2060,6 +2836,8 @@ namespace Armory
                     return "Research";
                 case DemandSection.Buy:
                     return "Buy";
+                case DemandSection.Owned:
+                    return "Owned";
                 default:
                     return "Craft";
             }
@@ -2077,6 +2855,10 @@ namespace Armory
 
         private static string SlotText(DemandRow row)
         {
+            if (row.Section == DemandSection.Owned || row.Wanted <= 0)
+            {
+                return "-";
+            }
             if (row.WantedHand > 0 && row.WantedBackup > 0)
             {
                 return "Both";
@@ -2086,6 +2868,10 @@ namespace Armory
 
         private static Color SlotColor(DemandRow row)
         {
+            if (row.Section == DemandSection.Owned || row.Wanted <= 0)
+            {
+                return new Color(0.62f, 0.62f, 0.62f);
+            }
             if (row.WantedHand > 0 && row.WantedBackup > 0)
             {
                 return BothSlotColor;
@@ -2095,6 +2881,10 @@ namespace Armory
 
         private static string SlotTooltip(DemandRow row)
         {
+            if (row.Section == DemandSection.Owned || row.Wanted <= 0)
+            {
+                return "Owned copy shown for comparison; no colonist has this variant as a needed upgrade.";
+            }
             if (row.WantedHand > 0 && row.WantedBackup > 0)
             {
                 string hand = row.WantedHand == 1
@@ -2108,8 +2898,54 @@ namespace Armory
             return row.WantedHand > 0 ? "Wanted for the Hand slot." : "Wanted for the Backup slot.";
         }
 
-        private static string GainText(DemandRow row)
+        private static string GainText(DemandRow row, RoleFilter filter)
         {
+            if (row.Section == DemandSection.Owned)
+            {
+                return "-";
+            }
+            if (filter != RoleFilter.All)
+            {
+                string role = RoleFilterLabel(filter);
+                int known = 0;
+                int newCount = 0;
+                int switchCount = 0;
+                float knownGain = 0f;
+                for (int i = 0; i < row.Wants.Count; i++)
+                {
+                    DemandWant want = row.Wants[i];
+                    if (want.Role != role)
+                    {
+                        continue;
+                    }
+                    if (want.TypeSwitch)
+                    {
+                        switchCount++;
+                    }
+                    else if (want.IsNew)
+                    {
+                        newCount++;
+                    }
+                    else
+                    {
+                        known++;
+                        knownGain += want.Gain;
+                    }
+                }
+                if (known > 0)
+                {
+                    return FormatPct(knownGain / known);
+                }
+                if (newCount > 0)
+                {
+                    return "new slot";
+                }
+                if (switchCount > 0)
+                {
+                    return "switch";
+                }
+                return "-";
+            }
             if (row.KnownCount > 0)
             {
                 return FormatPct(row.AverageGain);
@@ -2139,12 +2975,17 @@ namespace Armory
                     return row.Buyable ? research + " · buy" : research;
                 case DemandSection.Buy:
                     return "buy";
+                case DemandSection.Owned:
+                    return "owned";
                 default:
-                    return row.CraftableNow
-                        ? (string.IsNullOrEmpty(row.BenchLabel)
-                            ? "craft"
-                            : "craft · " + row.BenchLabel)
-                        : "buy";
+                    if (!row.CraftableNow)
+                    {
+                        return "buy";
+                    }
+                    string craft = string.IsNullOrEmpty(row.BenchLabel)
+                        ? "craft"
+                        : "craft · " + row.BenchLabel;
+                    return row.MaterialsAvailable ? craft : craft + " · shortage";
             }
         }
 
@@ -2156,8 +2997,12 @@ namespace Armory
                     return new Color(0.95f, 0.78f, 0.5f);
                 case DemandSection.Buy:
                     return new Color(0.85f, 0.8f, 0.65f);
+                case DemandSection.Owned:
+                    return new Color(0.72f, 0.82f, 0.72f);
                 default:
-                    return new Color(0.7f, 0.85f, 0.95f);
+                    return row.MaterialsAvailable
+                        ? new Color(0.7f, 0.85f, 0.95f)
+                        : BlockedSlotColor;
             }
         }
 

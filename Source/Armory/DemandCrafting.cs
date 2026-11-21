@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using RimWorld;
 using Verse;
 
@@ -12,6 +13,11 @@ namespace Armory
     public static class DemandCrafting
     {
         public static bool TryAddBill(ThingDef def, Map map, out string message)
+        {
+            return TryAddBill(def, null, map, out message);
+        }
+
+        public static bool TryAddBill(ThingDef def, ThingDef stuff, Map map, out string message)
         {
             message = null;
             if (def == null || map == null)
@@ -63,12 +69,19 @@ namespace Armory
                 {
                     production.repeatMode = BillRepeatModeDefOf.RepeatCount;
                     production.repeatCount = 1;
+                    if (stuff != null)
+                    {
+                        RestrictToStuff(production, source.Recipe, def, stuff);
+                    }
                 }
                 bench.BillStack.AddBill(bill);
 
                 Thing benchThing = bench as Thing;
                 string benchLabel = benchThing == null ? bench.LabelShort : benchThing.LabelShort;
-                message = "Added a 1x " + source.Def.LabelCap + " bill at " + benchLabel + ".";
+                string itemLabel = stuff == null
+                    ? source.Def.LabelCap
+                    : GenLabel.ThingLabel(source.Def, stuff, 1).CapitalizeFirst();
+                message = "Added a 1x " + itemLabel + " bill at " + benchLabel + ".";
                 Messages.Message(message,
                     benchThing == null ? null : new LookTargets(benchThing),
                     MessageTypeDefOf.PositiveEvent);
@@ -88,5 +101,38 @@ namespace Armory
             }
         }
 
+        /// <summary>
+        /// Restricts a production bill's ingredient filter to one chosen stuff while
+        /// keeping all fixed ingredients (steel, components, ...) allowed.
+        /// </summary>
+        private static void RestrictToStuff(Bill_Production bill, RecipeDef recipe,
+            ThingDef def, ThingDef stuff)
+        {
+            ThingFilter original = recipe.defaultIngredientFilter;
+            ThingFilter filter = new ThingFilter();
+            if (original != null)
+            {
+                filter.CopyAllowancesFrom(original);
+            }
+            else
+            {
+                filter.CopyAllowancesFrom(bill.ingredientFilter);
+            }
+
+            IEnumerable<ThingDef> allowedStuffs = GenStuff.AllowedStuffsFor(def);
+            if (allowedStuffs != null)
+            {
+                foreach (ThingDef candidate in allowedStuffs)
+                {
+                    if (candidate != null)
+                    {
+                        filter.SetAllow(candidate, candidate == stuff);
+                    }
+                }
+            }
+            filter.SetAllow(stuff, true);
+            bill.ingredientFilter = filter;
+            bill.limitToAllowedStuff = true;
+        }
     }
 }

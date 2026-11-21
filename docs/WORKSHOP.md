@@ -1,11 +1,12 @@
 # Steam Workshop release copy and checklist
 
-Status: **0.10.3 development build**. The Workshop item was created with 0.9.2
+Status: **0.10.4 development build**. The Workshop item was created with 0.9.2
 and is still hidden while Steam's automated content check runs. 0.10.0 added
 typed hands, passion-based role assignment and automatic hand-type alignment;
 0.10.1 polished the UI and list limits; 0.10.2 hardens backup management and
-unusable-backup baselines; 0.10.3 adds double-click map jumps. Test locally
-before uploading an update. Do not bump to 1.0 yet.
+unusable-backup baselines; 0.10.3 adds double-click map jumps; 0.10.4 adds
+weapon comparison, material-specific upgrade variants and role filters. Test
+locally before uploading an update. Do not bump to 1.0 yet.
 
 - Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224
 - Source and issues: https://github.com/fklemme/Armory
@@ -80,9 +81,10 @@ After the upload:
 - For a true subscriber test, temporarily move the local release copy out of
   `RimWorld\Mods` (or use a separate RimWorld install/Steam account), restart,
   and load a colony with only the Workshop copy active.
-- Check the mod icon, banner, tabs, version `0.10.3`, default-on automation,
-  colonist-bar order, the `Best vs current` column, and the `Change type` /
-  `Change range` buttons.
+- Check the mod icon, banner, tabs, version `0.10.4`, default-on automation,
+  colonist-bar order, the `Best vs current` column, the `Change type` /
+  `Change range` buttons, the Weapons comparison columns and role filters, and
+  the material-specific Upgrades rows/costs.
 - Test the automatic hand type with and without Simple Sidearms:
   - without SS, a clear shooter holding a melee weapon should be marked
     `switch type` and the planner should queue a ranged weapon;
@@ -126,8 +128,8 @@ Armory is a weapon inspector and automatic manager for RimWorld 1.6. It shows wh
 [h2]Four tabs[/h2]
 [list]
 [*][b]Colonists[/b] - each pawn's hand and backup weapon, hand type, ranged role, blockers, ranked alternatives, and a Best vs current comparison. Double-click a row to jump to that colonist on the map.
-[*][b]Weapons[/b] - every loose weapon on the map, its power, range, best colonist and best slot. Double-click a row to jump to that weapon on the map.
-[*][b]Upgrades[/b] - every obtainable weapon that would improve a colonist, grouped into Craft, Research and Buy, with owned and missing copies, score, gain and source.
+[*][b]Weapons[/b] - every loose weapon on the map, with raw DPS, generic DPSA, armor penetration, accuracy at four ranges, sortable comparison columns and role filters. Double-click a row to jump to that weapon on the map.
+[*][b]Upgrades[/b] - every obtainable weapon variant that would improve a colonist, grouped into Craft, Research and Buy. Stuffable weapons are split by material (steel knife vs plasteel knife) with per-copy cost, stock shortage markers, owned and missing copies, score, gain and source. A Show owned toggle adds an Owned comparison section.
 [*][b]Log[/b] - the automatic decisions Armory made this session, with the reason for each.
 [/list]
 
@@ -149,7 +151,8 @@ No hard dependencies. Simple Sidearms support is optional and read through refle
 [h2]Known limitations[/h2]
 [list]
 [*]One backup per pawn; same-type upgrades only. A bag full of extras can block the first backup.
-[*]Upgrades assume normal quality and default stuff, so a high-skill crafter's output can beat the estimate.
+[*]Upgrades assume normal quality, so a high-skill crafter's output can beat the estimate.
+[*]The DPSA column is a generic all-range comparison, not the per-colonist recommendation.
 [*]No auto-unforbid, auto-haul, or raid arming yet.
 [*]Caravans and weapons inside transport pods are not part of owned supply.
 [*]Combat Extended ammo state is not scored beyond its stat effects.
@@ -157,7 +160,7 @@ No hard dependencies. Simple Sidearms support is optional and read through refle
 [/list]
 
 [h2]Version[/h2]
-0.10.3 - double-click a Colonists or Weapons row to jump to it on the map.
+0.10.4 - comparison stats and role filters, material-specific upgrade variants, per-copy costs and an optional owned section.
 
 [h2]Links[/h2]
 [list]

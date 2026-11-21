@@ -42,7 +42,8 @@ namespace Armory
                     Label = weapon.LabelCap,
                     IsRanged = weapon.def.IsRangedWeapon,
                     Power = WeaponPower.Get(weapon, powerCache),
-                    Range = WeaponPower.GetRange(weapon)
+                    Range = WeaponPower.GetRange(weapon),
+                    Comparison = WeaponPower.GetComparison(weapon)
                 });
             }
             snapshot.Weapons.Sort((a, b) => b.Power.CompareTo(a.Power));
@@ -676,16 +677,18 @@ namespace Armory
         /// </summary>
         private static void BuildDemand(ArmorySnapshot snapshot)
         {
-            Dictionary<ThingDef, int> owned = new Dictionary<ThingDef, int>();
-            Dictionary<ThingDef, int> forbidden = new Dictionary<ThingDef, int>();
+            Dictionary<WeaponVariantKey, int> owned = new Dictionary<WeaponVariantKey, int>();
+            Dictionary<WeaponVariantKey, int> forbidden = new Dictionary<WeaponVariantKey, int>();
+            Dictionary<WeaponVariantKey, ThingWithComps> bestOwned =
+                new Dictionary<WeaponVariantKey, ThingWithComps>();
 
             for (int i = 0; i < snapshot.Pawns.Count; i++)
             {
                 PawnAnalysis pawn = snapshot.Pawns[i];
-                AddCount(owned, DefOf(pawn.Current));
+                AddCount(owned, bestOwned, pawn.Current);
                 for (int j = 0; j < pawn.Sidearms.Count; j++)
                 {
-                    AddCount(owned, DefOf(pawn.Sidearms[j]));
+                    AddCount(owned, bestOwned, pawn.Sidearms[j]);
                 }
             }
 
@@ -696,38 +699,47 @@ namespace Armory
                 {
                     continue;
                 }
-                AddCount(owned, info.Thing.def);
+                AddCount(owned, bestOwned, info.Thing);
                 if (info.Thing.IsForbidden(Faction.OfPlayer))
                 {
-                    AddCount(forbidden, info.Thing.def);
+                    AddCount(forbidden, info.Thing);
                 }
             }
 
             // Defs the colony owns belong in the candidate universe even without a recipe
             // (persona weapons, quest rewards). Create them before reading the catalog.
-            List<ThingDef> ownedDefs = new List<ThingDef>(owned.Keys);
-            for (int i = 0; i < ownedDefs.Count; i++)
+            HashSet<ThingDef> ownedDefs = new HashSet<ThingDef>();
+            foreach (WeaponVariantKey key in owned.Keys)
             {
-                WeaponCatalog.GetOrCreate(ownedDefs[i]);
+                if (key.Def != null)
+                {
+                    ownedDefs.Add(key.Def);
+                }
+            }
+            List<ThingDef> ownedDefList = new List<ThingDef>(ownedDefs);
+            for (int i = 0; i < ownedDefList.Count; i++)
+            {
+                WeaponCatalog.GetOrCreate(ownedDefList[i]);
             }
             WeaponCatalog.RefreshAvailability(snapshot.Map);
 
+            HashSet<WeaponVariantKey> ownedKeys = new HashSet<WeaponVariantKey>(owned.Keys);
             List<WeaponSource> universe = WeaponCatalog.All;
             ArmorySettings settings = ArmoryMod.Settings;
             float threshold = settings == null ? 0.1f : settings.upgradeThreshold;
             int minimumAge = settings == null ? 0 : settings.minimumAge;
 
             // Two option groups per pawn: what can be obtained now, and what research
-            // would unlock. Every qualifying def is listed, so a pawn can appear in
+            // would unlock. Every qualifying variant is listed, so a pawn can appear in
             // several rows; the sections keep immediate crafting ahead of research and
             // trader-only weapons last.
-            List<WeaponSource> craftSources = new List<WeaponSource>();
-            List<WeaponSource> researchSources = new List<WeaponSource>();
+            List<WeaponVariant> craftVariants = new List<WeaponVariant>();
+            List<WeaponVariant> researchVariants = new List<WeaponVariant>();
             for (int i = 0; i < universe.Count; i++)
             {
                 WeaponSource source = universe[i];
-                if (source == null || source.Probe == null || source.ProbePower <= 0f ||
-                    !source.Obtainable)
+                if (source == null || source.Def == null || source.Probe == null ||
+                    source.ProbePower <= 0f || !source.Obtainable)
                 {
                     continue;
                 }
@@ -735,19 +747,31 @@ namespace Armory
                 // A def the colony already owns is usable supply even when its recipe is
                 // still research-locked: the pawn would carry the copy we have, and the
                 // plan should say "unforbid/transfer it" rather than "craft a worse knife".
-                bool isOwned = owned.ContainsKey(source.Def);
-                if (source.AvailableNow || source.MissingResearch == null || isOwned)
+                bool isOwned = ownedDefs.Contains(source.Def);
+                bool craft = source.AvailableNow || source.MissingResearch == null || isOwned;
+                List<WeaponVariant> variants = WeaponVariants.For(source, snapshot.Map, ownedKeys);
+                for (int j = 0; j < variants.Count; j++)
                 {
-                    craftSources.Add(source);
-                }
-                else
-                {
-                    researchSources.Add(source);
+                    WeaponVariant variant = variants[j];
+                    if (variant == null || variant.Probe == null || variant.Power <= 0f)
+                    {
+                        continue;
+                    }
+                    if (craft)
+                    {
+                        craftVariants.Add(variant);
+                    }
+                    else
+                    {
+                        researchVariants.Add(variant);
+                    }
                 }
             }
 
-            Dictionary<ThingDef, DemandRow> rows = new Dictionary<ThingDef, DemandRow>();
-            Dictionary<ThingDef, int> plannedCounts = new Dictionary<ThingDef, int>();
+            Dictionary<WeaponVariantKey, DemandRow> rows =
+                new Dictionary<WeaponVariantKey, DemandRow>();
+            Dictionary<WeaponVariantKey, int> plannedCounts =
+                new Dictionary<WeaponVariantKey, int>();
             float variety = settings == null ? 0f : settings.varietyStrength;
             for (int i = 0; i < snapshot.Pawns.Count; i++)
             {
@@ -761,7 +785,7 @@ namespace Armory
 
                 if (!pawn.HandLocked)
                 {
-                    AddSlotWants(rows, pawn, context, craftSources, researchSources, true,
+                    AddSlotWants(rows, pawn, context, craftVariants, researchVariants, true,
                         pawn.HandBaselineScore, threshold, LabelOf(pawn.Current),
                         plannedCounts, variety);
                 }
@@ -778,55 +802,90 @@ namespace Armory
                 float backupBaseline;
                 ThingWithComps worstBackup;
                 TryGetWorstBackup(pawn, out backupBaseline, out worstBackup);
-                AddSlotWants(rows, pawn, context, craftSources, researchSources, false,
+                AddSlotWants(rows, pawn, context, craftVariants, researchVariants, false,
                     backupBaseline, threshold, LabelOf(worstBackup),
                     plannedCounts, variety);
             }
 
-            foreach (KeyValuePair<ThingDef, DemandRow> pair in rows)
+            // Owned variants that are not already an upgrade row are kept for the optional
+            // Owned section. They let the player compare a steel knife with a plasteel
+            // knife, or see what a craft row would replace.
+            foreach (KeyValuePair<WeaponVariantKey, int> pair in owned)
             {
-                DemandRow row = pair.Value;
-                row.Owned = CountOf(owned, row.Def);
-                row.Forbidden = CountOf(forbidden, row.Def);
-
-                // Keep the best option even when it is already covered, so the ideal
-                // hand/backup is visible and not replaced by a wall of grey alternatives.
-                if (row.Need <= 0 && row.BestCount <= 0)
+                if (rows.ContainsKey(pair.Key))
                 {
                     continue;
                 }
 
                 WeaponSource source;
-                if (WeaponCatalog.TryGet(row.Def, out source) && source != null)
+                if (!WeaponCatalog.TryGet(pair.Key.Def, out source) || source == null)
                 {
-                    row.CraftableNow = source.AvailableNow;
-                    row.Buyable = source.Buyable;
-                    row.BenchLabel = source.BenchLabel;
-                    row.CanCraft = row.CraftableNow && row.Need > 0 &&
-                                   WeaponCatalog.FindBuiltBench(source, snapshot.Map) != null;
-                    row.MissingResearch = source.MissingResearch == null
-                        ? null
-                        : source.MissingResearch.LabelCap;
+                    continue;
+                }
+                List<WeaponVariant> variants = WeaponVariants.For(source, snapshot.Map, ownedKeys);
+                WeaponVariant variant = FindVariant(variants, pair.Key.Stuff);
+                if (variant == null || variant.Power <= 0f)
+                {
+                    continue;
                 }
 
-                if (row.CraftableNow)
+                DemandRow ownedRow = CreateDemandRow(variant);
+                ThingWithComps actual;
+                if (bestOwned.TryGetValue(pair.Key, out actual) && actual != null)
                 {
-                    row.Section = DemandSection.Craft;
+                    ownedRow.Label = actual.LabelCap;
+                    ownedRow.Power = WeaponPower.Get(actual, null);
+                    ownedRow.Range = WeaponPower.GetRange(actual);
                 }
-                else if (row.MissingResearch != null)
+                ownedRow.Section = DemandSection.Owned;
+                rows[pair.Key] = ownedRow;
+            }
+
+            foreach (KeyValuePair<WeaponVariantKey, DemandRow> pair in rows)
+            {
+                DemandRow row = pair.Value;
+                row.Owned = CountOf(owned, pair.Key);
+                row.Forbidden = CountOf(forbidden, pair.Key);
+
+                // Keep the best option even when it is already covered, so the ideal
+                // hand/backup is visible and not replaced by a wall of grey alternatives.
+                if (row.Need <= 0 && row.BestCount <= 0)
                 {
-                    // Research is the next step even when a trader could also supply it;
-                    // the Source cell appends "buy" so the row still reads as obtainable.
-                    row.Section = DemandSection.Research;
+                    if (row.Wanted > 0 || row.Owned <= 0)
+                    {
+                        continue;
+                    }
+                    row.Section = DemandSection.Owned;
                 }
-                else if (row.Buyable)
+                else if (row.Section != DemandSection.Owned)
                 {
-                    row.Section = DemandSection.Buy;
-                }
-                else
-                {
-                    // Unreachable: picks come from Obtainable sources only.
-                    row.Section = DemandSection.Buy;
+                    WeaponSource source;
+                    if (WeaponCatalog.TryGet(row.Def, out source) && source != null)
+                    {
+                        row.CraftableNow = source.AvailableNow;
+                        row.Buyable = source.Buyable;
+                        row.BenchLabel = source.BenchLabel;
+                        row.CanCraft = row.CraftableNow && row.Need > 0 &&
+                                       WeaponCatalog.FindBuiltBench(source, snapshot.Map) != null;
+                        row.MissingResearch = source.MissingResearch == null
+                            ? null
+                            : source.MissingResearch.LabelCap;
+                    }
+
+                    if (row.CraftableNow)
+                    {
+                        row.Section = DemandSection.Craft;
+                    }
+                    else if (row.MissingResearch != null)
+                    {
+                        // Research is the next step even when a trader could also supply it;
+                        // the Source cell appends "buy" so the row still reads as obtainable.
+                        row.Section = DemandSection.Research;
+                    }
+                    else
+                    {
+                        row.Section = DemandSection.Buy;
+                    }
                 }
 
                 snapshot.Demand.Add(row);
@@ -838,6 +897,16 @@ namespace Armory
                 if (bySection != 0)
                 {
                     return bySection;
+                }
+
+                if (a.Section == DemandSection.Owned)
+                {
+                    int byPower = b.Power.CompareTo(a.Power);
+                    if (byPower != 0)
+                    {
+                        return byPower;
+                    }
+                    return string.Compare(a.Label, b.Label, StringComparison.OrdinalIgnoreCase);
                 }
 
                 // Aggregate expected benefit: range-aware combat score, summed over
@@ -904,10 +973,10 @@ namespace Armory
         /// Research options must also beat the best craft-now option by the threshold;
         /// otherwise they would only advertise something worse than what is buildable.
         /// </summary>
-        private static void AddSlotWants(Dictionary<ThingDef, DemandRow> rows,
-            PawnAnalysis pawn, PawnFitContext context, List<WeaponSource> craftSources,
-            List<WeaponSource> researchSources, bool hand, float baseline, float threshold,
-            string currentLabel, Dictionary<ThingDef, int> plannedCounts, float variety)
+        private static void AddSlotWants(Dictionary<WeaponVariantKey, DemandRow> rows,
+            PawnAnalysis pawn, PawnFitContext context, List<WeaponVariant> craftSources,
+            List<WeaponVariant> researchSources, bool hand, float baseline, float threshold,
+            string currentLabel, Dictionary<WeaponVariantKey, int> plannedCounts, float variety)
         {
             float required = baseline * (1f + threshold);
             float bestCraft = 0f;
@@ -969,17 +1038,17 @@ namespace Armory
         /// would not be an upgrade.
         /// </summary>
         private static bool TryScoreCandidate(PawnAnalysis pawn, PawnFitContext context,
-            WeaponSource source, bool hand, float requiredScore,
-            Dictionary<ThingDef, int> plannedCounts, float variety, out float score)
+            WeaponVariant variant, bool hand, float requiredScore,
+            Dictionary<WeaponVariantKey, int> plannedCounts, float variety, out float score)
         {
             score = 0f;
-            if (source == null || source.Probe == null || source.ProbePower <= 0f ||
-                !source.Obtainable)
+            if (variant == null || variant.Source == null || variant.Probe == null ||
+                variant.Power <= 0f || !variant.Source.Obtainable)
             {
                 return false;
             }
 
-            ThingDef def = source.Def;
+            ThingDef def = variant.Def;
             if (hand ? !pawn.IsHandType(def) : !pawn.IsBackupType(def))
             {
                 return false;
@@ -991,7 +1060,7 @@ namespace Armory
                 return false;
             }
 
-            if (Eligibility.IsUnbondedPersona(source.Probe))
+            if (Eligibility.IsUnbondedPersona(variant.Probe))
             {
                 // A new persona weapon would bond on equip; never put that into an
                 // automatic craft/buy plan, for either slot.
@@ -1004,21 +1073,21 @@ namespace Armory
                 // bond or inventory state, and transient slot/capacity rules must not
                 // suppress demand.
                 string reason;
-                if (!IsUsableAsBackup(source.Probe) ||
-                    !SimpleSidearmsAdapter.IsValidSidearmForPawn(pawn.Pawn, source.Probe,
+                if (!IsUsableAsBackup(variant.Probe) ||
+                    !SimpleSidearmsAdapter.IsValidSidearmForPawn(pawn.Pawn, variant.Probe,
                         out reason))
                 {
                     return false;
                 }
             }
 
-            score = CombatScoring.Compute(context, source.Probe, out _);
+            score = CombatScoring.Compute(context, variant.Probe, out _);
             if (variety > 0.001f && plannedCounts != null)
             {
                 int count;
-                if (plannedCounts.TryGetValue(def, out count) && count > 0)
+                if (plannedCounts.TryGetValue(variant.Key, out count) && count > 0)
                 {
-                    // Sequential soft cap: after one pawn is planned for a def, the
+                    // Sequential soft cap: after one pawn is planned for a variant, the
                     // next copy is slightly less attractive, and so on. The first
                     // copy is untouched.
                     score /= 1f + variety * 0.15f * count;
@@ -1027,21 +1096,16 @@ namespace Armory
             return score > requiredScore;
         }
 
-        private static void AddWant(Dictionary<ThingDef, DemandRow> rows, PawnAnalysis pawn,
-            WeaponSource source, float score, bool hand, float baseline, string currentLabel,
-            bool isTop, Dictionary<ThingDef, int> plannedCounts)
+        private static void AddWant(Dictionary<WeaponVariantKey, DemandRow> rows,
+            PawnAnalysis pawn, WeaponVariant variant, float score, bool hand, float baseline,
+            string currentLabel, bool isTop, Dictionary<WeaponVariantKey, int> plannedCounts)
         {
+            WeaponVariantKey key = variant.Key;
             DemandRow row;
-            if (!rows.TryGetValue(source.Def, out row))
+            if (!rows.TryGetValue(key, out row))
             {
-                row = new DemandRow
-                {
-                    Def = source.Def,
-                    Label = source.Def.LabelCap,
-                    Power = source.ProbePower,
-                    Range = WeaponPower.GetRange(source.Probe)
-                };
-                rows[source.Def] = row;
+                row = CreateDemandRow(variant);
+                rows[key] = row;
             }
 
             row.TotalScore += score;
@@ -1081,8 +1145,8 @@ namespace Armory
                 if (plannedCounts != null)
                 {
                     int count;
-                    plannedCounts.TryGetValue(source.Def, out count);
-                    plannedCounts[source.Def] = count + 1;
+                    plannedCounts.TryGetValue(key, out count);
+                    plannedCounts[key] = count + 1;
                 }
             }
             row.KnownCount += isNew || typeSwitch ? 0 : 1;
@@ -1092,9 +1156,39 @@ namespace Armory
             row.TotalGain += isNew ? 1f : gain;
         }
 
-        private static ThingDef DefOf(ThingWithComps thing)
+        private static DemandRow CreateDemandRow(WeaponVariant variant)
         {
-            return thing == null ? null : thing.def;
+            DemandRow row = new DemandRow
+            {
+                Def = variant.Def,
+                Stuff = variant.Stuff,
+                Label = variant.Label,
+                Power = variant.Power,
+                Range = variant.Range,
+                CostText = variant.CostText,
+                CostTooltip = variant.CostTooltip,
+                MaterialsAvailable = variant.MaterialsAvailable,
+                CraftableCopies = variant.CraftableCopies
+            };
+            row.Costs.AddRange(variant.Costs);
+            return row;
+        }
+
+        private static WeaponVariant FindVariant(List<WeaponVariant> variants, ThingDef stuff)
+        {
+            if (variants == null)
+            {
+                return null;
+            }
+            for (int i = 0; i < variants.Count; i++)
+            {
+                WeaponVariant variant = variants[i];
+                if (variant != null && variant.Stuff == stuff)
+                {
+                    return variant;
+                }
+            }
+            return null;
         }
 
         /// <summary>Worst opposite-type backup, matching the planner's replace-worst rule.</summary>
@@ -1161,21 +1255,40 @@ namespace Armory
             return thing == null ? "nothing" : thing.LabelCap;
         }
 
-        private static int CountOf(Dictionary<ThingDef, int> counts, ThingDef def)
+        private static int CountOf(Dictionary<WeaponVariantKey, int> counts,
+            WeaponVariantKey key)
         {
             int count;
-            return def != null && counts.TryGetValue(def, out count) ? count : 0;
+            return counts.TryGetValue(key, out count) ? count : 0;
         }
 
-        private static void AddCount(Dictionary<ThingDef, int> counts, ThingDef def)
+        private static void AddCount(Dictionary<WeaponVariantKey, int> counts,
+            ThingWithComps thing)
         {
-            if (def == null)
+            AddCount(counts, null, thing);
+        }
+
+        private static void AddCount(Dictionary<WeaponVariantKey, int> counts,
+            Dictionary<WeaponVariantKey, ThingWithComps> bestOwned, ThingWithComps thing)
+        {
+            if (thing == null || thing.def == null)
             {
                 return;
             }
+            WeaponVariantKey key = new WeaponVariantKey(thing.def, thing.Stuff);
             int count;
-            counts.TryGetValue(def, out count);
-            counts[def] = count + 1;
+            counts.TryGetValue(key, out count);
+            counts[key] = count + 1;
+
+            if (bestOwned != null)
+            {
+                ThingWithComps current;
+                if (!bestOwned.TryGetValue(key, out current) || current == null ||
+                    WeaponPower.Get(thing, null) > WeaponPower.Get(current, null))
+                {
+                    bestOwned[key] = thing;
+                }
+            }
         }
     }
 }

@@ -173,11 +173,13 @@ namespace Armory
                     row.Need,
                     gain,
                     row.Section,
-                    row.Section == DemandSection.Research
-                        ? (row.MissingResearch ?? "locked")
-                        : row.CraftableNow
-                            ? "craft " + row.BenchLabel
-                            : "buy",
+                    row.Section == DemandSection.Owned
+                        ? "owned"
+                        : row.Section == DemandSection.Research
+                            ? (row.MissingResearch ?? "locked")
+                            : row.CraftableNow
+                                ? "craft " + row.BenchLabel
+                                : "buy",
                     row.CanCraft ? "yes" : "no",
                     row.BenchLabel ?? "-"));
             }

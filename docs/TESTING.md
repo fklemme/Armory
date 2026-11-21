@@ -182,6 +182,26 @@ With Simple Sidearms enabled and respected, every pawn should resolve
 `(Simple Sidearms mode)`, the Armory hand-type override should be ignored, and
 backup jobs should still queue.
 
+### Testing comparison, materials and role filters (0.10.4)
+
+- **Weapons:** the list shows DPS, DPSA, AP, Accuracy C/S/M/L, Range, Best colonist
+  and Best use. Click each header to sort; the active header shows `v`/`^`.
+  DPSA is the generic four-band score, not the colonist-fit score. Switch the role
+  buttons to Line/Marksman and confirm the Best column shows that role's pawn and
+  score. Open a weapon and check the Best by role table.
+- **Upgrades:** stuffable weapons appear once per material. Hover a Cost cell for
+  the full ingredients, current stock and total for the needed copies. An orange
+  `!` means stock cannot cover all needed copies. Select a role and verify the
+  list is limited to rows with wants from that role and the Score column changes
+  to that role's score. Turn on Show owned and confirm the Owned section lists
+  actual quality/material copies with no cost.
+- **Material bills:** click Craft on a specific material row and verify the bill's
+  ingredient filter allows only that stuff (plus fixed ingredients), with
+  `limitToAllowedStuff` set. The bill should still be queueable when the material
+  is short.
+- **No-SS test:** the Weapons and Upgrades comparisons still work without Simple
+  Sidearms; backup-only rows may disappear, as expected.
+
 ### Testing double-click map jumps (0.10.3)
 
 Double-click a spawned colonist row in **Colonists** and a loose weapon row in

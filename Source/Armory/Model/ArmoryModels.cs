@@ -13,6 +13,74 @@ namespace Armory
         public bool IsRanged;
         public float Power;
         public float Range;
+
+        /// <summary>Pawn-independent comparison numbers used by the Weapons table.</summary>
+        public WeaponPower.ComparisonStats Comparison;
+    }
+
+    /// <summary>
+    /// Def + material pair. Stuffable weapons are separate upgrade rows for each material,
+    /// so owned steel knives do not count against a plasteel knife plan.
+    /// </summary>
+    public struct WeaponVariantKey : System.IEquatable<WeaponVariantKey>
+    {
+        public ThingDef Def;
+        public ThingDef Stuff;
+
+        public WeaponVariantKey(ThingDef def, ThingDef stuff)
+        {
+            Def = def;
+            Stuff = stuff;
+        }
+
+        public bool Equals(WeaponVariantKey other)
+        {
+            return Def == other.Def && Stuff == other.Stuff;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is WeaponVariantKey && Equals((WeaponVariantKey)obj);
+        }
+
+        public override int GetHashCode()
+        {
+            int hash = Def == null ? 0 : Def.GetHashCode();
+            hash = hash * 397 ^ (Stuff == null ? 0 : Stuff.GetHashCode());
+            return hash;
+        }
+
+        public override string ToString()
+        {
+            return (Def == null ? "null" : Def.defName) + "/" +
+                   (Stuff == null ? "none" : Stuff.defName);
+        }
+    }
+
+    /// <summary>One craftable material variant of a weapon def.</summary>
+    public sealed class WeaponVariant
+    {
+        public WeaponSource Source;
+        public ThingDef Def;
+        public ThingDef Stuff;
+        public ThingWithComps Probe;
+        public float Power;
+        public float Range;
+        public string Label;
+
+        /// <summary>Per-copy ingredients. Empty when no cost is known (owned-only def).</summary>
+        public readonly List<ThingDefCountClass> Costs = new List<ThingDefCountClass>();
+
+        public bool MaterialsAvailable;
+        public int CraftableCopies = -1;
+        public string CostText;
+        public string FullCostText;
+        public string CostTooltip;
+
+        public WeaponVariantKey Key
+        {
+            get { return new WeaponVariantKey(Def, Stuff); }
+        }
     }
 
     /// <summary>One weapon evaluated for one pawn.</summary>
@@ -379,7 +447,10 @@ namespace Armory
         Research = 1,
 
         /// <summary>No crafting route yet; a trader is the only source.</summary>
-        Buy = 2
+        Buy = 2,
+
+        /// <summary>Already owned; shown only when the player enables owned rows.</summary>
+        Owned = 3
     }
 
     /// <summary>One colonist contributing to a demand row.</summary>
@@ -419,12 +490,20 @@ namespace Armory
     public sealed class DemandRow
     {
         public ThingDef Def;
+        public ThingDef Stuff;
         public string Label;
         public int WantedHand;
         public int WantedBackup;
         public int Owned;
         public int Forbidden;
         public DemandSection Section;
+
+        /// <summary>Per-copy material cost for this variant.</summary>
+        public string CostText;
+        public string CostTooltip;
+        public bool MaterialsAvailable = true;
+        public int CraftableCopies = -1;
+        public readonly List<ThingDefCountClass> Costs = new List<ThingDefCountClass>();
 
         /// <summary>Colonists for whom this is the best option within its section.</summary>
         public int BestCount;
@@ -491,6 +570,10 @@ namespace Armory
         {
             get
             {
+                if (Wanted <= 0)
+                {
+                    return "-";
+                }
                 if (WantedHand > 0 && WantedBackup > 0)
                 {
                     return WantedHand + " Hand · " + WantedBackup + " Backup";

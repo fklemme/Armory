@@ -56,6 +56,114 @@ namespace Armory
             return power;
         }
 
+        /// <summary>
+        /// Pawn-independent numbers shared by the Weapons comparison table. The generic
+        /// DPSA uses the four standard QM-style range bands and counts an unreachable
+        /// selected band as zero; it is deliberately not the per-colonist Armory score.
+        /// </summary>
+        public sealed class ComparisonStats
+        {
+            public bool IsRanged;
+            public float RawDps;
+            public float Dpsa;
+            public float ArmorPen;
+            public float AccuracyTouch;
+            public float AccuracyShort;
+            public float AccuracyMedium;
+            public float AccuracyLong;
+            public float AccuracyAverage;
+            public float Range;
+            public float MinRange;
+            public float Mass;
+            public int Burst;
+            public float Warmup;
+            public float Cooldown;
+
+            public bool HasAccuracy
+            {
+                get { return IsRanged; }
+            }
+
+            public string AccuracyText
+            {
+                get
+                {
+                    if (!IsRanged)
+                    {
+                        return "-";
+                    }
+                    return (AccuracyTouch * 100f).ToString("0") + "/" +
+                           (AccuracyShort * 100f).ToString("0") + "/" +
+                           (AccuracyMedium * 100f).ToString("0") + "/" +
+                           (AccuracyLong * 100f).ToString("0");
+                }
+            }
+        }
+
+        public static ComparisonStats GetComparison(ThingWithComps weapon)
+        {
+            ComparisonStats stats = new ComparisonStats();
+            if (weapon == null || weapon.def == null)
+            {
+                return stats;
+            }
+
+            StatRequest request = StatRequest.For(weapon);
+            stats.Mass = StatValue(request, StatDefOf.Mass);
+            if (weapon.def.IsMeleeWeapon)
+            {
+                stats.RawDps = StatValue(request, StatDefOf.MeleeWeapon_AverageDPS);
+                stats.Dpsa = stats.RawDps;
+                stats.ArmorPen = MeleeArmorPenetration(request);
+                return stats;
+            }
+
+            if (!weapon.def.IsRangedWeapon)
+            {
+                return stats;
+            }
+
+            RangedMetrics metrics;
+            if (!TryGetRangedMetrics(weapon, out metrics))
+            {
+                return stats;
+            }
+
+            stats.IsRanged = true;
+            stats.RawDps = metrics.RawDps(1f);
+            stats.ArmorPen = metrics.ArmorPen;
+            stats.Range = metrics.Range;
+            stats.MinRange = metrics.MinRange;
+            stats.Burst = metrics.Burst;
+            stats.Warmup = metrics.Warmup;
+            stats.Cooldown = metrics.Cooldown;
+            stats.AccuracyTouch = StatValue(request, StatDefOf.AccuracyTouch);
+            stats.AccuracyShort = StatValue(request, StatDefOf.AccuracyShort);
+            stats.AccuracyMedium = StatValue(request, StatDefOf.AccuracyMedium);
+            stats.AccuracyLong = StatValue(request, StatDefOf.AccuracyLong);
+
+            float accuracy = 0f;
+            if (stats.MinRange <= 3f && stats.Range >= 3f)
+            {
+                accuracy += stats.AccuracyTouch;
+            }
+            if (stats.MinRange <= 12f && stats.Range >= 12f)
+            {
+                accuracy += stats.AccuracyShort;
+            }
+            if (stats.MinRange <= 25f && stats.Range >= 25f)
+            {
+                accuracy += stats.AccuracyMedium;
+            }
+            if (stats.MinRange <= 40f && stats.Range >= 40f)
+            {
+                accuracy += stats.AccuracyLong;
+            }
+            stats.AccuracyAverage = accuracy / 4f;
+            stats.Dpsa = stats.RawDps * stats.AccuracyAverage;
+            return stats;
+        }
+
         private static float Compute(ThingWithComps weapon)
         {
             ThingDef def = weapon.def;

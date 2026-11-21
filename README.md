@@ -2,7 +2,7 @@
 
 **The right weapon, in the right hands.**
 
-**Version 0.10.3** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.10.4** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and automatic manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -29,7 +29,7 @@ Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1, backup safety/unusable-baseline fixes in 0.10.2, double-click map jumps in 0.10.3 |
+| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1, backup safety/unusable-baseline fixes in 0.10.2, double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4 |
 
 ---
 
@@ -77,14 +77,25 @@ Sidearms.
 ### Weapons
 Every loose weapon on the map with:
 
-- power and maximum range;
-- best-fit colonist per slot;
+- raw DPS, generic DPSA, armor penetration, accuracy at Close/Short/Medium/Long,
+  range and the best-ready colonist;
+- sortable comparison headers (weapon, DPS, DPSA, AP, accuracy, range, best fit);
+- role filters for **All / Melee / CQB / Assault / Line / Marksman**, so the same
+  list can answer "what is best for a line shooter?" without changing the pawns;
+- a **Best by role** table in the detail pane, showing the best pawn and score for
+  each role, plus the usual colonist-by-score view with deep checks (reachability,
+  reservations) and separate hand/backup readiness;
 - best use (`Hand`, `Backup`, `Hand (blocked)`, `Backup (blocked)`,
   `No colonist can use it`);
 - double-click a row to close Armory, move the camera to that weapon and select it
-  on the map;
-- a colonist-by-score detail view with deep checks (reachability, reservations) and
-  separate hand/backup readiness.
+  on the map.
+
+The generic **DPSA** is a catalog comparison: raw DPS multiplied by the average
+accuracy over the four standard range bands, with unreachable selected bands
+counted as zero. It is deliberately not the recommendation. The colonist-fit
+score uses the game's real hit chance at that pawn's preferred range, plus skill,
+fit, support and variety. The formula is shown in the weapon detail and in the
+Upgrades header.
 
 Ranged power is scored at each pawn's preferred distance using RimWorld's real
 accuracy curve. A shotgun and a sniper are not compared as if both could fire at
@@ -102,53 +113,72 @@ colonist's hand weapon; if Simple Sidearms' mass cap rejects it, it is
 `Backup (blocked)` with the reason.
 
 ### Upgrades
-The upgrade menu: every obtainable weapon that would improve a colonist, minus
-what the colony already owns. It answers "what could we make, research, or buy
-next?" instead of "who would pick up the leftovers on the floor?"
+The upgrade menu: every obtainable weapon **variant** that would improve a
+colonist, minus what the colony already owns. It answers "what could we make,
+research, or buy next?" instead of "who would pick up the leftovers on the
+floor?"
 
-For every colonist and slot, Armory scores every weapon def the colony could
+Stuffable weapons are split by material, so a steel knife and a plasteel knife
+are separate rows with their own score, cost and owned count. This makes the
+resource trade-off explicit: a plasteel knife may score higher but cost 75
+plasteel per copy, while a steel one is cheaper. The `Craft` button queues the
+bill for the material in that row, with the bill's ingredient filter restricted
+to that stuff.
+
+For every colonist and slot, Armory scores every weapon variant the colony could
 obtain: craftable now, craftable after pending research, buyable from a trader,
-or already owned. **Every** def that beats the current weapon by the upgrade
+or already owned. **Every** variant that beats the current weapon by the upgrade
 threshold is listed. Rows are independent options, so one colonist can appear in
-several of them. A gold star before the name marks the def as the best option in
-its section for at least one colonist; all weapon names are white.
+several of them. A gold star before the name marks the variant as the best
+option in its section for at least one colonist; all weapon names are white.
+Role filters (All / Melee / CQB / Assault / Line / Marksman) limit the list to
+colonists of that role and re-score the rows for that role.
 
 Research options must also beat the best currently obtainable option by the
 threshold, so research never advertises a weapon that is worse than something
-already buildable. Owned copies (equipped, carried, or loose) are subtracted:
+already buildable. Owned copies (equipped, carried, or loose) are subtracted
+per material:
 
 ```
-Needed = max(0, Wanted by - owned copies that are not forbidden)
+Needed = max(0, Wanted by - owned copies of that material that are not forbidden)
 ```
 
 Columns:
 
 - `Power`: normal-quality base strength before range and pawn fit;
 - `Range`: maximum firing range in tiles (`-` for melee);
-- `Score`: range-aware expected value for the colony, summed over the colonists
-  who would take it; this is the main sort key;
+- `Cost`: material cost per copy for this variant, with an orange `!` when the
+  current stockpiles cannot cover all needed copies; hover for the full
+  ingredient list and the total for the needed copies;
+- `Score`: range-aware expected value for the selected role (or all roles),
+  summed over the colonists who would take it; this is the main sort key;
 - `Slot`: `Hand`, `Backup`, or `Both`, using the same green/blue/cyan colors as
   the Weapons tab; hover for the hand/backup counts;
-- `Wanted by`: colonists who would improve with this def (may overlap other rows);
-- `Owned`: copies in the colony (`2 · 1 forbidden` when some are forbidden);
-- `Needed`: copies still missing; `enough` (green) when the def is the best option
+- `Wanted by`: colonists who would improve with this variant (may overlap other rows);
+- `Owned`: copies of this material in the colony (`2 · 1 forbidden` when some are forbidden);
+- `Needed`: copies still missing; `enough` (green) when the variant is the best option
   for someone but already covered;
 - `Gain`: average improvement over the current weapon, assuming a newly made
-  normal-quality copy; `new slot` when the colonist has nothing in that slot and
+  normal-quality copy of this material; `new slot` when the colonist has nothing in that slot and
   `switch type` when they hold the other hand type;
 - `Source`: `craft · bench`, the research project, or `buy`. For craft rows the
   bench is the best **built** bench that can make it; if none is built, the best
   **unlocked** bench is shown instead. A craft row with missing copies and a
-  built bench also gets a `Craft` button that queues one bill at that bench. It
-  does not equip the weapon.
+  built bench also gets a `Craft` button that queues one bill at that bench,
+  restricted to the row's material. It does not equip the weapon.
+
+**Show owned** adds an `Owned` section listing owned material variants for
+comparison, using the best actual quality/material copy. Owned rows show no
+crafting cost and appear regardless of the active role filter.
 
 Sections follow the order of action: **Craft** (recipe unlocked now),
 **Research** (a project unlocks it; `· buy` when a trader can also supply it),
-and **Buy** (no crafting route, trader only). Within a section, rows are ordered
-by `Score`, then total gain, best count and needed copies. This is not pure weapon
-power: a weapon that suits more colonists can outrank a slightly stronger one
-that helps only one. `Power` is the weapon alone; `Score` adds range, pawn fit,
-role preference and a light squad-variety penalty.
+**Buy** (no crafting route, trader only), then **Owned** when Show owned is on.
+Within a section, rows are ordered by `Score` (the selected role's score when a
+role filter is active), then total gain, best count and needed copies. This is
+not pure weapon power: a weapon that suits more colonists can outrank a slightly
+stronger one that helps only one. `Power` is the weapon alone; `Score` adds range,
+pawn fit, role preference and a light squad-variety penalty.
 
 Rows that are the best option for someone stay visible even when the requirement
 is already covered; those show `enough` in green. A gold star before the name
@@ -157,7 +187,7 @@ white, so the star is the only distinction. Without that, an owned ideal (for
 example the hatchet a colonist already carries) would disappear. Click a row to
 see one detail line per contributing colonist, with their name, current weapon,
 ranged role, individual `Score`, `Slot`, and `Gain` aligned under the same
-columns. Defs with no gap are otherwise hidden.
+columns. Variants with no gap are otherwise hidden.
 
 ### Hand type, range and ranged roles
 
@@ -302,12 +332,17 @@ Armory excludes:
 
 ### Scoring
 
-`score = weapon power × pawn fit`
+`score = expected range-aware DPS × fit × (1 + AP) × support × variety × 10`
 
+- **Expected DPS** uses the game's real hit chance at each distance around the
+  pawn's preferred range, so skill, genes, traits, weapon accuracy and range all
+  matter. A generic four-band `DPSA` is shown in the Weapons comparison for
+  catalog purposes only.
 - **Power** from vanilla StatDefs and VerbProperties: melee DPS/AP; ranged
   DPS × burst/cycle, sustained fire, blended accuracy, armour penetration.
   Modded and Combat Extended weapons use their own numbers.
 - Explosive/incendiary/EMP/smoke weapons get a **0.35× situational penalty**.
+- Burst weapons of 6+ shots get a **0.75× support penalty** in the per-pawn score.
 - **Fit**: relevant skill, melee-vs-ranged mismatch, Brawler, ranged accuracy
   and aim speed, melee hit chance, ideoligion noble/despised disposition,
   optional global ranged/melee preference.
@@ -511,6 +546,7 @@ Armory/
     Scoring/PawnFit.cs             pawn fit + optional ledger
     Scoring/CombatScoring.cs       range profile, preferred distance, roles, variety
     Scoring/WeaponCatalog.cs       craftable/buyable defs + synthetic scoring probes
+    Scoring/WeaponVariants.cs      per-material probes, costs and stock status
     Scoring/Eligibility.cs         soft/hard blockers
     UI/MainTabWindow_Armory.cs     Colonists/Weapons/Upgrades/Log tabs
     UI/TextUtil.cs                 rich-text safe measurement/truncation
@@ -611,16 +647,17 @@ Full procedure, switches, pitfalls and cleanup:
   shelves/stockpiles. Weapons inside transport pods or pawn inventory are not
   offered as hand candidates; pod occupants are still listed as unavailable
   pawns.
-- **The Upgrades tab assumes normal quality and default stuff.** A hypothetical weapon is
-  scored as a normal-quality copy made from `GenStuff.DefaultStuffFor` (usually
-  the cheapest valid stuff), so a high-skill crafter's excellent or masterwork
-  output can beat the estimate, and a colony already holding masterwork gear can
-  show fewer useful upgrades than it really has. Owned copies are counted per def; their
-  individual quality only affects each colonist's current baseline, so owning one
-  awful copy also hides the need to craft a better copy of the same def.
-- **The Upgrades tab is per def, not per item.** Every upgrade is listed, so wants overlap:
-  a colonist can appear in several rows for the same slot. `Need` describes what
-  one row alone would require, not a combined shopping list.
+- **The Upgrades tab assumes normal quality for new copies.** Each material variant is
+  scored as a normal-quality copy made from that stuff, so a high-skill crafter's
+  excellent or masterwork output can beat the estimate. Owned copies are counted
+  per material; their individual quality only affects each colonist's current
+  baseline, so owning one awful copy also hides the need to craft a better copy of
+  the same material. The optional Owned section uses the best actual copy's
+  quality/material label for comparison.
+- **The Upgrades tab is per def + material, not per item.** Every upgrade variant is
+  listed, so wants overlap: a colonist can appear in several rows for the same
+  slot. `Need` describes what one row alone would require, not a combined
+  shopping list.
 - **The Upgrades tab does not buy anything or queue bills automatically.** `buy` comes from the def's
   `tradeability`; it does not know whether a suitable trader is currently
   available. The **Craft** button queues one bill only when clicked, and only

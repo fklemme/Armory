@@ -19,6 +19,9 @@ namespace Armory
         public ThingWithComps Probe;
 
         public float ProbePower;
+
+        /// <summary>All material variants, built lazily and cached for the session.</summary>
+        public List<WeaponVariant> AllVariants;
         public string BenchLabel;
 
         /// <summary>Best work bench for this recipe right now (built first, then unlocked).</summary>

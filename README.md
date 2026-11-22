@@ -2,7 +2,7 @@
 
 **The right weapon, in the right hands.**
 
-**Version 0.11.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.11.1** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and automatic manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -29,7 +29,7 @@ Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0-5 complete; 6 (sidearm loadouts) done in 0.11.0; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1, backup safety/unusable-baseline fixes in 0.10.2, double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4, accuracy-column/table-layout polish in 0.10.5, percent accuracy/cost icons in 0.10.6, named craft bills in 0.10.7, pending-job duplicate guard in 0.10.8, market value columns in 0.10.9, value/layout polish in 0.10.10, blocked-reason spacing fix in 0.10.11, sidearm loadouts in 0.11.0 |
+| Current milestone | 0-5 complete; 6 (sidearm loadouts) done in 0.11.0; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1, backup safety/unusable-baseline fixes in 0.10.2, double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4, accuracy-column/table-layout polish in 0.10.5, percent accuracy/cost icons in 0.10.6, named craft bills in 0.10.7, pending-job duplicate guard in 0.10.8, market value columns in 0.10.9, value/layout polish in 0.10.10, blocked-reason spacing fix in 0.10.11, sidearm loadouts in 0.11.0, stale-sidearm cleanup and persistent diagnostics in 0.11.1 |
 
 ---
 
@@ -57,9 +57,12 @@ the bar and this list.
 - with Simple Sidearms, **Sidearm 1** is the opposite-type slot and **Sidearm 2**
   is an optional ranged complement chosen to cover a real range gap, with SS's
   slot/mass/selection blockers on each candidate;
-- when Simple Sidearms temporarily draws a sidearm, the hand line keeps the
+- when Simple Sidearms draws a sidearm in combat, the hand line keeps the
   logical hand and marks it `(stowed)`, while the drawn sidearm is marked
-  `(drawn)`; Armory pauses weapon changes until SS stows it;
+  `(drawn)`; Armory pauses weapon changes until SS stows it. Outside combat an
+  **unremembered** sidearm is treated as temporary: Armory restores the
+  remembered hand and drops a Sidearm 2 that no longer covers a range gap. A
+  remembered sidearm that still fills a gap is left to Simple Sidearms;
 - double-click a row to close Armory, move the camera to that colonist and select
   them on the map;
 - a full ranked list with a status per candidate and an expandable factor ledger;
@@ -269,10 +272,15 @@ weapons (such as a Molotov) are not offered as sidearms; biocoding and bonds do
 not apply to hypothetical new copies.
 
 ### Log
-Session-only decision log for the planner: time, colonist, action, weapon, and
-the reason the action was taken. Actions are `Equip hand`, `Equip Sidearm 1`,
+Session decision log for the planner: time, colonist, action, weapon, and the
+reason the action was taken. Actions are `Equip hand`, `Equip Sidearm 1`,
 `Equip Sidearm 2`, `Drop sidearm`, `Drop extra sidearm`, `Skip upgrade`,
 `Drop failed`, and `Restore sidearm`. Newest first, clearable.
+
+The same decisions, plus full snapshots on map load and on demand, are written
+to a persistent rolling log in `ArmoryLogs` next to the save data. **Log
+snapshot** captures the current state for a bug report; **Open logs** opens the
+folder. The newest five sessions are kept.
 
 ---
 
@@ -456,9 +464,13 @@ When **Respect Simple Sidearms** is on (default):
   `Requires a melee hand`;
 - pawns currently running `EquipSecondary` / `ReequipSecondary` /
   `ReequipSecondaryCombat` are skipped;
-- if SS draws a sidearm, Armory keeps the logical hand visible as `(stowed)`,
-  marks the drawn weapon `(drawn)`, and waits for SS to stow it before swapping
-  weapons. A draw no longer registers as a manual hand change.
+- if SS draws a sidearm in combat, Armory keeps the logical hand visible as
+  `(stowed)`, marks the drawn weapon `(drawn)`, and waits for SS to stow it
+  before swapping weapons. Outside combat a sidearm SS has **not remembered** is
+  treated as temporary: Armory puts the remembered hand back through SS's own
+  inventory-equip helper. A remembered sidearm that still fills a gap is
+  SS-managed and left alone; a remembered **no-gap Sidearm 2** is restored and
+  removed. A draw no longer registers as a manual hand change;
 
 Sidearm management is on by default; when enabled it:
 
@@ -469,6 +481,8 @@ Sidearm management is on by default; when enabled it:
   selection, pacifist-tool, biocoding, and role rules all apply;
 - reconciles the carried set instead of only adding: duplicates, unusable
   sidearms and weapons beyond the plan are dropped automatically;
+- drops a Sidearm 2 whose range gap disappeared after a hand or Sidearm 1 change,
+  after trying a useful replacement first;
 - keeps one usable wrong-type fallback until a legal replacement is ready, so a
   cleanup never deliberately leaves the pawn weaker;
 - replaces one slot at a time, drops the old weapon first, and restores it if SS
@@ -544,7 +558,8 @@ All settings are under **Options → Mod settings → Armory**. The page scrolls
 | Sidearm candidates shown per colonist | Auto | 1-50 | Auto = 5; Simple Sidearms only |
 | Show blocked candidates by default | on | — | Include candidates that cannot be equipped now |
 | Snapshot refresh interval | 120 ticks | 30–600 | How often the lists recalculate while open |
-| Write a snapshot summary to the log when a map loads | off | — | One-time diagnostic in `Player.log` |
+| Write a persistent diagnostic log | on | — | Rolling per-session log in `ArmoryLogs`; newest five kept |
+| Also write the verbose snapshot to `Player.log` | off | — | One-time map-load snapshot in `Player.log` |
 
 Internal: `settingsVersion` (currently 5) drives the age, typed-slot, list-limit
 and range/variety migrations. The 0.9.0 automation defaults apply to new
@@ -569,6 +584,7 @@ Armory/
     Armory.csproj
     ArmoryMod.cs                   Mod entry, settings, competitor detection
     ArmorySettings.cs              settings + scrollable options UI
+    ArmoryDiagnostics.cs           persistent per-session diagnostic log
     ArmoryMapComponent.cs          snapshot cache + planner tick
     ArmorySnapshotBuilder.cs       colonist/weapon/upgrade analysis, pod lookup
     ArmoryPlanner.cs               automatic equip jobs, claims, cooldowns
@@ -603,14 +619,24 @@ Armory/
 
 ## Diagnostics
 
-- Enable **Log snapshot summary on map load** to get a one-time summary in
-  `Player.log`, including Simple Sidearms mode/sidearm state per colonist.
+- **Persistent diagnostic log** (on by default): one file per session in
+  `ArmoryLogs`, next to the save data. It contains the armory version, RimWorld
+  version, active Simple Sidearms state, settings summary, every automatic
+  decision and full map-load snapshots. The newest five sessions are kept.
+  Use **Open logs** in the Log tab or **Open Armory log folder** in settings.
+- **Log snapshot** in the Log tab writes the current plan and loaded weapons to
+  `Player.log` and to the persistent log. It is the best thing to attach to a
+  bug report.
+- Enable **Also write the verbose snapshot to Player.log** to get the same
+  summary in `Player.log` on every map load.
 - Dev mode actions:
   - **Armory → Log weapon snapshot**
   - **Armory → Unforbid loose weapons**
   - **Armory → Run planner now**
-- Log:
+- RimWorld log:
   `%USERPROFILE%\AppData\LocalLow\Ludeon Studios\RimWorld by Ludeon Studios\Player.log`
+- Armory logs:
+  `%USERPROFILE%\AppData\LocalLow\Ludeon Studios\RimWorld by Ludeon Studios\ArmoryLogs\`
 
 ### Isolated test harness
 
@@ -634,6 +660,7 @@ To disable automation in the isolated game and enable diagnostics, write
   <ModSettings Class="Armory.ArmorySettings">
     <autoEquipEnabled>False</autoEquipEnabled>
     <manageSidearms>False</manageSidearms>
+    <diagnosticLogging>True</diagnosticLogging>
     <debugLogging>True</debugLogging>
   </ModSettings>
 </SettingsBlock>
@@ -713,9 +740,10 @@ Full procedure, switches, pitfalls and cleanup:
 - **No auto-unforbid**, by design.
 - **Dropped weapons** stay on the ground; no auto-haul yet.
 - **No raid behaviour** yet (e.g., arm everyone when a raid starts).
-- **Decision log is session-only** and records hand/sidearm equips, drops, and
-  aborted upgrades, not every skip.
-  Pawn automation pauses/blocks are shown in the Colonists tab and pawn detail.
+- **The in-game decision list is session-only** and records hand/sidearm equips,
+  drops, and aborted upgrades, not every skip. The persistent `ArmoryLogs` files
+  keep the same decisions plus snapshots across sessions. Pawn automation
+  pauses/blocks are shown in the Colonists tab and pawn detail.
 - **English strings are hardcoded**; localization not started.
 - **Steam Workshop publishing** is live: the first item is uploaded and awaiting
   Steam's automated content check; see [`docs/WORKSHOP.md`](docs/WORKSHOP.md).
@@ -769,5 +797,5 @@ Full procedure, switches, pitfalls and cleanup:
   including the isolated copy + temporary scaffold procedure.
 - [`docs/WORKSHOP.md`](docs/WORKSHOP.md) - clean release contents, upload
   checklist, private-test steps and Workshop page copy.
-- [`docs/SIDEARMS.md`](docs/SIDEARMS.md) - 0.11.0 sidearm-loadout design,
-  Simple Sidearms boundary and live-test notes.
+- [`docs/SIDEARMS.md`](docs/SIDEARMS.md) - sidearm-loadout design,
+  Simple Sidearms boundary and 0.11.x live-test notes.

@@ -427,19 +427,41 @@ namespace Armory
 
             ThingWithComps hand = HandDisplayThing(pawn);
             string currentText = hand == null ? "unarmed" : hand.LabelCap;
-            if (pawn.DrawnSidearm && pawn.LogicalHand != null)
+            if (pawn.CombatSidearmDraw && pawn.LogicalHand != null)
             {
                 currentText += " (stowed)";
+            }
+            else if (pawn.DrawnSidearm && pawn.LogicalHand != null)
+            {
+                currentText += " (sidearm in hand)";
             }
             DrawSlotLine(loadout, 0, "Hand", HandSlotColor, currentText, rowColor,
                 hand == null
                     ? "No hand weapon equipped."
-                    : pawn.DrawnSidearm && pawn.LogicalHand != null
+                    : pawn.CombatSidearmDraw && pawn.LogicalHand != null
                         ? string.Format(
                             "Hand weapon: {0} (score {1:0}), stowed while Simple Sidearms draws {2}.",
                             hand.LabelCap, pawn.LogicalHandScore, pawn.DrawnSidearmName)
-                        : string.Format("Equipped hand weapon: {0} (score {1:0}).",
-                            hand.LabelCap, pawn.CurrentScore));
+                        : pawn.DrawnSidearm && pawn.LogicalHand != null
+                            ? string.Format(
+                                "Sidearm in hand: {0}. {1}",
+                                pawn.DrawnSidearmName,
+                                !pawn.PlannedHandRemembered
+                                    ? "Simple Sidearms has not remembered the planned hand " +
+                                      pawn.LogicalHand.LabelCap +
+                                      "; click it in the SS gizmo to remember it."
+                                    : IsCurrentNoGapSidearmTwo(pawn)
+                                        ? "It no longer fills a range gap; Armory is restoring " +
+                                          pawn.LogicalHand.LabelCap + " and will remove it."
+                                        : pawn.CurrentSidearmRemembered
+                                            ? "Simple Sidearms keeps this sidearm in hand outside combat; Armory leaves it alone."
+                                            : ArmoryMod.Settings != null &&
+                                              !ArmoryMod.Settings.manageSidearms
+                                                ? "Sidearm management is off."
+                                                : "Armory is restoring " + pawn.LogicalHand.LabelCap +
+                                                  " as the hand weapon.")
+                            : string.Format("Equipped hand weapon: {0} (score {1:0}).",
+                                hand.LabelCap, pawn.CurrentScore));
 
             if (showSidearms)
             {
@@ -479,7 +501,7 @@ namespace Armory
 
         private static ThingWithComps HandDisplayThing(PawnAnalysis pawn)
         {
-            return pawn.DrawnSidearm && pawn.LogicalHand != null
+            return pawn.CombatSidearmDraw && pawn.LogicalHand != null
                 ? pawn.LogicalHand
                 : pawn.Current;
         }
@@ -511,7 +533,7 @@ namespace Armory
             string text = CarriedLabel(pawn.Pawn, pawn.BestCarriedBackup);
             if (pawn.DrawnSidearm && pawn.Current == pawn.BestCarriedBackup)
             {
-                text += "  (drawn)";
+                text += pawn.CombatSidearmDraw ? "  (drawn)" : "  (in hand)";
             }
             int extras = SidearmOneExtraCount(pawn);
             if (extras > 0)
@@ -546,7 +568,7 @@ namespace Armory
             string text = CarriedLabel(pawn.Pawn, pawn.BestCarriedSidearmTwo);
             if (pawn.DrawnSidearm && pawn.Current == pawn.BestCarriedSidearmTwo)
             {
-                text += "  (drawn)";
+                text += pawn.CombatSidearmDraw ? "  (drawn)" : "  (in hand)";
             }
             int extras = SidearmTwoExtraCount(pawn);
             if (extras > 0)
@@ -559,7 +581,19 @@ namespace Armory
                     SidearmCoverageModel.BandLabel(pawn.CarriedSidearmTwoBand.Value)
                         .ToLowerInvariant();
             }
+            else
+            {
+                text += "  -  no useful gap";
+            }
             return text;
+        }
+
+        private static bool IsCurrentNoGapSidearmTwo(PawnAnalysis pawn)
+        {
+            ArmorySettings settings = ArmoryMod.Settings;
+            float threshold = settings == null ? 0.1f : settings.upgradeThreshold;
+            return pawn.Current != null && pawn.Current == pawn.BestCarriedSidearmTwo &&
+                   !pawn.IsCarriedSidearmTwoUseful(threshold);
         }
 
         private static string CarriedLabel(Pawn pawn, ThingWithComps weapon)
@@ -587,7 +621,7 @@ namespace Armory
 
         private static Color SidearmTextColor(PawnAnalysis pawn, int slot, string text)
         {
-            if (text.StartsWith("no usable"))
+            if (text.StartsWith("no usable") || text.Contains("no useful gap"))
             {
                 return BlockedSlotColor;
             }
@@ -686,11 +720,20 @@ namespace Armory
                     ? "No Sidearm 2 carried. A useful complement exists but cannot be carried right now."
                     : "No Sidearm 2 carried. Hand and Sidearm 1 leave no meaningful range gap.";
             }
+            ArmorySettings settings = ArmoryMod.Settings;
+            float threshold = settings == null ? 0.1f : settings.upgradeThreshold;
             string complement = string.IsNullOrEmpty(pawn.CarriedSidearmTwoText)
                 ? "No useful range gap."
                 : pawn.CarriedSidearmTwoText;
-            return string.Format("Carried Sidearm 2: {0} (score {1:0}). {2}{3}",
+            bool useful = pawn.IsCarriedSidearmTwoUseful(threshold);
+            bool held = pawn.DrawnSidearm && pawn.Current == pawn.BestCarriedSidearmTwo;
+            return string.Format("Carried Sidearm 2: {0} (score {1:0}). {2}{3}{4}",
                 text, pawn.BestCarriedSidearmTwoScore, complement,
+                useful
+                    ? string.Empty
+                    : held
+                        ? " It no longer fills a gap."
+                        : " It will be dropped because it no longer fills a gap.",
                 SidearmTwoExtraCount(pawn) > 0
                     ? " Extras will be dropped automatically."
                     : string.Empty);
@@ -859,7 +902,14 @@ namespace Armory
 
         private static bool HasExtraSidearms(PawnAnalysis pawn)
         {
-            return SidearmOneExtraCount(pawn) > 0 || SidearmTwoExtraCount(pawn) > 0;
+            if (SidearmOneExtraCount(pawn) > 0 || SidearmTwoExtraCount(pawn) > 0)
+            {
+                return true;
+            }
+            ArmorySettings settings = ArmoryMod.Settings;
+            float threshold = settings == null ? 0.1f : settings.upgradeThreshold;
+            return pawn.BestCarriedSidearmTwo != null && pawn.BestCarriedBackup != null &&
+                   !pawn.IsCarriedSidearmTwoUseful(threshold);
         }
 
         private static bool HasUsefulSidearmTwoCandidate(PawnAnalysis pawn)
@@ -925,7 +975,28 @@ namespace Armory
             if (pawn.DrawnSidearm)
             {
                 color = BackupSlotColor;
-                return "Sidearm drawn";
+                if (pawn.CombatSidearmDraw)
+                {
+                    return "Sidearm drawn";
+                }
+                ArmorySettings activeSettings = ArmoryMod.Settings;
+                float sidearmThreshold = activeSettings == null
+                    ? 0.1f
+                    : activeSettings.upgradeThreshold;
+                bool currentNoGap = pawn.Current == pawn.BestCarriedSidearmTwo &&
+                                    !pawn.IsCarriedSidearmTwoUseful(sidearmThreshold);
+                if (pawn.CurrentSidearmRemembered && !currentNoGap)
+                {
+                    return "Sidearm in hand";
+                }
+                if (!pawn.PlannedHandRemembered)
+                {
+                    color = new Color(1f, 0.78f, 0.4f);
+                    return "Remember hand in SS";
+                }
+                return activeSettings != null && !activeSettings.manageSidearms
+                    ? "Sidearm in hand"
+                    : "Restoring hand";
             }
             if (pawn.SidearmState != null && HasExtraSidearms(pawn))
             {
@@ -1134,9 +1205,57 @@ namespace Armory
 
             if (pawn.DrawnSidearm)
             {
-                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
-                    "Drawn sidearm: " + pawn.DrawnSidearmName +
-                    ". Armory waits for Simple Sidearms to stow it before changing weapons.",
+                ArmorySettings activeSettings = ArmoryMod.Settings;
+                float sidearmThreshold = activeSettings == null
+                    ? 0.1f
+                    : activeSettings.upgradeThreshold;
+                bool currentNoGap = pawn.Current == pawn.BestCarriedSidearmTwo &&
+                                    !pawn.IsCarriedSidearmTwoUseful(sidearmThreshold);
+                string text;
+                if (pawn.CombatSidearmDraw)
+                {
+                    text = "Drawn sidearm: " + pawn.DrawnSidearmName +
+                           ". Armory waits for Simple Sidearms to stow it before changing weapons.";
+                }
+                else if (!pawn.PlannedHandRemembered && pawn.LogicalHand != null)
+                {
+                    text = "Sidearm in hand: " + pawn.DrawnSidearmName +
+                           ". Simple Sidearms has not remembered the planned hand " +
+                           pawn.LogicalHand.LabelCap +
+                           ". Click it in the Simple Sidearms gizmo to remember it; " +
+                           "Armory does not rewrite that list.";
+                }
+                else if (currentNoGap && activeSettings != null && !activeSettings.manageSidearms)
+                {
+                    text = "Sidearm in hand: " + pawn.DrawnSidearmName +
+                           ". It no longer fills a range gap, but sidearm management is off.";
+                }
+                else if (currentNoGap)
+                {
+                    text = "Sidearm in hand: " + pawn.DrawnSidearmName +
+                           ". It no longer fills a range gap; Armory is restoring the hand " +
+                           "and will remove it.";
+                }
+                else if (pawn.CurrentSidearmRemembered)
+                {
+                    text = "Sidearm in hand: " + pawn.DrawnSidearmName +
+                           ". Simple Sidearms keeps this weapon in hand outside combat; " +
+                           "Armory leaves it alone.";
+                    if (!pawn.PlannedHandRemembered && pawn.LogicalHand != null)
+                    {
+                        text += " The planned hand " + pawn.LogicalHand.LabelCap +
+                                " is not remembered; click it in the Simple Sidearms gizmo " +
+                                "to remember it.";
+                    }
+                }
+                else
+                {
+                    text = "Sidearm in hand: " + pawn.DrawnSidearmName + ". " +
+                           (activeSettings != null && !activeSettings.manageSidearms
+                               ? "Sidearm management is off."
+                               : "Armory is restoring the hand weapon.");
+                }
+                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f), text,
                     new Color(0.66f, 0.84f, 0.95f));
                 y += 22f;
             }
@@ -1339,7 +1458,8 @@ namespace Armory
                 if (belowThreshold)
                 {
                     string baselineLabel = pawn.DrawnSidearm && pawn.LogicalHand != null
-                        ? pawn.LogicalHand.LabelCap + " (stowed hand)"
+                        ? pawn.LogicalHand.LabelCap +
+                          (pawn.CombatSidearmDraw ? " (stowed hand)" : " (planned hand)")
                         : carriedIsBaseline
                             ? pawn.BestCarriedPrimary.LabelCap + " (best carried hand weapon)"
                             : "current weapon";
@@ -3767,7 +3887,9 @@ namespace Armory
             ArmorySettings settings = ArmoryMod.Settings;
             if (ArmoryMod.AutomationActive)
             {
-                status = "Automatic equipping is ON. This log is cleared when the game closes or a save loads.";
+                status = settings != null && !settings.diagnosticLogging
+                    ? "Automatic equipping is ON. Persistent logging is OFF (Settings > Armory)."
+                    : "Automatic equipping is ON. Decisions are written to ArmoryLogs.";
                 statusColor = new Color(0.72f, 0.92f, 0.72f);
             }
             else if (settings != null && settings.autoEquipEnabled)
@@ -3780,9 +3902,30 @@ namespace Armory
                 status = "Automatic equipping is OFF. Enable it in Settings > Armory.";
                 statusColor = new Color(1f, 0.8f, 0.42f);
             }
-            DrawColoredLine(new Rect(inner.x, inner.y, inner.width - 120f, 22f), status, statusColor);
 
-            if (Widgets.ButtonText(new Rect(inner.xMax - 110f, inner.y - 2f, 110f, 26f), "Clear log"))
+            const float buttonWidth = 104f;
+            const float buttonGap = 6f;
+            Rect clearButton = new Rect(inner.xMax - buttonWidth, inner.y - 2f, buttonWidth, 26f);
+            Rect openButton = new Rect(clearButton.x - buttonGap - buttonWidth,
+                clearButton.y, buttonWidth, clearButton.height);
+            Rect snapshotButton = new Rect(openButton.x - buttonGap - buttonWidth,
+                clearButton.y, buttonWidth, clearButton.height);
+            DrawColoredLine(new Rect(inner.x, inner.y,
+                Mathf.Max(80f, snapshotButton.x - inner.x - 8f), 22f), status, statusColor);
+
+            if (Widgets.ButtonText(snapshotButton, "Log snapshot"))
+            {
+                ArmoryMapComponent.LogSnapshot(snapshot, "manual");
+            }
+            TooltipHandler.TipRegion(snapshotButton,
+                "Write the full current plan and decision context to Player.log and the persistent Armory log.");
+            if (Widgets.ButtonText(openButton, "Open logs"))
+            {
+                ArmoryDiagnostics.OpenLogFolder();
+            }
+            TooltipHandler.TipRegion(openButton,
+                "Open the ArmoryLogs folder next to your save data.");
+            if (Widgets.ButtonText(clearButton, "Clear log"))
             {
                 ArmoryGameComponent.ClearDecisions();
             }

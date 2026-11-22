@@ -11,6 +11,7 @@ namespace Armory
         public int scanIntervalTicks = 120;
         public bool showBlocked = true;
         public bool debugLogging;
+        public bool diagnosticLogging = true;
         public float rangedWeight = 1f;
         public float meleeWeight = 1f;
         public int engagementOffset;
@@ -67,6 +68,7 @@ namespace Armory
             Scribe_Values.Look(ref scanIntervalTicks, "scanIntervalTicks", 120);
             Scribe_Values.Look(ref showBlocked, "showBlocked", true);
             Scribe_Values.Look(ref debugLogging, "debugLogging", false);
+            Scribe_Values.Look(ref diagnosticLogging, "diagnosticLogging", true);
             Scribe_Values.Look(ref rangedWeight, "rangedWeight", 1f);
             Scribe_Values.Look(ref meleeWeight, "meleeWeight", 1f);
             Scribe_Values.Look(ref engagementOffset, "engagementOffset", 0);
@@ -288,7 +290,13 @@ namespace Armory
 
             listing.GapLine();
             listing.Label("Diagnostics");
-            listing.CheckboxLabeled("Write a snapshot summary to the log when a map loads", ref debugLogging);
+            listing.CheckboxLabeled("Write a persistent diagnostic log", ref diagnosticLogging);
+            listing.Label("Saves one log per session in ArmoryLogs next to your save data and keeps the newest five. Decisions and map-load snapshots are included; this is the file to attach to a bug report.");
+            if (listing.ButtonText("Open Armory log folder"))
+            {
+                ArmoryDiagnostics.OpenLogFolder();
+            }
+            listing.CheckboxLabeled("Also write the verbose snapshot to Player.log", ref debugLogging);
 
             float measuredHeight = listing.CurHeight;
             listing.End();

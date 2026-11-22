@@ -332,6 +332,13 @@ namespace Armory
                 analysis.LogicalHandScore = CombatScoring.Compute(
                     context, analysis.LogicalHand, out _);
             }
+            ThingWithComps plannedHand = analysis.BestCarriedPrimary ?? analysis.LogicalHand;
+            analysis.PlannedHandRemembered = plannedHand == null ||
+                !SimpleSidearmsAdapter.Active ||
+                SimpleSidearmsAdapter.IsRemembered(analysis.Pawn, plannedHand);
+            analysis.CurrentSidearmRemembered = analysis.Current == null ||
+                !SimpleSidearmsAdapter.Active ||
+                SimpleSidearmsAdapter.IsRemembered(analysis.Pawn, analysis.Current);
             if (analysis.SidearmState != null)
             {
                 ResolveBestCarriedSidearmTwo(analysis, context);
@@ -395,7 +402,7 @@ namespace Armory
                 bool hard;
                 analysis.AutomationNote = ArmoryPlanner.GetAutomationNote(
                     pawn, map, ArmoryMod.Settings, Find.TickManager.TicksGame, out hard);
-                if (analysis.DrawnSidearm && !string.IsNullOrEmpty(analysis.AutomationNote) &&
+                if (analysis.CombatSidearmDraw && !string.IsNullOrEmpty(analysis.AutomationNote) &&
                     analysis.AutomationNote.StartsWith("manual"))
                 {
                     analysis.AutomationNote = null;
@@ -676,40 +683,30 @@ namespace Armory
         private static void ResolveDrawnSidearm(PawnAnalysis analysis)
         {
             analysis.DrawnSidearm = false;
+            analysis.CombatSidearmDraw = false;
             analysis.DrawnSidearmName = null;
             if (analysis.Current == null || analysis.Current.def == null ||
-                !analysis.RoleIsRanged.HasValue)
+                analysis.LogicalHand == null || analysis.LogicalHand == analysis.Current ||
+                !analysis.RoleIsRanged.HasValue ||
+                Eligibility.IsWorkTool(analysis.Current.def))
             {
                 return;
             }
 
-            bool currentRanged = analysis.Current.def.IsRangedWeapon;
-            bool currentMelee = analysis.Current.def.IsMeleeWeapon;
-            if (!currentRanged && !currentMelee)
+            // The equipped weapon is not the hand weapon. For a ranged pawn that means a
+            // melee Sidearm 1 or another ranged Sidearm 2; for a melee pawn it means a
+            // ranged sidearm. A different weapon of the hand type is handled by the normal
+            // hand ranking instead.
+            bool isSidearm = analysis.IsBackupType(analysis.Current.def) ||
+                             analysis.IsSidearmTwoType(analysis.Current.def);
+            if (!isSidearm)
             {
                 return;
             }
 
-            bool drawn;
-            if (analysis.RoleIsRanged.Value)
-            {
-                drawn = currentMelee;
-                if (!drawn && currentRanged && analysis.RangedHand != null &&
-                    analysis.RangedHand != analysis.Current)
-                {
-                    drawn = true;
-                }
-            }
-            else
-            {
-                drawn = currentRanged;
-            }
-
-            if (drawn)
-            {
-                analysis.DrawnSidearm = true;
-                analysis.DrawnSidearmName = analysis.Current.LabelCap;
-            }
+            analysis.DrawnSidearm = true;
+            analysis.CombatSidearmDraw = analysis.Pawn != null && analysis.Pawn.Drafted;
+            analysis.DrawnSidearmName = analysis.Current.LabelCap;
         }
 
         private static void BuildSidearmCandidates(PawnAnalysis analysis, PawnFitContext context,

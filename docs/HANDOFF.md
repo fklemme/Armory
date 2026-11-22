@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.11.0**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.11.1**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.11.0 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.11.1 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 **Links:** [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224) ·
@@ -36,7 +36,7 @@ Milestones 0-6 are implemented:
 **Next:** polish and release prep. Remaining work is container scanning,
 auto-haul, raid arming, localization, and Workshop screenshots/updates. The
 Workshop item was created with 0.9.2 and updated to 0.10.8; its page is being
-made public. 0.11.0 is not uploaded yet. Upload once the private test is good
+made public. 0.11.1 is not uploaded yet. Upload once the private test is good
 enough.
 0.10.0 added the typed hand model, passion-based role assignment and automatic
 hand-type alignment; 0.10.1 polished the UI and list limits; 0.10.2 hardened
@@ -63,6 +63,46 @@ market value columns in 0.10.9, value-column/right-pane polish in 0.10.10, and a
 blocked-reason spacing fix in 0.10.11. Research, reference-mod behaviour, the
 shipped model and remaining decisions are in
 [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+
+---
+
+## 0.11.1 - stale-sidearm cleanup and persistent diagnostics
+
+Bugfix after 0.11.0 testing.
+
+- A sidearm left equipped outside combat is no longer treated as a permanent
+  "drawn" state. Armory still waits while the pawn is drafted. A remembered
+  sidearm that still fills a gap is left to Simple Sidearms; an **unremembered**
+  sidearm, or a remembered **no-gap Sidearm 2**, is treated as temporary and the
+  remembered planned hand is restored through Simple Sidearms'
+  `equipSpecificWeaponFromInventory` helper. The old sidearm goes to the
+  inventory and is reconciled normally.
+- A carried Sidearm 2 whose range gap disappeared after a hand or Sidearm 1
+  change is now dropped. Armory first tries a useful Sidearm 2 replacement, then
+  drops the stale weapon. The Colonists row shows `no useful gap` and
+  `Cleaning up sidearms`.
+- `DrawnSidearm` was split into "sidearm in hand" and "combat draw"; only a
+  combat draw pauses the planner. The UI says `Restoring hand` outside combat
+  and `Sidearm drawn` while drafted.
+- Added a persistent diagnostic log under `ArmoryLogs` next to the save data:
+  one file per session, newest five kept. It records version/RimWorld/SS/settings
+  context, every automatic decision and full map-load snapshots. The Log tab has
+  **Log snapshot** and **Open logs** buttons; settings has **Open Armory log
+  folder**.
+- Added `ArmoryDiagnostics.cs`; updated settings and README/TESTING docs.
+- Verified on an isolated copy of the current save:
+  - Kruecke's unremembered equipped Burngun was put into inventory, Seeking
+    Justice was restored as the hand, and the Burngun was dropped because Sidearm
+    2 no longer filled a gap.
+  - The same test with the Burngun added to SS's remembered list still restored
+    the hand and removed the no-gap Sidearm 2.
+  - Chef and Rathat still had remembered sidearms in hand; because those still
+    covered a range gap, Armory left them to Simple Sidearms rather than fighting
+    them.
+  - Useful Sidearm 2 weapons (for example Rathat's Light SMG and Chef's machine
+    pistol) remained.
+  - Persistent log captured the hand restore and the stale-sidearm drop.
+  - Build clean: 0 warnings, 0 errors.
 
 ---
 
@@ -106,7 +146,7 @@ New milestone. The agreed design and decision record are in
     and did not trigger a manual pause.
   - The Upgrades Slot column fits `Sidearm 1`/`Sidearm 2`.
   - Build clean: 0 warnings, 0 errors.
-- Refreshed `docs/screenshots/` at 3440x1440 for 0.11.0 with the sidearm layout.
+- Refreshed `docs/screenshots/` at 3440x1440 for 0.11.1 with the sidearm layout.
 - Pending: verify in the user's normal game at their normal resolution.
 
 ---
@@ -2381,6 +2421,7 @@ polish, not new core behaviour.
 | 0.10.10 | Move Value to the second column in both tables, widen the Weapons list and Value column, and split blocked hand/backup reasons onto indented lines |
 | 0.10.11 | Remove the extra vertical gap between a blocked hand reason and the following backup line |
 | 0.11.0 | Add Hand / Sidearm 1 / Sidearm 2 loadouts, range-gap Sidearm 2 scoring, carried-set reconciliation and duplicate cleanup, drawn-sidearm handling, multi-line Colonists rows and Sidearm 2 demand |
+| 0.11.1 | Restore the remembered hand for an unremembered sidearm or a no-gap Sidearm 2 left equipped outside combat, leave remembered sidearms that still fill a gap to Simple Sidearms, and add a persistent rolling diagnostic log with snapshot/log buttons |
 
 ---
 

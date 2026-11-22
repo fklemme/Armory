@@ -1,4 +1,4 @@
-# Sidearm Loadouts (0.11.0)
+# Sidearm Loadouts (0.11.x)
 
 Design and decision record for Armory's sidearm management.
 
@@ -139,13 +139,15 @@ Simple Sidearms can temporarily draw Sidearm 2 as the primary. Armory must not
 interpret that as a missing sidearm or a hand downgrade:
 
 - sidearm counts come from the carried set, not inventory alone;
-- Armory waits for Simple Sidearms to stow a drawn sidearm before queuing a hand
-  swap;
-- the UI may show the currently drawn weapon as the Hand line, with the other
-  ranged weapon as Sidearm 2, but the plan is the pair, not a fixed physical
-  slot.
-
-This is the main new race introduced by Sidearm 2 and requires a live test.
+- while the pawn is drafted, Armory waits for Simple Sidearms to stow a drawn
+  sidearm before queuing a hand swap;
+- outside combat a **remembered** sidearm that still fills a gap is left to
+  Simple Sidearms;
+- an **unremembered** sidearm, or a remembered **no-gap Sidearm 2**, is
+  temporary: Armory puts the remembered planned hand back through Simple
+  Sidearms' own inventory-equip helper, then removes the stale sidearm;
+- the UI may show the currently held sidearm on the Hand line in the meantime,
+  marked `(sidearm in hand)`, while the planned hand is shown in the detail.
 
 ## UI
 
@@ -186,13 +188,10 @@ Sidearm 2 remains empty with the Simple Sidearms reason.
 
 ## Version
 
-This is **0.11.0**, a new minor version and milestone. Implementation is staged:
-
-1. Reconciliation, rename, multi-line UI, one sidearm. This fixes the duplicate
-   bug.
-2. Sidearm 2 selection and UI.
-
-Both stages ship together as 0.11.0 unless a stopgap release is requested.
+This is **0.11.x**, the sidearm-loadout milestone. The initial 0.11.0 release
+shipped reconciliation, rename, multi-line UI, Sidearm 2 selection and demands
+together. 0.11.1 is a bugfix for a sidearm left in hand outside combat and for a
+stale Sidearm 2 whose range gap disappeared.
 
 ## Decisions
 
@@ -206,6 +205,37 @@ Both stages ship together as 0.11.0 unless a stopgap release is requested.
   respected. No opt-out.
 - Colonist rows are multi-line; labels are `Sidearm 1` and `Sidearm 2`.
 - One 0.11.0 release with both implementation stages.
+
+## 0.11.1 follow-up
+
+During post-release testing Kruecke had an unremembered unique weapon equipped
+(Simple Sidearms' diagonal marker). It was not an Armory sidearm pickup, but
+Armory classified it as Sidearm 2 and its `DrawnSidearm` guard blocked every
+correction outside combat.
+
+The fix:
+
+- A remembered sidearm that still fills a gap is Simple Sidearms' business;
+  Armory leaves it alone outside combat. A sidearm in hand only pauses the
+  planner while the pawn is drafted.
+- An **unremembered** sidearm in hand is temporary. Outside combat Armory puts
+  the remembered planned hand back through Simple Sidearms'
+  `equipSpecificWeaponFromInventory` helper; the old sidearm goes to inventory.
+  A remembered **no-gap Sidearm 2** is also restored and removed so the stale
+  weapon does not occupy an SS slot.
+- A Sidearm 2 that no longer covers a gap is dropped after trying a useful
+  replacement. The UI appends `no useful gap` and shows `Cleaning up sidearms`.
+- The UI distinguishes `Sidearm drawn` (combat), `Sidearm in hand` (remembered
+  and useful), and `Restoring hand` (temporary or no-gap weapon being replaced).
+- The persistent `ArmoryLogs` file records the decisions and snapshots needed to
+  diagnose the next case.
+
+Live test on the same save: Kruecke's Burngun was moved to inventory, Seeking
+Justice was restored as the hand, and the Burngun was dropped as a no-gap
+Sidearm 2. The test was repeated with the Burngun added to SS's remembered list;
+it was still restored and removed. Chef and Rathat still carried remembered
+sidearms that covered a gap; Armory left those to Simple Sidearms. Useful
+Sidearm 2 weapons were kept. Build clean: 0 warnings, 0 errors.
 
 ## Implementation status
 
@@ -223,5 +253,11 @@ Implemented in 0.11.0. Live-tested on an isolated copy of the current save at
 - The Upgrades Slot column fits `Sidearm 1`/`Sidearm 2`.
 - Build clean: 0 warnings, 0 errors.
 
-Refreshed `docs/screenshots/` at 3440x1440 for 0.11.0. Pending: verify in the
+Refreshed `docs/screenshots/` at 3440x1440 for 0.11.1. Pending: verify in the
 user's normal game at their normal resolution.
+
+0.11.1 re-tested the same save after the stale-sidearm fix. Kruecke's
+unremembered Burngun was replaced by the remembered hand and dropped as a no-gap
+Sidearm 2. Chef and Rathat had remembered sidearms in hand; Armory left them to
+Simple Sidearms. Useful Sidearm 2 weapons remained. The persistent diagnostic
+log captured the restore and drop. Build clean: 0 warnings, 0 errors.

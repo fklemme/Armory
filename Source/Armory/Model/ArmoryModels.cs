@@ -273,12 +273,34 @@ namespace Armory
         public string SidearmText;
 
         /// <summary>
-        /// True when Simple Sidearms has temporarily drawn a sidearm instead of the logical
-        /// hand weapon. Armory waits for the hand to be stowed before swapping weapons.
+        /// True when the equipped weapon is a sidearm rather than the logical hand weapon.
+        /// While the pawn is drafted Armory waits for Simple Sidearms to stow it; outside
+        /// combat Armory restores the planned hand.
         /// </summary>
         public bool DrawnSidearm;
 
+        /// <summary>
+        /// True when <see cref="DrawnSidearm"/> is a combat draw. Only this state makes the
+        /// planner wait; a sidearm left in hand after combat is corrected.
+        /// </summary>
+        public bool CombatSidearmDraw;
+
         public string DrawnSidearmName;
+
+        /// <summary>
+        /// True when Simple Sidearms remembers the planned hand weapon. A sidearm left
+        /// in hand cannot be replaced by an unremembered hand weapon: SS would switch
+        /// straight back to its remembered weapon.
+        /// </summary>
+        public bool PlannedHandRemembered = true;
+
+        /// <summary>
+        /// True when Simple Sidearms remembers the sidearm currently in hand. A remembered
+        /// sidearm is normally SS-managed; a remembered Sidearm 2 that no longer fills a gap
+        /// is still removed by restoring the hand first. An unremembered sidearm is a
+        /// temporary/external weapon and is replaced by the planned hand.
+        /// </summary>
+        public bool CurrentSidearmRemembered = true;
 
         /// <summary>Simple Sidearms primary/forced state. Null when SS is absent or has no memory comp.</summary>
         public SimpleSidearmsAdapter.PawnState SidearmState;
@@ -363,6 +385,16 @@ namespace Armory
         {
             return def != null && RoleIsRanged.HasValue && SimpleSidearmsAdapter.Active &&
                    def.IsRangedWeapon;
+        }
+
+        /// <summary>
+        /// True when the carried Sidearm 2 closes a strong enough range gap to stay in the
+        /// plan. A stale sidearm from an earlier hand or loadout is dropped.
+        /// </summary>
+        public bool IsCarriedSidearmTwoUseful(float threshold)
+        {
+            return BestCarriedSidearmTwo != null && CarriedSidearmTwoBand.HasValue &&
+                   CarriedSidearmTwoGain >= threshold && CarriedSidearmTwoCoverage > 0.001f;
         }
 
         /// <summary>

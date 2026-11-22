@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using RimWorld;
@@ -91,6 +92,7 @@ namespace Armory.Compatibility
         private static MethodInfo canPickupSidearmMethod;
         private static MethodInfo canUseSidearmMethod;
         private static MethodInfo dropSidearmMethod;
+        private static MethodInfo equipFromInventoryMethod;
         private static MethodInfo findBestRangedMethod;
         private static MethodInfo findBestMeleeMethod;
         private static MethodInfo isValidSidearmMethod;
@@ -118,6 +120,7 @@ namespace Armory.Compatibility
 
         private static FieldInfo pairThingField;
         private static FieldInfo pairStuffField;
+        private static FieldInfo rememberedWeaponsField;
 
         public static bool Active
         {
@@ -145,6 +148,19 @@ namespace Armory.Compatibility
             {
                 EnsureInitialized();
                 return active && dropSidearmMethod != null;
+            }
+        }
+
+        /// <summary>
+        /// True when SS's own "equip this carried weapon" helper resolved. Armory uses it only
+        /// to put a planned hand weapon back after a sidearm was left in hand outside combat.
+        /// </summary>
+        public static bool CanEquipFromInventory
+        {
+            get
+            {
+                EnsureInitialized();
+                return active && equipFromInventoryMethod != null;
             }
         }
 
@@ -299,25 +315,80 @@ namespace Armory.Compatibility
             return false;
         }
 
-        /// <summary>Reads the pawn's Simple Sidearms memory. Returns null when the comp is absent.</summary>
-        public static PawnState GetState(Pawn pawn)
+        /// <summary>
+        /// True when Simple Sidearms has this carried weapon in its remembered list.
+        /// Armory uses this only to avoid restoring a hand SS treats as temporary and
+        /// would immediately replace again. Missing SS or a reflection failure returns true.
+        /// </summary>
+        public static bool IsRemembered(Pawn pawn, ThingWithComps weapon)
+        {
+            if (!Active || weapon == null || weapon.def == null)
+            {
+                return true;
+            }
+            object comp = GetMemoryComp(pawn);
+            if (comp == null || rememberedWeaponsField == null || pairThingField == null)
+            {
+                return true;
+            }
+            try
+            {
+                IEnumerable memories = rememberedWeaponsField.GetValue(comp) as IEnumerable;
+                if (memories == null)
+                {
+                    return true;
+                }
+                for (IEnumerator enumerator = memories.GetEnumerator(); enumerator.MoveNext();)
+                {
+                    object entry = enumerator.Current;
+                    if (entry == null)
+                    {
+                        continue;
+                    }
+                    ThingDef def = pairThingField.GetValue(entry) as ThingDef;
+                    if (def != weapon.def)
+                    {
+                        continue;
+                    }
+                    ThingDef stuff = pairStuffField == null
+                        ? null
+                        : pairStuffField.GetValue(entry) as ThingDef;
+                    if (stuff == weapon.Stuff)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            catch (Exception exception)
+            {
+                Disable("reading rememberedWeapons failed", exception);
+                return true;
+            }
+        }
+
+        private static object GetMemoryComp(Pawn pawn)
         {
             if (!Active || failed || pawn == null || pawn.RaceProps == null ||
-                !pawn.RaceProps.Humanlike)
+                !pawn.RaceProps.Humanlike || getMemoryMethod == null)
             {
                 return null;
             }
-
-            object comp;
             try
             {
-                comp = getMemoryMethod.Invoke(null, new object[] { pawn, true });
+                return getMemoryMethod.Invoke(null, new object[] { pawn, true });
             }
             catch (Exception exception)
             {
                 Disable("GetMemoryCompForPawn failed", exception);
                 return null;
             }
+        }
+
+        /// <summary>Reads the pawn's Simple Sidearms memory. Returns null when the comp is absent.</summary>
+        public static PawnState GetState(Pawn pawn)
+        {
+            object comp = GetMemoryComp(pawn);
             if (comp == null)
             {
                 return null;
@@ -660,6 +731,32 @@ namespace Armory.Compatibility
         }
 
         /// <summary>
+        /// Equips a weapon that is already in the pawn's inventory through Simple Sidearms'
+        /// own swap helper. The current weapon goes to the inventory, so this does not drop
+        /// anything. Used only to restore the planned hand after SS left a sidearm in hand
+        /// outside combat.
+        /// </summary>
+        public static bool EquipFromInventory(Pawn pawn, ThingWithComps weapon)
+        {
+            if (!CanEquipFromInventory || pawn == null || weapon == null ||
+                pawn.equipment == null || pawn.equipment.Primary == weapon)
+            {
+                return false;
+            }
+            try
+            {
+                return (bool)equipFromInventoryMethod.Invoke(null,
+                    new object[] { pawn, weapon, false, false });
+            }
+            catch (Exception exception)
+            {
+                Log.Warning("[Armory] Simple Sidearms equipping a carried hand weapon failed: " +
+                            exception.GetType().Name + ": " + exception.Message);
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Asks Simple Sidearms which carried weapon it would use as the primary for this
         /// pawn (QuickSwitch filters: manual use, dangerous, EMP, blocked weapons). This is
         /// the baseline Armory must beat; do not substitute "best carried by Armory score".
@@ -920,6 +1017,7 @@ namespace Armory.Compatibility
                     pairThingField = pairType.GetField("thing");
                     pairStuffField = pairType.GetField("stuff");
                 }
+                rememberedWeaponsField = memoryType.GetField("rememberedWeapons");
 
                 statCalculatorType = FindType(StatCalculatorTypeName);
                 if (statCalculatorType != null)
@@ -958,6 +1056,12 @@ namespace Armory.Compatibility
                 {
                     dropSidearmMethod = weaponAssignmentType.GetMethod(
                         "DropSidearm",
+                        BindingFlags.Public | BindingFlags.Static,
+                        null,
+                        new[] { typeof(Pawn), typeof(ThingWithComps), typeof(bool), typeof(bool) },
+                        null);
+                    equipFromInventoryMethod = weaponAssignmentType.GetMethod(
+                        "equipSpecificWeaponFromInventory",
                         BindingFlags.Public | BindingFlags.Static,
                         null,
                         new[] { typeof(Pawn), typeof(ThingWithComps), typeof(bool), typeof(bool) },

@@ -93,11 +93,12 @@ namespace Armory
                     // Simple Sidearms forced weapon/unarmed: that is the player's decision.
                     continue;
                 }
-                if (analysis.DrawnSidearm)
+                if (analysis.DrawnSidearm && analysis.CombatSidearmDraw)
                 {
-                    // Simple Sidearms is holding a sidearm for the current fight. Do not
-                    // queue a hand swap that would drop the drawn sidearm, and do not let
-                    // the draw register as a manual weapon change.
+                    // Do not let Simple Sidearms' combat draw register as a manual weapon
+                    // change, and leave the draw alone so a hand swap cannot drop it.
+                    // Outside combat the left-over sidearm is restored below.
+                    lastKnownWeapon[pawn.thingIDNumber] = CurrentWeaponId(pawn);
                     manualUntil.Remove(pawn.thingIDNumber);
                     continue;
                 }
@@ -113,6 +114,11 @@ namespace Armory
                 {
                     // The bonded persona weapon is in hand. Do not replace it; the
                     // separate sidearm pass can still maintain the off-hand weapon.
+                    continue;
+                }
+                if (analysis.DrawnSidearm && settings.manageSidearms &&
+                    TryRestoreHandFromSidearm(analysis, now))
+                {
                     continue;
                 }
 
@@ -275,9 +281,12 @@ namespace Armory
                 }
                 if (analysis.DrawnSidearm)
                 {
-                    // SS is holding a sidearm. Let it stow the weapon before Armory
-                    // removes or replaces anything, or the hand swap would drop it.
-                    manualUntil.Remove(pawn.thingIDNumber);
+                    // A sidearm is in hand. Let the hand pass restore it outside combat;
+                    // do not clear a manual pause there. Only a combat draw is SS-owned.
+                    if (analysis.CombatSidearmDraw)
+                    {
+                        manualUntil.Remove(pawn.thingIDNumber);
+                    }
                     continue;
                 }
                 if (now - LastSidearm(pawn, now) < settings.swapCooldownTicks)
@@ -366,6 +375,31 @@ namespace Armory
                     }
                 }
 
+                if (hasSidearmTwo &&
+                    !analysis.IsCarriedSidearmTwoUseful(settings.upgradeThreshold))
+                {
+                    // The hand or Sidearm 1 changed since this weapon was added and it no
+                    // longer closes a range gap. Try a useful replacement before dropping,
+                    // then remove the stale weapon so it stops occupying the SS slot.
+                    if (settings.replaceWorseSidearms && SimpleSidearmsAdapter.CanDropSidearms)
+                    {
+                        SidearmCandidate upgrade = FindSidearmTwoUpgrade(analysis, settings, now);
+                        if (upgrade != null &&
+                            UpgradeSidearm(pawn, analysis, upgrade, analysis.BestCarriedSidearmTwo,
+                                now, jobDef, WeaponSlot.Sidearm2))
+                        {
+                            continue;
+                        }
+                    }
+                    if (analysis.BestCarriedSidearmTwo != analysis.Current &&
+                        TryDropSidearmThing(pawn, analysis.BestCarriedSidearmTwo, now,
+                            DecisionKind.DropExtraSidearm,
+                            "Sidearm 2 no longer fills a range gap"))
+                    {
+                        continue;
+                    }
+                }
+
                 if (!hasSidearmTwo)
                 {
                     SidearmCandidate add = FindSidearmTwoAdd(analysis, settings, now);
@@ -387,6 +421,90 @@ namespace Armory
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Simple Sidearms can leave a sidearm equipped after combat. Put the carried hand
+        /// weapon back through SS's own swap helper instead of waiting forever for a stow
+        /// that only happens during combat. The current sidearm moves to the inventory and is
+        /// reconciled on the next planner pass.
+        /// </summary>
+        private static bool TryRestoreHandFromSidearm(PawnAnalysis analysis, int now)
+        {
+            Pawn pawn = analysis.Pawn;
+            if (pawn == null || pawn.Drafted || pawn.equipment == null ||
+                !SimpleSidearmsAdapter.CanEquipFromInventory)
+            {
+                return false;
+            }
+
+            ThingWithComps hand = analysis.BestCarriedPrimary;
+            if (hand == null || hand == pawn.equipment.Primary)
+            {
+                hand = analysis.LogicalHand;
+            }
+            if (hand == null || hand == pawn.equipment.Primary || hand.Destroyed ||
+                hand.def == null || !analysis.IsHandType(hand.def))
+            {
+                return false;
+            }
+
+            bool handRemembered = SimpleSidearmsAdapter.IsRemembered(pawn, hand);
+            bool currentRemembered = SimpleSidearmsAdapter.IsRemembered(pawn, analysis.Current);
+            ArmorySettings settings = ArmoryMod.Settings;
+            float threshold = settings == null ? 0.1f : settings.upgradeThreshold;
+            bool currentNoGapSidearmTwo =
+                analysis.BestCarriedSidearmTwo == analysis.Current &&
+                !analysis.IsCarriedSidearmTwoUseful(threshold);
+            if (!handRemembered || (currentRemembered && !currentNoGapSidearmTwo))
+            {
+                // A remembered sidearm in hand is normally Simple Sidearms' business.
+                // The exception is a remembered Sidearm 2 that no longer fills a gap:
+                // restore the hand and let the next pass drop it. An unremembered planned
+                // hand would be swapped straight back, so never use one here.
+                return false;
+            }
+
+            string reason;
+            bool hard;
+            if (!Eligibility.CanUseCarriedWeapon(pawn, hand, out reason, out hard) ||
+                !Eligibility.Check(pawn, hand, false, out reason, out hard))
+            {
+                if (ArmoryMod.Settings != null && ArmoryMod.Settings.debugLogging &&
+                    !string.IsNullOrEmpty(reason))
+                {
+                    Log.Message("[Armory] cannot restore hand for " + pawn.LabelShort +
+                                ": " + reason);
+                }
+                return false;
+            }
+
+            if (!SimpleSidearmsAdapter.EquipFromInventory(pawn, hand))
+            {
+                return false;
+            }
+
+            int pawnId = pawn.thingIDNumber;
+            lastSwap[pawnId] = now;
+            lastKnownWeapon[pawnId] = hand.thingIDNumber;
+            lastIssuedWeapon[pawnId] = hand.thingIDNumber;
+            manualUntil.Remove(pawnId);
+            ArmoryGameComponent.Record(now, pawn, hand, DecisionKind.EquipHand,
+                "Restoring hand after a sidearm");
+
+            if (ArmoryMod.Settings != null && ArmoryMod.Settings.debugLogging)
+            {
+                Log.Message(string.Format("[Armory] restored {0} as {1}'s hand after a sidearm",
+                    hand.LabelCap, pawn.LabelShort));
+            }
+            return true;
+        }
+
+        private static int CurrentWeaponId(Pawn pawn)
+        {
+            return pawn != null && pawn.equipment != null && pawn.equipment.Primary != null
+                ? pawn.equipment.Primary.thingIDNumber
+                : 0;
         }
 
         private static ThingWithComps FindUnusableSidearm(PawnAnalysis analysis, bool roleRanged)
@@ -1113,9 +1231,7 @@ namespace Armory
         private static bool IsManualOverride(Pawn pawn, ArmorySettings settings, int now)
         {
             int pawnId = pawn.thingIDNumber;
-            int currentId = pawn.equipment != null && pawn.equipment.Primary != null
-                ? pawn.equipment.Primary.thingIDNumber
-                : 0;
+            int currentId = CurrentWeaponId(pawn);
 
             int knownId;
             if (!lastKnownWeapon.TryGetValue(pawnId, out knownId))
@@ -1141,6 +1257,9 @@ namespace Armory
                         Log.Message(string.Format("[Armory] manual weapon change for {0}; pausing {1} ticks",
                             pawn.LabelShort, settings.manualCooldownTicks));
                     }
+                    ArmoryDiagnostics.Write("Manual", string.Format(
+                        "pawn={0}; paused {1} ticks after a weapon change",
+                        pawn.LabelShort, settings.manualCooldownTicks));
                 }
             }
 

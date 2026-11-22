@@ -152,7 +152,7 @@ Wait for the scaffold to finish and quit, then check the log for
 line. Do not run `Setup-LiveTest.ps1 -Launch` after editing the config: it will
 overwrite your changes.
 
-### Testing sidearm loadouts (0.11.0)
+### Testing sidearm loadouts (0.11.x)
 
 Use the isolated save with Simple Sidearms enabled. The test config should have
 three total SS slots including the hand, otherwise Sidearm 2 cannot fit.
@@ -172,6 +172,30 @@ three total SS slots including the hand, otherwise Sidearm 2 cannot fit.
   the sidearm line should show `(drawn)`; status is `Sidearm drawn`; Armory must
   not report a manual weapon change or add a duplicate. After SS stows the
   sidearm, the status returns to normal.
+- **Left-over unremembered sidearm outside combat (0.11.1):** load a save where a
+  colonist has an **unremembered** sidearm equipped while not drafted and the
+  remembered planned hand is in the inventory. After a planner pass the hand is
+  restored through Simple Sidearms, the old sidearm is in the inventory, and a
+  sidearm that no longer covers a gap is dropped. Status passes through
+  `Restoring hand` / `Cleaning up sidearms` and ends at `Fully equipped` or
+  `No useful Sidearm 2`.
+- **Remembered sidearm in hand (0.11.1):** if Simple Sidearms remembers the
+  equipped sidearm and it still fills a gap, Armory must show `Sidearm in hand`
+  and leave it alone. If the planned hand is not remembered either, show
+  `Remember hand in SS` and explain the gizmo action in the detail pane. Armory
+  must not fight SS by re-equipping the same pair every pass.
+- **Remembered no-gap Sidearm 2 (0.11.1):** add the sidearm def to SS's remembered
+  list in a test save. If the equipped Sidearm 2 no longer fills a gap, Armory
+  should still restore the remembered hand and drop the sidearm instead of
+  leaving an SS slot occupied.
+- **No-gap Sidearm 2 (0.11.1):** if the hand or Sidearm 1 changed and the carried
+  Sidearm 2 has `no useful gap`, it must be dropped after any useful replacement
+  is tried. An equipped weapon is moved to inventory first rather than dropped
+  from the hand.
+- **Persistent diagnostics (0.11.1):** the persistent log is on by default.
+  Open **Log**, click **Log snapshot**, then **Open logs**. The session file in
+  `ArmoryLogs` should contain the version/RimWorld/SS/settings header, decision
+  lines, and the snapshot. The newest five session files are kept.
 - **Range-gap selection:** a marksman with a sniper hand should prefer a light
   close-range Sidearm 2 (pistol/light SMG), not a second sniper. A balanced
   assault rifle often has no useful Sidearm 2.
@@ -215,7 +239,7 @@ With Simple Sidearms enabled and respected, every pawn should resolve
 `(Simple Sidearms mode)`, the Armory hand-type override should be ignored, and
 sidearm jobs should still queue.
 
-### Testing comparison, materials, role filters and value (0.10.4-0.11.0)
+### Testing comparison, materials, role filters and value (0.10.4-0.11.x)
 
 - **Weapons:** the list shows DPS, DPSA, AP, separate percentage
   `aC`/`aS`/`aM`/`aL` columns, Range, Best colonist and Best use. Click each
@@ -247,12 +271,12 @@ sidearm jobs should still queue.
   Craft, Research and Buy rows; with Show owned, Owned rows use the actual best
   copy. Tooltips must say the value is before negotiator skill and buy/sell
   multipliers.
-- **Weapons detail pane (0.10.10-0.11.0):** at the normal window size the
+- **Weapons detail pane (0.10.10-0.11.x):** at the normal window size the
   `Score = ...` formula is fully visible with no clipped bottom. A blocked best
   hand or sidearm fit shows a short headline and an indented `Reason: ...` line
   that fits the narrower pane. When both hand and sidearm fits are blocked, no
   extra blank line appears between the hand reason and the sidearm headline.
-- **Pending pickup jobs (0.10.8-0.11.0):** put a colonist who needs a sidearm in
+- **Pending pickup jobs (0.10.8-0.11.x):** put a colonist who needs a sidearm in
   bed or otherwise busy for several planner cycles. The pawn must have at most
   one `EquipSecondary` job in `pawn.jobs.jobQueue` at any time; Armory should add
   no further pickup jobs while it is queued. Wake the pawn and verify exactly one

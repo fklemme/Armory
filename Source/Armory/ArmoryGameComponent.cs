@@ -38,6 +38,7 @@ namespace Armory
         {
             Instance = this;
             ArmoryPlanner.Reset();
+            ArmoryDiagnostics.StartSession();
         }
 
         public static List<Decision> Decisions
@@ -64,6 +65,12 @@ namespace Armory
             {
                 Instance.decisions.RemoveAt(0);
             }
+            ArmoryDiagnostics.Write("Decision", string.Format(
+                "pawn={0}; action={1}; weapon={2}; reason={3}",
+                pawn == null ? "?" : pawn.LabelShort,
+                kind,
+                weapon == null ? "?" : weapon.LabelCap,
+                reason));
         }
 
         public static void ClearDecisions()

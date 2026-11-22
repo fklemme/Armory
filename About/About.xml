@@ -6,7 +6,7 @@
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
-  <modVersion>0.10.10</modVersion>
+  <modVersion>0.10.11</modVersion>
   <url>https://github.com/fklemme/Armory</url>
   <description>Armory is a weapon inspector and automatic manager for RimWorld 1.6. It shows what every colonist wants to carry, why they are not carrying it, and what the colony should craft, research or buy next.
 

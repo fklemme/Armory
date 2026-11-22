@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.10.10**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.10.11**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.10.10 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.10.11 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 **Links:** [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224) ·
@@ -38,8 +38,9 @@ filters; 0.10.5 polishes the accuracy columns, table widths and detail header;
 0.10.6 shows accuracy as percentages and replaces text costs with icon/count
 groups; 0.10.7 names Armory-created bills; 0.10.8 prevents duplicate pickup jobs
 from accumulating on resting pawns; 0.10.9 adds base market value columns and
-0.10.10 moves them to the second column and polishes the Weapons detail pane.
-Upload once the private test is good enough.
+0.10.10 moves them to the second column and polishes the Weapons detail pane;
+0.10.11 removes an extra gap after blocked hand reasons. Upload once the private
+test is good enough.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
@@ -51,9 +52,20 @@ pass in 0.10.0, UI/list-limit polish in 0.10.1, backup-safety fixes in 0.10.2,
 double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4,
 accuracy-column/table-layout polish in 0.10.5, percentage accuracy/icon costs
 in 0.10.6, named craft bills in 0.10.7, a pending-job duplicate guard in 0.10.8,
-market value columns in 0.10.9, and value-column/right-pane polish in 0.10.10.
-Research, reference-mod behaviour, the shipped model and remaining decisions are
-in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+market value columns in 0.10.9, value-column/right-pane polish in 0.10.10, and a
+blocked-reason spacing fix in 0.10.11. Research, reference-mod behaviour, the
+shipped model and remaining decisions are in
+[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+
+---
+
+## 0.10.11 — blocked-reason spacing
+
+The new two-line blocked-fit block still used the original 24 px line advance
+after its reason, leaving an empty gap before the backup line when the hand fit
+was blocked. The advance is now 8 px after a blocked hand reason and remains
+24 px after a normal hand line. Verified on Talia at 1600x900; the backup line
+now follows the indented reason directly. Build clean.
 
 ---
 
@@ -2315,6 +2327,7 @@ polish, not new core behaviour.
 | 0.10.8 | Treat current and queued Equip/EquipSecondary jobs as busy, and re-check live carried/pending weapons before a backup pickup, so resting pawns cannot accumulate duplicate pickup jobs |
 | 0.10.9 | Add sortable base market value columns to Weapons and Upgrades, using actual copies on Weapons and normal-quality variants for obtainable Upgrades rows |
 | 0.10.10 | Move Value to the second column in both tables, widen the Weapons list and Value column, and split blocked hand/backup reasons onto indented lines |
+| 0.10.11 | Remove the extra vertical gap between a blocked hand reason and the following backup line |
 
 ---
 

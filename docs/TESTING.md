@@ -182,7 +182,7 @@ With Simple Sidearms enabled and respected, every pawn should resolve
 `(Simple Sidearms mode)`, the Armory hand-type override should be ignored, and
 backup jobs should still queue.
 
-### Testing comparison, materials, role filters and value (0.10.4–0.10.10)
+### Testing comparison, materials, role filters and value (0.10.4–0.10.11)
 
 - **Weapons:** the list shows DPS, DPSA, AP, separate percentage
   `aC`/`aS`/`aM`/`aL` columns, Range, Best colonist and Best use. Click each
@@ -214,10 +214,11 @@ backup jobs should still queue.
   Craft, Research and Buy rows; with Show owned, Owned rows use the actual best
   copy. Tooltips must say the value is before negotiator skill and buy/sell
   multipliers.
-- **Weapons detail pane (0.10.10):** at the normal window size the `Score = ...`
-  formula is fully visible with no clipped bottom. A blocked best hand or backup
-  fit shows a short headline and an indented `Reason: ...` line that fits the
-  narrower pane.
+- **Weapons detail pane (0.10.10–0.10.11):** at the normal window size the
+  `Score = ...` formula is fully visible with no clipped bottom. A blocked best
+  hand or backup fit shows a short headline and an indented `Reason: ...` line
+  that fits the narrower pane. When both hand and backup fits are blocked, no
+  extra blank line appears between the hand reason and the backup headline.
 - **Pending pickup jobs (0.10.8):** put a colonist who needs a backup in bed or
   otherwise busy for several planner cycles. The pawn must have at most one
   `EquipSecondary` job in `pawn.jobs.jobQueue` at any time; Armory should add no

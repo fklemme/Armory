@@ -2232,6 +2232,7 @@ namespace Armory
             GUI.color = Color.white;
             y += 24f;
 
+            bool handBlocked = false;
             if (row.BestHandPawn != null)
             {
                 string handDelta = row.BestHandPawn.HandTypeMismatch
@@ -2246,6 +2247,7 @@ namespace Armory
             }
             else if (row.BestAnyHandPawn != null)
             {
+                handBlocked = true;
                 string primaryReason = ReasonFor(row.BestAnyHandPawn, row.Weapon);
                 DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
                     string.Format("Best hand fit: {0}, but blocked",
@@ -2272,7 +2274,7 @@ namespace Armory
                 DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
                     "No colonist can use it in the hand slot.", new Color(1f, 0.7f, 0.7f));
             }
-            y += 24f;
+            y += handBlocked ? 8f : 24f;
 
             if (row.BestBackupPawn != null)
             {

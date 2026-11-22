@@ -110,7 +110,15 @@ namespace Armory
         }
     }
 
-    /// <summary>A weapon already in the pawn's inventory, with its backup-slot score.</summary>
+    /// <summary>A sidearm slot in the plan.</summary>
+    public enum WeaponSlot
+    {
+        Hand = 0,
+        Sidearm1 = 1,
+        Sidearm2 = 2
+    }
+
+    /// <summary>A weapon already carried by the pawn, with its slot-appropriate score.</summary>
     public sealed class CarriedSidearm
     {
         public ThingWithComps Thing;
@@ -124,21 +132,30 @@ namespace Armory
     }
 
     /// <summary>
-    /// One weapon evaluated for the pawn's backup slot (the opposite type from the hand
-    /// weapon). Kept separate from hand candidates so ranged and melee are never ranked
-    /// against each other.
+    /// One weapon evaluated for a sidearm slot. Sidearm 1 is the opposite hand type;
+    /// Sidearm 2 is the optional ranged complement. Kept separate from hand candidates
+    /// so ranged and melee are never ranked against each other.
     /// </summary>
     public sealed class SidearmCandidate
     {
         public WeaponInfo Weapon;
+        public WeaponSlot Slot = WeaponSlot.Sidearm1;
+
+        /// <summary>Generic combat score at the pawn's preferred range.</summary>
         public float Score;
 
-        /// <summary>Null when the pawn could pick this up as a backup right now.</summary>
+        /// <summary>
+        /// Slot-specific ordering score. Equal to <see cref="Score"/> for Sidearm 1;
+        /// the gap-coverage score for Sidearm 2.
+        /// </summary>
+        public float SlotScore;
+
+        /// <summary>Null when the pawn could pick this up as a sidearm right now.</summary>
         public string Blocker;
 
         /// <summary>
         /// True when the only reason this is not ready is Simple Sidearms' slot or
-        /// free-space cap, so dropping the worst carried backup could make room.
+        /// free-space cap, so dropping the worst carried sidearm could make room.
         /// </summary>
         public bool UpgradeAfterDrop;
 
@@ -148,6 +165,18 @@ namespace Armory
         /// compared by instance because different named weapons can share a def.
         /// </summary>
         public bool AlreadyCarried;
+
+        /// <summary>Strongest covered band for Sidearm 2, or null.</summary>
+        public RangeBand? ComplementBand;
+
+        /// <summary>Relative improvement in <see cref="ComplementBand"/>, 0..N.</summary>
+        public float ComplementGain;
+
+        /// <summary>Short UI phrase such as "covers close range".</summary>
+        public string ComplementText;
+
+        /// <summary>Per-distance profile used while building Sidearm 2 candidates.</summary>
+        public float[] CoverageProfile;
 
         public bool Ready
         {
@@ -169,6 +198,14 @@ namespace Armory
         public Pawn Pawn;
         public ThingWithComps Current;
         public float CurrentScore;
+
+        /// <summary>
+        /// The carried weapon that logically fills the hand slot. This remains the hand
+        /// while Simple Sidearms temporarily draws a sidearm.
+        /// </summary>
+        public ThingWithComps LogicalHand;
+
+        public float LogicalHandScore;
 
         /// <summary>
         /// Resolved hand type: true for ranged, false for melee. Armory always resolves a
@@ -224,9 +261,24 @@ namespace Armory
         /// <summary>Weapons carried in the pawn's inventory (Simple Sidearms sidearms and other carried weapons).</summary>
         public readonly List<ThingWithComps> Sidearms = new List<ThingWithComps>();
 
+        /// <summary>
+        /// All combat weapons the pawn carries, including the equipped weapon. Used for
+        /// set-based sidearm reconciliation so a temporarily drawn sidearm is not mistaken
+        /// for a missing slot.
+        /// </summary>
+        public readonly List<ThingWithComps> CarriedWeapons = new List<ThingWithComps>();
+
         public readonly List<CarriedSidearm> CarriedSidearms = new List<CarriedSidearm>();
 
         public string SidearmText;
+
+        /// <summary>
+        /// True when Simple Sidearms has temporarily drawn a sidearm instead of the logical
+        /// hand weapon. Armory waits for the hand to be stowed before swapping weapons.
+        /// </summary>
+        public bool DrawnSidearm;
+
+        public string DrawnSidearmName;
 
         /// <summary>Simple Sidearms primary/forced state. Null when SS is absent or has no memory comp.</summary>
         public SimpleSidearmsAdapter.PawnState SidearmState;
@@ -239,13 +291,33 @@ namespace Armory
 
         public float BestCarriedPrimaryScore;
 
-        /// <summary>Best opposite-type weapon already in the pawn's inventory (backup baseline).</summary>
+        /// <summary>The carried ranged weapon that logically fills the hand slot.</summary>
+        public ThingWithComps RangedHand;
+
+        /// <summary>Best opposite-type weapon already carried (Sidearm 1 baseline).</summary>
         public ThingWithComps BestCarriedBackup;
 
         public float BestCarriedBackupScore;
 
-        /// <summary>Loose weapons evaluated for the backup slot, best first.</summary>
+        /// <summary>Best ranged complement already carried (Sidearm 2 baseline).</summary>
+        public ThingWithComps BestCarriedSidearmTwo;
+
+        public float BestCarriedSidearmTwoScore;
+
+        /// <summary>Gap-coverage score of the carried Sidearm 2, comparable to candidates.</summary>
+        public float CarriedSidearmTwoCoverage;
+
+        public float CarriedSidearmTwoGain;
+
+        public RangeBand? CarriedSidearmTwoBand;
+
+        public string CarriedSidearmTwoText;
+
+        /// <summary>Loose weapons evaluated for Sidearm 1, best first.</summary>
         public readonly List<SidearmCandidate> SidearmCandidates = new List<SidearmCandidate>();
+
+        /// <summary>Loose weapons evaluated for Sidearm 2, best complement first.</summary>
+        public readonly List<SidearmCandidate> SidearmTwoCandidates = new List<SidearmCandidate>();
 
         public bool Available
         {
@@ -276,7 +348,7 @@ namespace Armory
             return RoleIsRanged.Value ? def.IsRangedWeapon : def.IsMeleeWeapon;
         }
 
-        /// <summary>True when the weapon belongs in this pawn's opposite-type backup slot.</summary>
+        /// <summary>True when the weapon belongs in this pawn's opposite-type Sidearm 1 slot.</summary>
         public bool IsBackupType(ThingDef def)
         {
             if (def == null || !RoleIsRanged.HasValue || !SimpleSidearmsAdapter.Active)
@@ -284,6 +356,13 @@ namespace Armory
                 return false;
             }
             return RoleIsRanged.Value ? def.IsMeleeWeapon : def.IsRangedWeapon;
+        }
+
+        /// <summary>True when the weapon belongs in this pawn's ranged Sidearm 2 slot.</summary>
+        public bool IsSidearmTwoType(ThingDef def)
+        {
+            return def != null && RoleIsRanged.HasValue && SimpleSidearmsAdapter.Active &&
+                   def.IsRangedWeapon;
         }
 
         /// <summary>
@@ -299,6 +378,14 @@ namespace Armory
             if (Current != null && Current.def == def)
             {
                 return true;
+            }
+            for (int i = 0; i < CarriedWeapons.Count; i++)
+            {
+                ThingWithComps thing = CarriedWeapons[i];
+                if (thing != null && thing.def == def)
+                {
+                    return true;
+                }
             }
             for (int i = 0; i < CarriedSidearms.Count; i++)
             {
@@ -334,15 +421,40 @@ namespace Armory
             {
                 return true;
             }
+            for (int i = 0; i < CarriedWeapons.Count; i++)
+            {
+                if (CarriedWeapons[i] == weapon)
+                {
+                    return true;
+                }
+            }
             for (int i = 0; i < CarriedSidearms.Count; i++)
             {
-                ThingWithComps thing = CarriedSidearms[i].Thing;
-                if (thing == weapon)
+                if (CarriedSidearms[i].Thing == weapon)
                 {
                     return true;
                 }
             }
             return false;
+        }
+
+        /// <summary>Number of carried combat weapons of the given type, including the drawn weapon.</summary>
+        public int CountCarried(bool ranged)
+        {
+            int count = 0;
+            for (int i = 0; i < CarriedWeapons.Count; i++)
+            {
+                ThingWithComps thing = CarriedWeapons[i];
+                if (thing == null || thing.def == null)
+                {
+                    continue;
+                }
+                if (ranged ? thing.def.IsRangedWeapon : thing.def.IsMeleeWeapon)
+                {
+                    count++;
+                }
+            }
+            return count;
         }
 
         /// <summary>Weapons this pawn could use in the hand slot, best first. May still be blocked.</summary>
@@ -408,8 +520,13 @@ namespace Armory
                 {
                     return CurrentScore;
                 }
-                bool currentIsHand = Current != null && IsHandType(Current.def);
+                bool currentIsHand = Current != null && !DrawnSidearm &&
+                                     IsHandType(Current.def);
                 float baseline = BestCarriedPrimaryScore;
+                if (LogicalHand != null && LogicalHandScore > baseline)
+                {
+                    baseline = LogicalHandScore;
+                }
                 if (currentIsHand && CurrentScore > baseline)
                 {
                     baseline = CurrentScore;
@@ -432,13 +549,21 @@ namespace Armory
         public PawnAnalysis BestAnyHandPawn;
         public float BestAnyHandScore;
 
-        /// <summary>Best pawn that can carry it in the backup slot right now.</summary>
+        /// <summary>Best pawn that can carry it in the Sidearm 1 slot right now.</summary>
         public PawnAnalysis BestBackupPawn;
         public float BestBackupScore;
 
-        /// <summary>Best pawn that could carry it in the backup slot but is blocked.</summary>
+        /// <summary>Best pawn that could carry it in the Sidearm 1 slot but is blocked.</summary>
         public PawnAnalysis BestAnyBackupPawn;
         public float BestAnyBackupScore;
+
+        /// <summary>Best pawn that can carry it in the Sidearm 2 slot right now.</summary>
+        public PawnAnalysis BestSidearmTwoPawn;
+        public float BestSidearmTwoScore;
+
+        /// <summary>Best pawn that could carry it in the Sidearm 2 slot but is blocked.</summary>
+        public PawnAnalysis BestAnySidearmTwoPawn;
+        public float BestAnySidearmTwoScore;
 
         public string Status;
         public readonly List<Candidate> PawnCandidates = new List<Candidate>();
@@ -464,6 +589,7 @@ namespace Armory
     public sealed class DemandWant
     {
         public string Colonist;
+        public WeaponSlot Slot;
         public bool Hand;
         public float Gain;
 
@@ -501,6 +627,7 @@ namespace Armory
         public string Label;
         public int WantedHand;
         public int WantedBackup;
+        public int WantedSidearmTwo;
         public int Owned;
         public int Forbidden;
         public DemandSection Section;
@@ -559,7 +686,7 @@ namespace Armory
 
         public int Wanted
         {
-            get { return WantedHand + WantedBackup; }
+            get { return WantedHand + WantedBackup + WantedSidearmTwo; }
         }
 
         /// <summary>Copies that can be used without player action; forbidden stock excluded.</summary>
@@ -578,7 +705,7 @@ namespace Armory
             get { return KnownCount > 0 ? KnownGain / KnownCount : 0f; }
         }
 
-        /// <summary>"Hand", "Backup", or "2 Hand · 1 Backup" for display.</summary>
+        /// <summary>"Hand", "Sidearm 1", "Sidearm 2", or a combined count for display.</summary>
         public string Uses
         {
             get
@@ -587,11 +714,35 @@ namespace Armory
                 {
                     return "-";
                 }
-                if (WantedHand > 0 && WantedBackup > 0)
+                if (WantedSidearmTwo > 0 && WantedHand == 0 && WantedBackup == 0)
                 {
-                    return WantedHand + " Hand · " + WantedBackup + " Backup";
+                    return "Sidearm 2";
                 }
-                return WantedHand > 0 ? "Hand" : "Backup";
+                if (WantedHand > 0 && WantedBackup == 0 && WantedSidearmTwo == 0)
+                {
+                    return "Hand";
+                }
+                if (WantedHand == 0 && WantedBackup > 0 && WantedSidearmTwo == 0)
+                {
+                    return "Sidearm 1";
+                }
+
+                string text = string.Empty;
+                if (WantedHand > 0)
+                {
+                    text = WantedHand + " Hand";
+                }
+                if (WantedBackup > 0)
+                {
+                    text += (text.Length > 0 ? " + " : string.Empty) + WantedBackup +
+                            " Sidearm 1";
+                }
+                if (WantedSidearmTwo > 0)
+                {
+                    text += (text.Length > 0 ? " + " : string.Empty) + WantedSidearmTwo +
+                            " Sidearm 2";
+                }
+                return text;
             }
         }
     }

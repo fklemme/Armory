@@ -73,6 +73,9 @@ namespace Armory
 
         private const float RowHeight = 26f;
         private const float HeaderHeight = 22f;
+        private const float PawnRowHeightSingle = 26f;
+        private const float PawnRowHeightMulti = 72f;
+        private const float SlotLineHeight = 22f;
 
         private static readonly Color HandSlotColor = new Color(0.70f, 0.90f, 0.70f);
         private static readonly Color BackupSlotColor = new Color(0.66f, 0.84f, 0.95f);
@@ -161,7 +164,7 @@ namespace Armory
         {
             float x = rect.x;
             if (TabButton(new Rect(x, rect.y, 110f, rect.height), "Colonists", view == ArmoryView.Colonists,
-                    "Each colonist's current hand and backup weapon, status and ranked alternatives. Listed in colonist-bar order; drag portraits to reorder. Double-click a row to jump to that colonist on the map."))
+                    "Each colonist's hand weapon, Sidearm 1 and Sidearm 2, status and ranked alternatives. Listed in colonist-bar order; drag portraits to reorder. Double-click a row to jump to that colonist on the map."))
             {
                 view = ArmoryView.Colonists;
                 selectedCandidate = -1;
@@ -290,15 +293,23 @@ namespace Armory
             Rect scrollRect = new Rect(listInner.x, listInner.y + HeaderHeight, listInner.width,
                 listInner.height - HeaderHeight);
             float rowWidth = scrollRect.width - 20f;
-            bool showBackup = SimpleSidearmsAdapter.Active;
-            DrawPawnListHeader(new Rect(listInner.x, listInner.y, rowWidth, HeaderHeight), showBackup);
-            Widgets.BeginScrollView(scrollRect, ref pawnListScroll,
-                new Rect(0f, 0f, rowWidth, snapshot.Pawns.Count * RowHeight));
-
-            Pawn jumpPawn = null;
+            bool showSidearms = SimpleSidearmsAdapter.Active;
+            float contentHeight = 0f;
             for (int i = 0; i < snapshot.Pawns.Count; i++)
             {
-                Rect row = new Rect(0f, i * RowHeight, rowWidth, RowHeight);
+                contentHeight += PawnRowHeight(snapshot.Pawns[i], showSidearms);
+            }
+            DrawPawnListHeader(new Rect(listInner.x, listInner.y, rowWidth, HeaderHeight),
+                showSidearms);
+            Widgets.BeginScrollView(scrollRect, ref pawnListScroll,
+                new Rect(0f, 0f, rowWidth, contentHeight));
+
+            Pawn jumpPawn = null;
+            float cursor = 0f;
+            for (int i = 0; i < snapshot.Pawns.Count; i++)
+            {
+                float height = PawnRowHeight(snapshot.Pawns[i], showSidearms);
+                Rect row = new Rect(0f, cursor, rowWidth, height);
                 if (i == selectedPawn)
                 {
                     Widgets.DrawBoxSolid(row, new Color(1f, 1f, 1f, 0.13f));
@@ -318,7 +329,8 @@ namespace Armory
                     selectedCandidate = -1;
                     pawnDetailScroll = Vector2.zero;
                 }
-                DrawPawnRow(row, snapshot.Pawns[i], showBackup);
+                DrawPawnRow(row, snapshot.Pawns[i], showSidearms);
+                cursor += height;
             }
 
             Widgets.EndScrollView();
@@ -329,24 +341,28 @@ namespace Armory
             }
         }
 
-        private static void PawnColumns(Rect row, bool showBackup, out Rect name, out Rect current,
-            out Rect backup, out Rect status, out Rect delta)
+        private static float PawnRowHeight(PawnAnalysis pawn, bool showSidearms)
+        {
+            return showSidearms ? PawnRowHeightMulti : PawnRowHeightSingle;
+        }
+
+        private static void PawnBlockColumns(Rect row, bool showSidearms, out Rect name,
+            out Rect loadout, out Rect status, out Rect delta)
         {
             float width = row.width;
-            name = new Rect(row.x, row.y, width * 0.12f, row.height);
-            current = new Rect(row.x + width * 0.12f, row.y, width * (showBackup ? 0.24f : 0.40f),
-                row.height);
-            if (showBackup)
+            name = new Rect(row.x, row.y, width * 0.12f, SlotLineHeight);
+            if (showSidearms)
             {
-                backup = new Rect(row.x + width * 0.36f, row.y, width * 0.24f, row.height);
-                status = new Rect(row.x + width * 0.60f, row.y, width * 0.26f, row.height);
+                loadout = new Rect(row.x + width * 0.12f, row.y, width * 0.54f, row.height);
+                status = new Rect(row.x + width * 0.66f, row.y, width * 0.22f, SlotLineHeight);
+                delta = new Rect(row.x + width * 0.88f, row.y, width * 0.12f, SlotLineHeight);
             }
             else
             {
-                backup = new Rect(row.x + width * 0.52f, row.y, 0f, row.height);
-                status = new Rect(row.x + width * 0.52f, row.y, width * 0.34f, row.height);
+                loadout = new Rect(row.x + width * 0.12f, row.y, width * 0.59f, row.height);
+                status = new Rect(row.x + width * 0.71f, row.y, width * 0.17f, SlotLineHeight);
+                delta = new Rect(row.x + width * 0.88f, row.y, width * 0.12f, SlotLineHeight);
             }
-            delta = new Rect(row.x + width * 0.86f, row.y, width * 0.14f, row.height);
         }
 
         private static void WeaponColumns(Rect row, out Rect label, out Rect dps, out Rect dpsa,
@@ -381,57 +397,61 @@ namespace Armory
             status = new Rect(x, row.y, width - (x - row.x), row.height);
         }
 
-        private static void DrawPawnListHeader(Rect rect, bool showBackup)
+        private static void DrawPawnListHeader(Rect rect, bool showSidearms)
         {
-            PawnColumns(rect, showBackup, out Rect name, out Rect current, out Rect backup,
-                out Rect status, out Rect delta);
+            PawnBlockColumns(rect, showSidearms, out Rect name, out Rect loadout, out Rect status,
+                out Rect delta);
             Color color = new Color(0.68f, 0.68f, 0.68f);
             DrawCell(name, "Colonist", TextAnchor.MiddleLeft, GameFont.Tiny, color);
-            DrawCell(current, "Hand", TextAnchor.MiddleLeft, GameFont.Tiny, color);
-            if (showBackup)
-            {
-                DrawCell(backup, "Backup", TextAnchor.MiddleLeft, GameFont.Tiny, color);
-            }
+            DrawCell(loadout, "Weapons", TextAnchor.MiddleLeft, GameFont.Tiny, color);
             DrawCell(status, "Status", TextAnchor.MiddleLeft, GameFont.Tiny, color);
             DrawCell(delta, "Best vs current", TextAnchor.MiddleRight, GameFont.Tiny, color);
 
-            TooltipHandler.TipRegion(current,
-                showBackup
-                    ? "The weapon currently equipped in this colonist's hand."
-                    : "The weapon currently equipped in this colonist's hand. The Backup column is hidden because Simple Sidearms is not loaded.");
-            if (showBackup)
-            {
-                TooltipHandler.TipRegion(backup,
-                    "Weapons this colonist carries for the opposite-type backup slot.");
-            }
+            TooltipHandler.TipRegion(loadout,
+                showSidearms
+                    ? "The hand weapon and the two managed sidearm slots. Extra sidearms are dropped automatically."
+                    : "The equipped hand weapon. Sidearm slots require Simple Sidearms.");
             TooltipHandler.TipRegion(status,
                 "What Armory will do for this colonist, or why it is waiting. Hover a status for the full text.");
             TooltipHandler.TipRegion(delta,
                 "The best available hand candidate compared with the current hand weapon. Negative means the current weapon is still better.");
         }
 
-        private static void DrawPawnRow(Rect rect, PawnAnalysis pawn, bool showBackup)
+        private static void DrawPawnRow(Rect rect, PawnAnalysis pawn, bool showSidearms)
         {
-            PawnColumns(rect, showBackup, out Rect name, out Rect current, out Rect backup,
-                out Rect status, out Rect delta);
+            PawnBlockColumns(rect, showSidearms, out Rect name, out Rect loadout, out Rect status,
+                out Rect delta);
 
             Color rowColor = pawn.Available ? Color.white : new Color(0.58f, 0.58f, 0.58f);
             DrawCell(name, pawn.Pawn.LabelShort, TextAnchor.MiddleLeft, GameFont.Small, rowColor);
 
-            string currentText = pawn.Current == null ? "unarmed" : pawn.Current.LabelCap;
-            DrawCell(current, currentText, TextAnchor.MiddleLeft, GameFont.Small, rowColor);
-            TipCell(current, pawn.Current == null
-                ? "No hand weapon equipped."
-                : string.Format("Equipped hand weapon: {0} (score {1:0}).", currentText, pawn.CurrentScore));
-
-            if (showBackup)
+            ThingWithComps hand = HandDisplayThing(pawn);
+            string currentText = hand == null ? "unarmed" : hand.LabelCap;
+            if (pawn.DrawnSidearm && pawn.LogicalHand != null)
             {
-                string backupText = CarriedBackupText(pawn);
-                DrawCell(backup, backupText, TextAnchor.MiddleLeft, GameFont.Small,
-                    backupText == "none" ? new Color(0.75f, 0.75f, 0.75f) : rowColor);
-                TipCell(backup, pawn.SidearmState != null
-                    ? "Carried backups: " + backupText
-                    : "Simple Sidearms is not active for this colonist, so there is no managed backup slot.");
+                currentText += " (stowed)";
+            }
+            DrawSlotLine(loadout, 0, "Hand", HandSlotColor, currentText, rowColor,
+                hand == null
+                    ? "No hand weapon equipped."
+                    : pawn.DrawnSidearm && pawn.LogicalHand != null
+                        ? string.Format(
+                            "Hand weapon: {0} (score {1:0}), stowed while Simple Sidearms draws {2}.",
+                            hand.LabelCap, pawn.LogicalHandScore, pawn.DrawnSidearmName)
+                        : string.Format("Equipped hand weapon: {0} (score {1:0}).",
+                            hand.LabelCap, pawn.CurrentScore));
+
+            if (showSidearms)
+            {
+                string sidearmOne = SidearmOneText(pawn);
+                DrawSlotLine(loadout, 1, "Sidearm 1", BackupSlotColor, sidearmOne,
+                    SidearmTextColor(pawn, 1, sidearmOne),
+                    SidearmOneTooltip(pawn, sidearmOne));
+
+                string sidearmTwo = SidearmTwoText(pawn);
+                DrawSlotLine(loadout, 2, "Sidearm 2", BackupSlotColor, sidearmTwo,
+                    SidearmTextColor(pawn, 2, sidearmTwo),
+                    SidearmTwoTooltip(pawn, sidearmTwo));
             }
 
             Color statusColor;
@@ -455,6 +475,225 @@ namespace Armory
             DrawCell(delta, deltaText, TextAnchor.MiddleRight,
                 GameFont.Small, pawn.Available && top != null ? Color.white : rowColor);
             TipCell(delta, DeltaTooltip(pawn, top));
+        }
+
+        private static ThingWithComps HandDisplayThing(PawnAnalysis pawn)
+        {
+            return pawn.DrawnSidearm && pawn.LogicalHand != null
+                ? pawn.LogicalHand
+                : pawn.Current;
+        }
+
+        private static void DrawSlotLine(Rect loadout, int line, string label, Color labelColor,
+            string text, Color textColor, string tooltip)
+        {
+            float y = loadout.y + line * SlotLineHeight;
+            Rect labelRect = new Rect(loadout.x, y, 64f, SlotLineHeight);
+            Rect textRect = new Rect(loadout.x + 64f, y, Mathf.Max(20f, loadout.width - 64f),
+                SlotLineHeight);
+            DrawCell(labelRect, label, TextAnchor.MiddleLeft, GameFont.Tiny, labelColor);
+            DrawCell(textRect, text, TextAnchor.MiddleLeft, GameFont.Small, textColor);
+            TipCell(textRect, tooltip);
+        }
+
+        private static string SidearmOneText(PawnAnalysis pawn)
+        {
+            if (pawn.SidearmState == null)
+            {
+                return "Simple Sidearms data unavailable";
+            }
+            if (pawn.BestCarriedBackup == null)
+            {
+                SidearmCandidate ready = BestReadyBackup(pawn);
+                return ready == null ? "none" : "available: " + ready.Weapon.Label;
+            }
+
+            string text = CarriedLabel(pawn.Pawn, pawn.BestCarriedBackup);
+            if (pawn.DrawnSidearm && pawn.Current == pawn.BestCarriedBackup)
+            {
+                text += "  (drawn)";
+            }
+            int extras = SidearmOneExtraCount(pawn);
+            if (extras > 0)
+            {
+                text += "  +" + extras + " extra";
+            }
+            return text;
+        }
+
+        private static string SidearmTwoText(PawnAnalysis pawn)
+        {
+            if (pawn.SidearmState == null)
+            {
+                return "Simple Sidearms data unavailable";
+            }
+            if (pawn.BestCarriedSidearmTwo == null)
+            {
+                if (pawn.BestCarriedBackup == null)
+                {
+                    return "waiting for Sidearm 1";
+                }
+                SidearmCandidate ready = BestReadySidearmTwo(pawn);
+                if (ready != null)
+                {
+                    return "available: " + ready.Weapon.Label;
+                }
+                return HasUsefulSidearmTwoCandidate(pawn)
+                    ? "no usable sidearm"
+                    : "no useful gap";
+            }
+
+            string text = CarriedLabel(pawn.Pawn, pawn.BestCarriedSidearmTwo);
+            if (pawn.DrawnSidearm && pawn.Current == pawn.BestCarriedSidearmTwo)
+            {
+                text += "  (drawn)";
+            }
+            int extras = SidearmTwoExtraCount(pawn);
+            if (extras > 0)
+            {
+                text += "  +" + extras + " extra";
+            }
+            if (pawn.CarriedSidearmTwoBand.HasValue)
+            {
+                text += "  -  " +
+                    SidearmCoverageModel.BandLabel(pawn.CarriedSidearmTwoBand.Value)
+                        .ToLowerInvariant();
+            }
+            return text;
+        }
+
+        private static string CarriedLabel(Pawn pawn, ThingWithComps weapon)
+        {
+            if (weapon == null)
+            {
+                return "none";
+            }
+            return IsCarriedUsable(pawn, weapon)
+                ? weapon.LabelCap
+                : weapon.LabelCap + " (unusable)";
+        }
+
+        private static bool IsCarriedUsable(Pawn pawn, ThingWithComps weapon)
+        {
+            if (weapon == null)
+            {
+                return false;
+            }
+            string reason;
+            bool hard;
+            return pawn == null || Eligibility.CanUseCarriedWeapon(pawn, weapon,
+                out reason, out hard);
+        }
+
+        private static Color SidearmTextColor(PawnAnalysis pawn, int slot, string text)
+        {
+            if (text.StartsWith("no usable"))
+            {
+                return BlockedSlotColor;
+            }
+            if (text.StartsWith("none") || text.StartsWith("waiting") ||
+                text.StartsWith("no useful") || text.StartsWith("Simple"))
+            {
+                return new Color(0.72f, 0.72f, 0.72f);
+            }
+            ThingWithComps carried = slot == 1
+                ? pawn.BestCarriedBackup
+                : pawn.BestCarriedSidearmTwo;
+            if (carried != null)
+            {
+                return IsCarriedUsable(pawn.Pawn, carried)
+                    ? (pawn.Available ? Color.white : new Color(0.58f, 0.58f, 0.58f))
+                    : BlockedSlotColor;
+            }
+            return BackupSlotColor;
+        }
+
+        private static int SidearmOneExtraCount(PawnAnalysis pawn)
+        {
+            if (pawn.RoleIsRanged != true)
+            {
+                return 0;
+            }
+            int count = 0;
+            for (int i = 0; i < pawn.CarriedWeapons.Count; i++)
+            {
+                ThingWithComps weapon = pawn.CarriedWeapons[i];
+                if (weapon != null && weapon != pawn.BestCarriedBackup &&
+                    weapon.def != null && weapon.def.IsMeleeWeapon)
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        private static int SidearmTwoExtraCount(PawnAnalysis pawn)
+        {
+            int count = 0;
+            for (int i = 0; i < pawn.CarriedWeapons.Count; i++)
+            {
+                ThingWithComps weapon = pawn.CarriedWeapons[i];
+                if (weapon == null || weapon == pawn.BestCarriedSidearmTwo ||
+                    weapon == pawn.RangedHand || weapon.def == null ||
+                    !weapon.def.IsRangedWeapon)
+                {
+                    continue;
+                }
+                if (pawn.RoleIsRanged == true)
+                {
+                    count++;
+                }
+                else if (weapon != pawn.BestCarriedBackup)
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        private static string SidearmOneTooltip(PawnAnalysis pawn, string text)
+        {
+            if (pawn.SidearmState == null)
+            {
+                return "Simple Sidearms sidearm data is unavailable for this colonist.";
+            }
+            if (pawn.BestCarriedBackup == null)
+            {
+                return "No Sidearm 1 carried. " + (BestReadyBackup(pawn) == null
+                    ? "No ready opposite-type sidearm is available."
+                    : "A ready replacement is available.");
+            }
+            return string.Format("Carried Sidearm 1: {0} (score {1:0}). {2}",
+                text, pawn.BestCarriedBackupScore,
+                SidearmOneExtraCount(pawn) > 0
+                    ? "Extras will be dropped automatically."
+                    : "Armory keeps one opposite-type sidearm.");
+        }
+
+        private static string SidearmTwoTooltip(PawnAnalysis pawn, string text)
+        {
+            if (pawn.SidearmState == null)
+            {
+                return "Simple Sidearms sidearm data is unavailable for this colonist.";
+            }
+            if (pawn.BestCarriedSidearmTwo == null)
+            {
+                if (BestReadySidearmTwo(pawn) != null)
+                {
+                    return "No Sidearm 2 carried. A ready ranged complement is available.";
+                }
+                return HasUsefulSidearmTwoCandidate(pawn)
+                    ? "No Sidearm 2 carried. A useful complement exists but cannot be carried right now."
+                    : "No Sidearm 2 carried. Hand and Sidearm 1 leave no meaningful range gap.";
+            }
+            string complement = string.IsNullOrEmpty(pawn.CarriedSidearmTwoText)
+                ? "No useful range gap."
+                : pawn.CarriedSidearmTwoText;
+            return string.Format("Carried Sidearm 2: {0} (score {1:0}). {2}{3}",
+                text, pawn.BestCarriedSidearmTwoScore, complement,
+                SidearmTwoExtraCount(pawn) > 0
+                    ? " Extras will be dropped automatically."
+                    : string.Empty);
         }
 
         private static string DeltaTooltip(PawnAnalysis pawn, Candidate top)
@@ -490,58 +729,12 @@ namespace Armory
                 top.Score >= pawn.HandBaselineScore ? "better" : "worse");
         }
 
-        private static string CarriedBackupText(PawnAnalysis pawn)
-        {
-            if (pawn.SidearmState == null)
-            {
-                return "-";
-            }
-            List<string> labels = new List<string>(2);
-            for (int i = 0; i < pawn.CarriedSidearms.Count; i++)
-            {
-                CarriedSidearm carried = pawn.CarriedSidearms[i];
-                if (pawn.IsBackupType(carried.Thing.def))
-                {
-                    labels.Add(carried.Usable
-                        ? carried.Thing.LabelCap
-                        : carried.Thing.LabelCap + " (unusable)");
-                }
-            }
-            return labels.Count == 0 ? "none" : string.Join(", ", labels);
-        }
-
-        private static int CountBackups(PawnAnalysis pawn)
-        {
-            int count = 0;
-            for (int i = 0; i < pawn.CarriedSidearms.Count; i++)
-            {
-                if (pawn.IsBackupType(pawn.CarriedSidearms[i].Thing.def))
-                {
-                    count++;
-                }
-            }
-            return count;
-        }
-
-        private static int CountUsableBackups(PawnAnalysis pawn)
-        {
-            int count = 0;
-            for (int i = 0; i < pawn.CarriedSidearms.Count; i++)
-            {
-                CarriedSidearm carried = pawn.CarriedSidearms[i];
-                if (carried.Usable && pawn.IsBackupType(carried.Thing.def))
-                {
-                    count++;
-                }
-            }
-            return count;
-        }
-
         private static bool IsDroppableBackup(ThingWithComps thing)
         {
             return thing != null && !thing.Destroyed && thing.def != null &&
                    (thing.def.IsRangedWeapon || thing.def.IsMeleeWeapon) &&
-                   !thing.def.destroyOnDrop && thing.GetComp<CompBladelinkWeapon>() == null;
+                   !thing.def.destroyOnDrop && thing.GetComp<CompBladelinkWeapon>() == null &&
+                   !Eligibility.IsWorkTool(thing.def);
         }
 
         private static bool TryGetWorstBackup(PawnAnalysis pawn, out float score)
@@ -565,13 +758,27 @@ namespace Armory
             return found;
         }
 
+        private static bool IsSidearmReady(PawnAnalysis pawn, SidearmCandidate candidate)
+        {
+            if (pawn == null || candidate == null || candidate.AlreadyCarried ||
+                !candidate.Ready || candidate.Weapon == null)
+            {
+                return false;
+            }
+            string reason;
+            bool hard;
+            return Eligibility.CheckSidearm(pawn.Pawn, candidate.Weapon.Thing, true,
+                out reason, out hard);
+        }
+
         private static SidearmCandidate BestReadyBackup(PawnAnalysis pawn)
         {
             for (int i = 0; i < pawn.SidearmCandidates.Count; i++)
             {
-                if (pawn.SidearmCandidates[i].Ready)
+                SidearmCandidate candidate = pawn.SidearmCandidates[i];
+                if (IsSidearmReady(pawn, candidate))
                 {
-                    return pawn.SidearmCandidates[i];
+                    return candidate;
                 }
             }
             return null;
@@ -594,12 +801,82 @@ namespace Armory
             for (int i = 0; i < pawn.SidearmCandidates.Count; i++)
             {
                 SidearmCandidate candidate = pawn.SidearmCandidates[i];
-                if ((candidate.Ready || candidate.UpgradeAfterDrop) && candidate.Score > minimum)
+                if (!candidate.AlreadyCarried &&
+                    (candidate.Ready || candidate.UpgradeAfterDrop) &&
+                    candidate.SlotScore > minimum)
                 {
                     return candidate;
                 }
             }
             return null;
+        }
+
+        private static SidearmCandidate BestReadySidearmTwo(PawnAnalysis pawn)
+        {
+            ArmorySettings settings = ArmoryMod.Settings;
+            float threshold = settings == null ? 0.1f : settings.upgradeThreshold;
+            for (int i = 0; i < pawn.SidearmTwoCandidates.Count; i++)
+            {
+                SidearmCandidate candidate = pawn.SidearmTwoCandidates[i];
+                if (candidate.ComplementBand.HasValue &&
+                    candidate.ComplementGain >= threshold &&
+                    candidate.SlotScore > 0.001f && IsSidearmReady(pawn, candidate))
+                {
+                    return candidate;
+                }
+            }
+            return null;
+        }
+
+        private static SidearmCandidate BestSidearmTwoUpgrade(PawnAnalysis pawn)
+        {
+            ArmorySettings settings = ArmoryMod.Settings;
+            if (settings != null && !settings.replaceWorseSidearms)
+            {
+                return null;
+            }
+            if (pawn.BestCarriedSidearmTwo == null)
+            {
+                return null;
+            }
+            float threshold = settings == null ? 0.1f : settings.upgradeThreshold;
+            float minimum = Mathf.Max(pawn.CarriedSidearmTwoCoverage, 0.01f) *
+                            (1f + threshold);
+            for (int i = 0; i < pawn.SidearmTwoCandidates.Count; i++)
+            {
+                SidearmCandidate candidate = pawn.SidearmTwoCandidates[i];
+                if (!candidate.AlreadyCarried &&
+                    (candidate.Ready || candidate.UpgradeAfterDrop) &&
+                    candidate.ComplementBand.HasValue &&
+                    candidate.ComplementGain >= threshold &&
+                    candidate.SlotScore > minimum)
+                {
+                    return candidate;
+                }
+            }
+            return null;
+        }
+
+        private static bool HasExtraSidearms(PawnAnalysis pawn)
+        {
+            return SidearmOneExtraCount(pawn) > 0 || SidearmTwoExtraCount(pawn) > 0;
+        }
+
+        private static bool HasUsefulSidearmTwoCandidate(PawnAnalysis pawn)
+        {
+            ArmorySettings settings = ArmoryMod.Settings;
+            float threshold = settings == null ? 0.1f : settings.upgradeThreshold;
+            for (int i = 0; i < pawn.SidearmTwoCandidates.Count; i++)
+            {
+                SidearmCandidate candidate = pawn.SidearmTwoCandidates[i];
+                if (candidate.ComplementBand.HasValue &&
+                    candidate.ComplementGain >= threshold &&
+                    candidate.SlotScore > 0.001f)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static bool WaitsForHandType(PawnAnalysis pawn)
@@ -632,20 +909,38 @@ namespace Armory
             }
             if (pawn.AutomationBlocked && !string.IsNullOrEmpty(pawn.AutomationNote))
             {
+                if (pawn.AutomationNote == "sidearm job")
+                {
+                    color = BackupSlotColor;
+                    return "Sidearm job";
+                }
+                if (pawn.AutomationNote == "already equipping")
+                {
+                    color = HandSlotColor;
+                    return "Equipping";
+                }
                 color = BlockedSlotColor;
                 return "Blocked: " + pawn.AutomationNote;
             }
-
-            if (pawn.SidearmState != null && CountBackups(pawn) > 1)
+            if (pawn.DrawnSidearm)
+            {
+                color = BackupSlotColor;
+                return "Sidearm drawn";
+            }
+            if (pawn.SidearmState != null && HasExtraSidearms(pawn))
             {
                 color = BlockedSlotColor;
-                return "Multiple backups";
+                return "Cleaning up sidearms";
             }
 
             ArmorySettings settings = ArmoryMod.Settings;
             float threshold = settings == null ? 0.1f : settings.upgradeThreshold;
             float baseline = pawn.HandBaselineScore;
             Candidate topReady = pawn.TopReady;
+            bool manageSidearms = settings == null || settings.manageSidearms;
+            bool handTypeWait = pawn.SidearmState != null && WaitsForHandType(pawn);
+            bool hasSidearmOne = pawn.BestCarriedBackup != null;
+            bool hasSidearmTwo = pawn.BestCarriedSidearmTwo != null;
 
             bool hasHandWish = (pawn.HandTypeMismatch && topReady != null) ||
                                (topReady != null &&
@@ -653,21 +948,24 @@ namespace Armory
                                  (baseline > 0.01f &&
                                   topReady.Score > baseline * (1f + threshold))));
 
-            bool handTypeWait = pawn.SidearmState != null && WaitsForHandType(pawn);
-            int usableBackupCount = CountUsableBackups(pawn);
-            bool hasBackupWish = false;
-            if (pawn.SidearmState != null && (settings == null || settings.manageSidearms))
+            SidearmCandidate sidearmOneUpgrade = null;
+            SidearmCandidate sidearmTwoUpgrade = null;
+            bool sidearmOneWish = false;
+            bool sidearmTwoWish = false;
+            if (manageSidearms && pawn.SidearmState != null && !handTypeWait)
             {
-                hasBackupWish = usableBackupCount == 0
-                    ? BestReadyBackup(pawn) != null
-                    : BestBackupUpgrade(pawn) != null;
-                if (handTypeWait)
-                {
-                    hasBackupWish = false;
-                }
+                sidearmOneUpgrade = hasSidearmOne ? BestBackupUpgrade(pawn) : null;
+                sidearmOneWish = hasSidearmOne
+                    ? sidearmOneUpgrade != null
+                    : BestReadyBackup(pawn) != null;
+                sidearmTwoUpgrade = hasSidearmTwo ? BestSidearmTwoUpgrade(pawn) : null;
+                sidearmTwoWish = hasSidearmOne && (hasSidearmTwo
+                    ? sidearmTwoUpgrade != null
+                    : BestReadySidearmTwo(pawn) != null);
             }
 
-            if (!string.IsNullOrEmpty(pawn.AutomationNote) && (hasHandWish || hasBackupWish))
+            if (!string.IsNullOrEmpty(pawn.AutomationNote) &&
+                (hasHandWish || sidearmOneWish || sidearmTwoWish))
             {
                 color = new Color(1f, 0.78f, 0.4f);
                 return "Paused: " + pawn.AutomationNote;
@@ -675,17 +973,15 @@ namespace Armory
 
             if (pawn.HandLocked)
             {
-                if (hasBackupWish)
+                if (sidearmOneWish || sidearmTwoWish)
                 {
                     color = BackupSlotColor;
-                    return usableBackupCount == 0
-                        ? "Backup ready"
-                        : "Backup upgrade ready";
+                    return "Sidearm ready";
                 }
                 if (handTypeWait && BestReadyBackup(pawn) != null)
                 {
                     color = BlockedSlotColor;
-                    return "Backup waiting";
+                    return "Sidearm waiting";
                 }
                 if (handTypeWait || hasHandWish)
                 {
@@ -715,7 +1011,7 @@ namespace Armory
             if (handTypeWait && BestReadyBackup(pawn) != null)
             {
                 color = BlockedSlotColor;
-                return "Backup waiting";
+                return "Sidearm waiting";
             }
 
             if (pawn.Current == null && topReady != null)
@@ -738,28 +1034,48 @@ namespace Armory
                 color = new Color(0.78f, 0.78f, 0.78f);
                 return "Hand equipped";
             }
-
-            int backupCount = CountBackups(pawn);
-            if (settings == null || !settings.manageSidearms)
+            if (!manageSidearms)
             {
                 color = new Color(0.72f, 0.72f, 0.72f);
-                return backupCount > 0 ? "Backup carried" : "Backup management off";
+                return hasSidearmOne || hasSidearmTwo
+                    ? "Sidearm management off"
+                    : "Sidearms off";
             }
-            if (backupCount == 0)
+
+            if (!hasSidearmOne)
             {
                 if (BestReadyBackup(pawn) != null)
                 {
                     color = BackupSlotColor;
-                    return "Backup available";
+                    return "Sidearm 1 available";
                 }
                 color = BlockedSlotColor;
-                return pawn.SidearmCandidates.Count == 0 ? "No backup weapon" : "No usable backup";
+                return pawn.SidearmCandidates.Count == 0
+                    ? "No Sidearm 1"
+                    : "No usable Sidearm 1";
             }
-
-            if (BestBackupUpgrade(pawn) != null)
+            if (sidearmOneUpgrade != null)
             {
                 color = BackupSlotColor;
-                return "Backup upgrade available";
+                return "Sidearm 1 upgrade available";
+            }
+            if (!hasSidearmTwo)
+            {
+                if (BestReadySidearmTwo(pawn) != null)
+                {
+                    color = BackupSlotColor;
+                    return "Sidearm 2 available";
+                }
+                bool useful = HasUsefulSidearmTwoCandidate(pawn);
+                color = useful
+                    ? BlockedSlotColor
+                    : new Color(0.78f, 0.78f, 0.78f);
+                return useful ? "No usable Sidearm 2" : "No useful Sidearm 2";
+            }
+            if (sidearmTwoUpgrade != null)
+            {
+                color = BackupSlotColor;
+                return "Sidearm 2 upgrade available";
             }
 
             color = new Color(0.78f, 0.78f, 0.78f);
@@ -816,6 +1132,15 @@ namespace Armory
                 y += 22f;
             }
 
+            if (pawn.DrawnSidearm)
+            {
+                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
+                    "Drawn sidearm: " + pawn.DrawnSidearmName +
+                    ". Armory waits for Simple Sidearms to stow it before changing weapons.",
+                    new Color(0.66f, 0.84f, 0.95f));
+                y += 22f;
+            }
+
             if (pawn.RoleIsRanged == true)
             {
                 string roleText = string.Format("Ranged role: {0} ({1}, prefers ~{2} tiles)",
@@ -837,14 +1162,14 @@ namespace Armory
             if (!SimpleSidearmsAdapter.Active)
             {
                 DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
-                    "Backup slot: requires Simple Sidearms.",
+                    "Sidearm slots: require Simple Sidearms.",
                     new Color(0.68f, 0.72f, 0.78f));
                 y += 22f;
             }
             else if (pawn.SidearmState == null)
             {
                 DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
-                    "Backup slot: Simple Sidearms sidearm data is unavailable for this colonist.",
+                    "Sidearm slots: Simple Sidearms sidearm data is unavailable for this colonist.",
                     new Color(0.68f, 0.72f, 0.78f));
                 y += 22f;
             }
@@ -863,8 +1188,8 @@ namespace Armory
             if (pawn.HandLocked)
             {
                 string handLockText = pawn.SidearmState != null && WaitsForHandType(pawn)
-                    ? "Hand locked: bonded weapon. Backup waits for the hand type to match."
-                    : "Hand locked: bonded weapon in hand. Armory will not replace it; backups still run.";
+                    ? "Hand locked: bonded weapon. Sidearms wait for the hand type to match."
+                    : "Hand locked: bonded weapon in hand. Armory will not replace it; sidearms still run.";
                 DrawColoredLine(new Rect(rect.x, y, rect.width, 22f), handLockText,
                     new Color(1f, 0.82f, 0.45f));
                 y += 22f;
@@ -1013,9 +1338,11 @@ namespace Armory
                                       bestReady.Score <= baselineScore * (1f + threshold);
                 if (belowThreshold)
                 {
-                    string baselineLabel = carriedIsBaseline
-                        ? pawn.BestCarriedPrimary.LabelCap + " (best carried hand weapon)"
-                        : "current weapon";
+                    string baselineLabel = pawn.DrawnSidearm && pawn.LogicalHand != null
+                        ? pawn.LogicalHand.LabelCap + " (stowed hand)"
+                        : carriedIsBaseline
+                            ? pawn.BestCarriedPrimary.LabelCap + " (best carried hand weapon)"
+                            : "current weapon";
                     float delta = bestReady.Score / baselineScore - 1f;
                     int percent = Mathf.Max(1, Mathf.RoundToInt(Mathf.Abs(delta) * 100f));
                     int thresholdPercent = Mathf.RoundToInt(threshold * 100f);
@@ -1143,7 +1470,7 @@ namespace Armory
             if (pawn.SidearmState != null)
             {
                 cursor += 8f;
-                SectionHeader(ref cursor, width, "Backup slot (" + backupType + ")");
+                SectionHeader(ref cursor, width, "Sidearm 1 (" + backupType + ")");
 
                 string waitReason = SidearmWaitReason(pawn);
                 if (waitReason != null)
@@ -1154,19 +1481,16 @@ namespace Armory
                 }
 
                 string backupRule = !manageBackups
-                    ? "Backup management is off (Settings > Armory)."
-                    : "Armory keeps one " + backupType + " backup.";
-                int carriedBackupCount = CountBackups(pawn);
+                    ? "Sidearm management is off (Settings > Armory)."
+                    : "Armory keeps one " + backupType + " sidearm.";
                 DrawCell(new Rect(4f, cursor, width - 8f, 18f),
-                    string.Format("{0}: {1}",
-                        carriedBackupCount == 1 ? "Carried backup" : "Carried backups",
-                        CarriedBackupText(pawn)),
+                    "Carried Sidearm 1: " + CarriedLabel(pawn.Pawn, pawn.BestCarriedBackup),
                     TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.72f, 0.72f, 0.72f));
                 cursor += 18f;
-                if (carriedBackupCount > 1)
+                if (SidearmOneExtraCount(pawn) > 0)
                 {
                     DrawCell(new Rect(4f, cursor, width - 8f, 18f),
-                        "Multiple backups carried. Drop extras manually; Armory will not add more.",
+                        "Extra Sidearm 1 weapons will be dropped automatically.",
                         TextAnchor.MiddleLeft, GameFont.Tiny, BlockedSlotColor);
                     cursor += 18f;
                 }
@@ -1177,8 +1501,8 @@ namespace Armory
                 {
                     DrawCell(new Rect(4f, cursor, width - 8f, 18f),
                         replaceWorse
-                            ? "Upgrades replace the worst same-type backup."
-                            : "New backups are added but never upgraded.",
+                            ? "Upgrades replace Sidearm 1 when a better one is available."
+                            : "New sidearms are added but never upgraded.",
                         TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.68f, 0.68f, 0.68f));
                     cursor += 18f;
                 }
@@ -1186,7 +1510,7 @@ namespace Armory
                 if (pawn.SidearmCandidates.Count == 0)
                 {
                     string message = !SimpleSidearmsAdapter.CanCheckSidearms
-                        ? "Simple Sidearms sidearm checks are unavailable; backup candidates cannot be evaluated."
+                        ? "Simple Sidearms sidearm checks are unavailable; candidates cannot be evaluated."
                         : "No loose " + backupType + " weapons on this map.";
                     DrawCell(new Rect(4f, cursor, width - 8f, 20f), message,
                         TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.68f, 0.68f, 0.68f));
@@ -1209,16 +1533,16 @@ namespace Armory
                 {
                     SidearmCandidate candidate = pawn.SidearmCandidates[i];
                     bool upgrade = manageBackups && hasWorstBackup && replaceWorse &&
-                                   candidate.Score > backupMinimum &&
+                                   candidate.SlotScore > backupMinimum &&
                                    (candidate.Ready || candidate.UpgradeAfterDrop);
                     string status;
                     if (candidate.Ready)
                     {
-                        status = upgrade ? "Upgrade backup" : "Can equip";
+                        status = upgrade ? "Upgrade Sidearm 1" : "Can equip";
                     }
                     else
                     {
-                        status = upgrade ? "Upgrade, replaces old backup" : candidate.Blocker;
+                        status = upgrade ? "Upgrade, replaces current" : candidate.Blocker;
                     }
                     Color statusColor = upgrade
                         ? new Color(0.66f, 0.84f, 0.95f)
@@ -1232,7 +1556,7 @@ namespace Armory
                     DrawCell(backupStatus, status, TextAnchor.MiddleLeft, GameFont.Small, statusColor);
                     TipCell(backupStatus, status);
                     Rect backupScore = new Rect(width - 56f, cursor, 48f, 22f);
-                    DrawCell(backupScore, candidate.Score.ToString("0"), TextAnchor.MiddleRight);
+                    DrawCell(backupScore, candidate.SlotScore.ToString("0"), TextAnchor.MiddleRight);
                     TipCell(backupScore, "Combat score for this colonist.");
                     cursor += 22f;
                 }
@@ -1242,6 +1566,108 @@ namespace Armory
                     DrawCell(new Rect(32f, cursor, width - 32f, 18f),
                         string.Format("... {0} more (Settings > Armory)",
                             pawn.SidearmCandidates.Count - backupLimit),
+                        TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.65f, 0.65f, 0.65f));
+                    cursor += 18f;
+                }
+            }
+
+            if (pawn.SidearmState != null)
+            {
+                cursor += 8f;
+                SectionHeader(ref cursor, width, "Sidearm 2 (ranged complement)");
+                DrawCell(new Rect(4f, cursor, width - 8f, 18f),
+                    "Carried Sidearm 2: " + CarriedLabel(pawn.Pawn, pawn.BestCarriedSidearmTwo),
+                    TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.72f, 0.72f, 0.72f));
+                cursor += 18f;
+                if (pawn.BestCarriedSidearmTwo != null)
+                {
+                    string coverage = string.IsNullOrEmpty(pawn.CarriedSidearmTwoText)
+                        ? "No useful range gap."
+                        : pawn.CarriedSidearmTwoText;
+                    DrawCell(new Rect(4f, cursor, width - 8f, 18f), "Coverage: " + coverage,
+                        TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.68f, 0.68f, 0.68f));
+                    cursor += 18f;
+                }
+                if (!manageBackups)
+                {
+                    DrawCell(new Rect(4f, cursor, width - 8f, 18f),
+                        "Sidearm management is off (Settings > Armory).",
+                        TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.68f, 0.68f, 0.68f));
+                    cursor += 18f;
+                }
+                else if (pawn.BestCarriedBackup == null)
+                {
+                    DrawCell(new Rect(4f, cursor, width - 8f, 18f),
+                        "Sidearm 2 waits for Sidearm 1.",
+                        TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.68f, 0.68f, 0.68f));
+                    cursor += 18f;
+                }
+
+                int sidearmTwoLimit = Mathf.Min(pawn.SidearmTwoCandidates.Count,
+                    SidearmDisplayLimit);
+                if (pawn.BestCarriedBackup != null && sidearmTwoLimit > 0)
+                {
+                    Color columnColor = new Color(0.62f, 0.62f, 0.62f);
+                    DrawCell(new Rect(32f, cursor, Mathf.Max(40f, width - 304f), 18f),
+                        "Weapon", TextAnchor.MiddleLeft, GameFont.Tiny, columnColor);
+                    DrawCell(new Rect(width - 264f, cursor, 200f, 18f),
+                        "Status", TextAnchor.MiddleLeft, GameFont.Tiny, columnColor);
+                    DrawCell(new Rect(width - 56f, cursor, 48f, 18f),
+                        "Gain", TextAnchor.MiddleRight, GameFont.Tiny, columnColor);
+                    cursor += 18f;
+                }
+
+                for (int i = 0; i < sidearmTwoLimit; i++)
+                {
+                    SidearmCandidate candidate = pawn.SidearmTwoCandidates[i];
+                    float sidearmTwoThreshold = ArmoryMod.Settings == null
+                        ? 0.1f
+                        : ArmoryMod.Settings.upgradeThreshold;
+                    bool upgrade = manageBackups && pawn.BestCarriedSidearmTwo != null &&
+                                   replaceWorse && candidate.ComplementBand.HasValue &&
+                                   candidate.SlotScore >
+                                   Mathf.Max(pawn.CarriedSidearmTwoCoverage, 0.01f) *
+                                   (1f + sidearmTwoThreshold);
+                    string status;
+                    if (candidate.Ready)
+                    {
+                        status = upgrade ? "Upgrade Sidearm 2" : "Can equip";
+                    }
+                    else
+                    {
+                        status = upgrade ? "Upgrade, replaces current" : candidate.Blocker;
+                    }
+                    Color statusColor = upgrade
+                        ? new Color(0.66f, 0.84f, 0.95f)
+                        : candidate.Ready ? new Color(0.7f, 0.9f, 0.7f) : new Color(1f, 0.8f, 0.42f);
+
+                    DrawCell(new Rect(4f, cursor, 24f, 22f), (i + 1) + ".", TextAnchor.MiddleRight);
+                    Rect label = new Rect(32f, cursor, Mathf.Max(40f, width - 304f), 22f);
+                    DrawCell(label, candidate.Weapon.Label, TextAnchor.MiddleLeft);
+                    TipCell(label, candidate.Weapon.Label);
+                    Rect statusRect = new Rect(width - 264f, cursor, 200f, 22f);
+                    DrawCell(statusRect, status, TextAnchor.MiddleLeft, GameFont.Small, statusColor);
+                    TipCell(statusRect, status);
+                    Rect gainRect = new Rect(width - 56f, cursor, 48f, 22f);
+                    string gain = candidate.ComplementBand.HasValue
+                        ? FormatPct(candidate.ComplementGain)
+                        : "-";
+                    DrawCell(gainRect, gain, TextAnchor.MiddleRight);
+                    TipCell(gainRect, candidate.ComplementBand.HasValue
+                        ? "Estimated improvement in the " +
+                          SidearmCoverageModel.BandLabel(candidate.ComplementBand.Value) +
+                          " band (" +
+                          SidearmCoverageModel.BandRangeText(candidate.ComplementBand.Value) +
+                          " tiles)."
+                        : "No useful range gap for this weapon.");
+                    cursor += 22f;
+                }
+
+                if (pawn.SidearmTwoCandidates.Count > sidearmTwoLimit)
+                {
+                    DrawCell(new Rect(32f, cursor, width - 32f, 18f),
+                        string.Format("... {0} more (Settings > Armory)",
+                            pawn.SidearmTwoCandidates.Count - sidearmTwoLimit),
                         TextAnchor.MiddleLeft, GameFont.Tiny, new Color(0.65f, 0.65f, 0.65f));
                     cursor += 18f;
                 }
@@ -1265,7 +1691,7 @@ namespace Armory
             }
             if (pawn.Current == null)
             {
-                return "No hand weapon yet; the backup waits until the colonist is armed.";
+                return "No hand weapon yet; the sidearm waits until the colonist is armed.";
             }
             if (!WaitsForHandType(pawn))
             {
@@ -1273,7 +1699,7 @@ namespace Armory
             }
 
             return string.Format(
-                "Waiting for Simple Sidearms to switch to a {0} hand before adding the {1} backup.",
+                "Waiting for Simple Sidearms to switch to a {0} hand before adding the {1} sidearm.",
                 pawn.RoleIsRanged.Value ? "ranged" : "melee",
                 pawn.RoleIsRanged.Value ? "melee" : "ranged");
         }
@@ -1312,9 +1738,11 @@ namespace Armory
             if (pawn.SidearmState != null)
             {
                 int backupCount = Mathf.Min(pawn.SidearmCandidates.Count, SidearmDisplayLimit);
+                int sidearmTwoCount = Mathf.Min(pawn.SidearmTwoCandidates.Count,
+                    SidearmDisplayLimit);
                 bool manageBackups = ArmoryMod.Settings == null || ArmoryMod.Settings.manageSidearms;
                 height += 8f + 26f + 18f + 18f + backupCount * 22f;
-                if (CountBackups(pawn) > 1)
+                if (SidearmOneExtraCount(pawn) > 0)
                 {
                     height += 18f;
                 }
@@ -1335,6 +1763,24 @@ namespace Armory
                     height += 20f;
                 }
                 if (pawn.SidearmCandidates.Count > backupCount)
+                {
+                    height += 18f;
+                }
+
+                height += 8f + 26f + 18f * 2 + sidearmTwoCount * 22f;
+                if (pawn.BestCarriedSidearmTwo != null)
+                {
+                    height += 18f;
+                }
+                if (!manageBackups || pawn.BestCarriedBackup == null)
+                {
+                    height += 18f;
+                }
+                if (sidearmTwoCount > 0)
+                {
+                    height += 18f;
+                }
+                if (pawn.SidearmTwoCandidates.Count > sidearmTwoCount)
                 {
                     height += 18f;
                 }
@@ -1721,7 +2167,7 @@ namespace Armory
 
             bool hasBest = false;
             PawnAnalysis bestPawn = null;
-            bool bestBackup = false;
+            WeaponSlot bestSlot = WeaponSlot.Hand;
             bool bestReady = false;
             float roleBestScore = 0f;
             if (weaponRoleFilter == RoleFilter.All)
@@ -1730,25 +2176,40 @@ namespace Armory
                 {
                     hasBest = true;
                     bestPawn = row.BestHandPawn;
+                    bestSlot = WeaponSlot.Hand;
                     bestReady = true;
                 }
                 else if (row.BestBackupPawn != null)
                 {
                     hasBest = true;
                     bestPawn = row.BestBackupPawn;
-                    bestBackup = true;
+                    bestSlot = WeaponSlot.Sidearm1;
+                    bestReady = true;
+                }
+                else if (row.BestSidearmTwoPawn != null)
+                {
+                    hasBest = true;
+                    bestPawn = row.BestSidearmTwoPawn;
+                    bestSlot = WeaponSlot.Sidearm2;
                     bestReady = true;
                 }
                 else if (row.BestAnyHandPawn != null)
                 {
                     hasBest = true;
                     bestPawn = row.BestAnyHandPawn;
+                    bestSlot = WeaponSlot.Hand;
                 }
                 else if (row.BestAnyBackupPawn != null)
                 {
                     hasBest = true;
                     bestPawn = row.BestAnyBackupPawn;
-                    bestBackup = true;
+                    bestSlot = WeaponSlot.Sidearm1;
+                }
+                else if (row.BestAnySidearmTwoPawn != null)
+                {
+                    hasBest = true;
+                    bestPawn = row.BestAnySidearmTwoPawn;
+                    bestSlot = WeaponSlot.Sidearm2;
                 }
             }
             else
@@ -1758,7 +2219,7 @@ namespace Armory
                 {
                     hasBest = true;
                     bestPawn = roleBest.Pawn;
-                    bestBackup = roleBest.Backup;
+                    bestSlot = roleBest.Slot;
                     bestReady = roleBest.Ready;
                     roleBestScore = roleBest.Score;
                 }
@@ -1790,11 +2251,12 @@ namespace Armory
             }
             else
             {
-                statusText = bestReady
-                    ? (bestBackup ? "Backup" : "Hand")
-                    : (bestBackup ? "Backup (blocked)" : "Hand (blocked)");
+                string slotLabel = bestSlot == WeaponSlot.Sidearm2
+                    ? "Sidearm 2"
+                    : bestSlot == WeaponSlot.Sidearm1 ? "Sidearm 1" : "Hand";
+                statusText = bestReady ? slotLabel : slotLabel + " (blocked)";
                 statusColor = bestReady
-                    ? (bestBackup ? BackupSlotColor : HandSlotColor)
+                    ? (bestSlot == WeaponSlot.Hand ? HandSlotColor : BackupSlotColor)
                     : BlockedSlotColor;
             }
             DrawCell(status, statusText, TextAnchor.MiddleRight, GameFont.Small, statusColor);
@@ -1809,11 +2271,12 @@ namespace Armory
             {
                 return HandSlotColor;
             }
-            if (row.BestBackupPawn != null)
+            if (row.BestBackupPawn != null || row.BestSidearmTwoPawn != null)
             {
                 return BackupSlotColor;
             }
-            if (row.BestAnyHandPawn != null || row.BestAnyBackupPawn != null)
+            if (row.BestAnyHandPawn != null || row.BestAnyBackupPawn != null ||
+                row.BestAnySidearmTwoPawn != null)
             {
                 return BlockedSlotColor;
             }
@@ -1824,7 +2287,7 @@ namespace Armory
         {
             public PawnAnalysis Pawn;
             public float Score;
-            public bool Backup;
+            public WeaponSlot Slot;
             public bool Ready;
         }
 
@@ -1852,15 +2315,26 @@ namespace Armory
                 Candidate hand = FindCandidate(pawn, row.Weapon);
                 if (hand != null && !hand.Hard)
                 {
-                    ConsiderRoleCandidate(pawn, hand.Score, hand.Ready, false, ref ready,
-                        ref hasReady, ref any, ref hasAny);
+                    ConsiderRoleCandidate(pawn, hand.Score, hand.Ready, WeaponSlot.Hand,
+                        ref ready, ref hasReady, ref any, ref hasAny);
                 }
 
                 SidearmCandidate backup = FindSidearmCandidate(pawn, row.Weapon);
                 if (backup != null && !backup.AlreadyCarried)
                 {
-                    ConsiderRoleCandidate(pawn, backup.Score, backup.Ready, true, ref ready,
-                        ref hasReady, ref any, ref hasAny);
+                    ConsiderRoleCandidate(pawn, backup.SlotScore, backup.Ready,
+                        WeaponSlot.Sidearm1, ref ready, ref hasReady, ref any, ref hasAny);
+                }
+
+                if (hand == null && backup == null)
+                {
+                    SidearmCandidate sidearmTwo = FindSidearmTwoCandidate(pawn, row.Weapon);
+                    if (sidearmTwo != null && !sidearmTwo.AlreadyCarried &&
+                        sidearmTwo.ComplementBand.HasValue)
+                    {
+                        ConsiderRoleCandidate(pawn, sidearmTwo.SlotScore, sidearmTwo.Ready,
+                            WeaponSlot.Sidearm2, ref ready, ref hasReady, ref any, ref hasAny);
+                    }
                 }
             }
 
@@ -1878,7 +2352,7 @@ namespace Armory
         }
 
         private static void ConsiderRoleCandidate(PawnAnalysis pawn, float score, bool ready,
-            bool backup, ref RoleBest bestReady, ref bool hasReady, ref RoleBest bestAny,
+            WeaponSlot slot, ref RoleBest bestReady, ref bool hasReady, ref RoleBest bestAny,
             ref bool hasAny)
         {
             if (score <= 0.99f)
@@ -1891,7 +2365,7 @@ namespace Armory
                 {
                     Pawn = pawn,
                     Score = score,
-                    Backup = backup,
+                    Slot = slot,
                     Ready = true
                 };
                 hasReady = true;
@@ -1902,7 +2376,7 @@ namespace Armory
                 {
                     Pawn = pawn,
                     Score = score,
-                    Backup = backup,
+                    Slot = slot,
                     Ready = ready
                 };
                 hasAny = true;
@@ -2007,7 +2481,11 @@ namespace Armory
             }
             if (row.BestBackupPawn != null)
             {
-                return "Best use is the backup slot. Hand use is blocked or not needed, but it is ready as an opposite-type backup.";
+                return "Best use is Sidearm 1. Hand use is blocked or not needed, but it is ready as an opposite-type sidearm.";
+            }
+            if (row.BestSidearmTwoPawn != null)
+            {
+                return "Best use is Sidearm 2. It covers a range gap that the hand and Sidearm 1 leave open.";
             }
             if (row.BestAnyHandPawn != null)
             {
@@ -2015,7 +2493,11 @@ namespace Armory
             }
             if (row.BestAnyBackupPawn != null)
             {
-                return "Best as a backup weapon, but that colonist cannot carry it right now. Open the detail for the blocker.";
+                return "Best as Sidearm 1, but that colonist cannot carry it right now. Open the detail for the blocker.";
+            }
+            if (row.BestAnySidearmTwoPawn != null)
+            {
+                return "Best as Sidearm 2, but that colonist cannot carry it right now. Open the detail for the blocker.";
             }
             return "No colonist can use this weapon: it is not a fit, or every candidate is permanently blocked.";
         }
@@ -2062,7 +2544,7 @@ namespace Armory
             TipCell(range, "Maximum firing range in tiles. Click to sort.");
             TipCell(value, "Base market value in silver for this item's material, quality and condition. This is before negotiator skill and buy/sell multipliers. Click to sort.");
             TipCell(best, "Colonist with the highest score for this weapon in its best ready slot. Click to sort.");
-            TipCell(status, "Where this loose weapon is the best choice: hand, backup, or blocked in that slot.");
+            TipCell(status, "Where this loose weapon is the best choice: hand, Sidearm 1, Sidearm 2, or blocked in that slot.");
 
             if (Widgets.ButtonInvisible(label))
             {
@@ -2173,11 +2655,12 @@ namespace Armory
                 DrawCell(new Rect(rect.x + 4f + roleWidth + gap + nameWidth + gap, y,
                         scoreWidth, 18f), best.Score.ToString("0"), TextAnchor.MiddleRight,
                     GameFont.Tiny, new Color(0.86f, 0.82f, 0.68f));
-                string status = best.Ready
-                    ? (best.Backup ? "Backup" : "Hand")
-                    : (best.Backup ? "Backup (blocked)" : "Hand (blocked)");
+                string slot = best.Slot == WeaponSlot.Sidearm2
+                    ? "Sidearm 2"
+                    : best.Slot == WeaponSlot.Sidearm1 ? "Sidearm 1" : "Hand";
+                string status = best.Ready ? slot : slot + " (blocked)";
                 Color statusColor = best.Ready
-                    ? (best.Backup ? BackupSlotColor : HandSlotColor)
+                    ? (best.Slot == WeaponSlot.Hand ? HandSlotColor : BackupSlotColor)
                     : BlockedSlotColor;
                 float statusX = rect.x + 4f + roleWidth + gap + nameWidth + gap +
                                 scoreWidth + gap;
@@ -2279,7 +2762,7 @@ namespace Armory
             if (row.BestBackupPawn != null)
             {
                 DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
-                    string.Format("Best as backup for {0} (hand use is blocked or not needed).",
+                    string.Format("Best as Sidearm 1 for {0} (hand use is blocked or not needed).",
                         row.BestBackupPawn.Pawn.LabelShort),
                     new Color(0.66f, 0.84f, 0.95f));
                 y += 22f;
@@ -2287,12 +2770,36 @@ namespace Armory
             else if (row.BestAnyBackupPawn != null)
             {
                 DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
-                    string.Format("Best backup fit: {0}, but blocked",
+                    string.Format("Best Sidearm 1 fit: {0}, but blocked",
                         row.BestAnyBackupPawn.Pawn.LabelShort),
                     new Color(1f, 0.8f, 0.42f));
                 y += 21f;
                 DrawReasonLine(rect, ref y,
                     SidearmReasonFor(row.BestAnyBackupPawn, row.Weapon));
+            }
+
+            if (row.BestSidearmTwoPawn != null)
+            {
+                SidearmCandidate candidate = FindSidearmTwoCandidate(
+                    row.BestSidearmTwoPawn, row.Weapon);
+                string coverage = candidate != null && candidate.ComplementBand.HasValue
+                    ? "  (" + candidate.ComplementText + ")"
+                    : string.Empty;
+                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
+                    string.Format("Best as Sidearm 2 for {0}{1}.",
+                        row.BestSidearmTwoPawn.Pawn.LabelShort, coverage),
+                    new Color(0.66f, 0.84f, 0.95f));
+                y += 22f;
+            }
+            else if (row.BestAnySidearmTwoPawn != null)
+            {
+                DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
+                    string.Format("Best Sidearm 2 fit: {0}, but blocked",
+                        row.BestAnySidearmTwoPawn.Pawn.LabelShort),
+                    new Color(1f, 0.8f, 0.42f));
+                y += 21f;
+                DrawReasonLine(rect, ref y,
+                    SidearmReasonFor(row.BestAnySidearmTwoPawn, row.Weapon));
             }
             y += 2f;
 
@@ -2333,14 +2840,21 @@ namespace Armory
                 PawnAnalysis pawn = pawnScratch[i];
                 Candidate handCandidate = FindCandidate(pawn, row.Weapon);
                 SidearmCandidate backupCandidate = FindSidearmCandidate(pawn, row.Weapon);
-                if (handCandidate == null && backupCandidate == null)
+                SidearmCandidate sidearmTwoCandidate =
+                    FindSidearmTwoCandidate(pawn, row.Weapon);
+                if (handCandidate == null && backupCandidate == null &&
+                    sidearmTwoCandidate == null)
                 {
                     continue;
                 }
 
                 bool available = pawn.Available;
                 bool holdsIt = pawn.Current == row.Weapon.Thing;
-                float score = handCandidate != null ? handCandidate.Score : backupCandidate.Score;
+                float score = handCandidate != null
+                    ? handCandidate.Score
+                    : backupCandidate != null
+                        ? backupCandidate.SlotScore
+                        : sidearmTwoCandidate.SlotScore;
 
                 DrawCell(new Rect(4f, cursor, nameWidth, 22f), pawn.Pawn.LabelShort,
                     TextAnchor.MiddleLeft);
@@ -2367,13 +2881,25 @@ namespace Armory
                     status = ready ? "Can equip in hand" : reason;
                     color = ready ? HandSlotColor : new Color(1f, 0.62f, 0.62f);
                 }
+                else if (backupCandidate != null)
+                {
+                    string reason;
+                    bool hard;
+                    bool ready = Eligibility.CheckSidearm(pawn.Pawn, row.Weapon.Thing, true,
+                        out reason, out hard);
+                    status = ready ? "Can carry as Sidearm 1" : reason;
+                    color = ready ? BackupSlotColor : new Color(1f, 0.62f, 0.62f);
+                }
                 else
                 {
                     string reason;
                     bool hard;
                     bool ready = Eligibility.CheckSidearm(pawn.Pawn, row.Weapon.Thing, true,
                         out reason, out hard);
-                    status = ready ? "Can carry as backup" : reason;
+                    string complement = sidearmTwoCandidate.ComplementBand.HasValue
+                        ? " (" + sidearmTwoCandidate.ComplementText + ")"
+                        : string.Empty;
+                    status = ready ? "Can carry as Sidearm 2" + complement : reason;
                     color = ready ? BackupSlotColor : new Color(1f, 0.62f, 0.62f);
                 }
                 Rect statusRect = new Rect(statusX, cursor, statusWidth, 22f);
@@ -2399,7 +2925,12 @@ namespace Armory
                 return candidate.Score;
             }
             SidearmCandidate backup = FindSidearmCandidate(pawn, weapon);
-            return backup == null ? 0f : backup.Score;
+            if (backup != null)
+            {
+                return backup.SlotScore;
+            }
+            SidearmCandidate sidearmTwo = FindSidearmTwoCandidate(pawn, weapon);
+            return sidearmTwo == null ? 0f : sidearmTwo.SlotScore;
         }
 
         private static float DeltaFor(PawnAnalysis pawn, float score)
@@ -2439,9 +2970,26 @@ namespace Armory
             return null;
         }
 
+        private static SidearmCandidate FindSidearmTwoCandidate(PawnAnalysis pawn,
+            WeaponInfo weapon)
+        {
+            for (int i = 0; i < pawn.SidearmTwoCandidates.Count; i++)
+            {
+                if (pawn.SidearmTwoCandidates[i].Weapon == weapon)
+                {
+                    return pawn.SidearmTwoCandidates[i];
+                }
+            }
+            return null;
+        }
+
         private static string SidearmReasonFor(PawnAnalysis pawn, WeaponInfo weapon)
         {
             SidearmCandidate candidate = FindSidearmCandidate(pawn, weapon);
+            if (candidate == null)
+            {
+                candidate = FindSidearmTwoCandidate(pawn, weapon);
+            }
             return candidate == null || candidate.Ready ? "blocked" : candidate.Blocker;
         }
 
@@ -2455,8 +3003,8 @@ namespace Armory
             public const float ValueWidth = 64f;
             public const float CostWidth = 136f;
             public const float ScoreWidth = 58f;
-            public const float SlotWidth = 60f;
-            public const float WantedWidth = 58f;
+            public const float SlotWidth = 78f;
+            public const float WantedWidth = 68f;
             public const float OwnedWidth = 58f;
             public const float NeedWidth = 58f;
             public const float GainWidth = 58f;
@@ -2961,7 +3509,7 @@ namespace Armory
                 rect.height);
             DrawCell(slotRect, "Slot", TextAnchor.MiddleLeft, GameFont.Tiny, color);
             TooltipHandler.TipRegion(slotRect,
-                "Where the weapon is wanted: hand, backup, or both. Hover a slot for counts; expand a row to see each colonist.");
+                "Where the weapon is wanted: Hand, Sidearm 1, Sidearm 2, or several. Hover a slot for counts; expand a row to see each colonist.");
             Rect wantRect = new Rect(rect.x + columns.WantedX, rect.y, DemandColumns.WantedWidth,
                 rect.height);
             DrawCell(wantRect, "Wanted by", TextAnchor.MiddleRight, GameFont.Tiny, color);
@@ -3015,11 +3563,17 @@ namespace Armory
             {
                 return "-";
             }
-            if (row.WantedHand > 0 && row.WantedBackup > 0)
+            int kinds = (row.WantedHand > 0 ? 1 : 0) + (row.WantedBackup > 0 ? 1 : 0) +
+                        (row.WantedSidearmTwo > 0 ? 1 : 0);
+            if (kinds > 1)
             {
                 return "Both";
             }
-            return row.WantedHand > 0 ? "Hand" : "Backup";
+            if (row.WantedHand > 0)
+            {
+                return "Hand";
+            }
+            return row.WantedBackup > 0 ? "Sidearm 1" : "Sidearm 2";
         }
 
         private static Color SlotColor(DemandRow row)
@@ -3028,7 +3582,9 @@ namespace Armory
             {
                 return new Color(0.62f, 0.62f, 0.62f);
             }
-            if (row.WantedHand > 0 && row.WantedBackup > 0)
+            int kinds = (row.WantedHand > 0 ? 1 : 0) + (row.WantedBackup > 0 ? 1 : 0) +
+                        (row.WantedSidearmTwo > 0 ? 1 : 0);
+            if (kinds > 1)
             {
                 return BothSlotColor;
             }
@@ -3041,17 +3597,21 @@ namespace Armory
             {
                 return "Owned copy shown for comparison; no colonist has this variant as a needed upgrade.";
             }
-            if (row.WantedHand > 0 && row.WantedBackup > 0)
+            int kinds = (row.WantedHand > 0 ? 1 : 0) + (row.WantedBackup > 0 ? 1 : 0) +
+                        (row.WantedSidearmTwo > 0 ? 1 : 0);
+            if (kinds > 1)
             {
-                string hand = row.WantedHand == 1
-                    ? "1 Hand slot"
-                    : row.WantedHand + " Hand slots";
-                string backup = row.WantedBackup == 1
-                    ? "1 Backup slot"
-                    : row.WantedBackup + " Backup slots";
-                return "Wanted for " + hand + " and " + backup + ".";
+                return string.Format(
+                    "Wanted for {0} hand, {1} Sidearm 1 and {2} Sidearm 2 slot(s).",
+                    row.WantedHand, row.WantedBackup, row.WantedSidearmTwo);
             }
-            return row.WantedHand > 0 ? "Wanted for the Hand slot." : "Wanted for the Backup slot.";
+            if (row.WantedHand > 0)
+            {
+                return "Wanted for the Hand slot.";
+            }
+            return row.WantedBackup > 0
+                ? "Wanted for Sidearm 1 (the opposite-type slot)."
+                : "Wanted for Sidearm 2 (the ranged complement).";
         }
 
         private static string GainText(DemandRow row, RoleFilter filter)
@@ -3183,9 +3743,12 @@ namespace Armory
             DrawCell(new Rect(columns.ScoreX, cursor, DemandColumns.ScoreWidth, 20f),
                 want.Score.ToString("0"), TextAnchor.MiddleRight, GameFont.Small,
                 new Color(0.82f, 0.8f, 0.68f));
+            string slot = want.Slot == WeaponSlot.Hand
+                ? "Hand"
+                : want.Slot == WeaponSlot.Sidearm1 ? "Sidearm 1" : "Sidearm 2";
             DrawCell(new Rect(columns.SlotX, cursor, DemandColumns.SlotWidth, 20f),
-                want.Hand ? "Hand" : "Backup", TextAnchor.MiddleLeft, GameFont.Small,
-                want.Hand ? HandSlotColor : BackupSlotColor);
+                slot, TextAnchor.MiddleLeft, GameFont.Small,
+                want.Slot == WeaponSlot.Hand ? HandSlotColor : BackupSlotColor);
             DrawCell(new Rect(columns.GainX, cursor, DemandColumns.GainWidth, 20f),
                 want.TypeSwitch ? "switch" : want.IsNew ? "new slot" : FormatPct(want.Gain),
                 TextAnchor.MiddleRight, GameFont.Small,
@@ -3229,7 +3792,7 @@ namespace Armory
             {
                 GUI.color = new Color(0.72f, 0.72f, 0.72f);
                 Widgets.Label(new Rect(inner.x, inner.y + 36f, inner.width, 24f),
-                    "No automatic decisions yet. Hand-weapon and backup equips, drops and skips appear here with the reason.");
+                    "No automatic decisions yet. Hand and sidearm equips, drops and skips appear here with the reason.");
                 GUI.color = Color.white;
                 return;
             }
@@ -3240,7 +3803,7 @@ namespace Armory
             float rowWidth = scrollRect.width - 20f;
 
             // Column layout: Ago | Colonist | Action | Weapon | Reason. The action comes
-            // before the weapon so "Equip hand" / "Equip backup" reads as a sentence with
+            // before the weapon so "Equip hand" / "Equip sidearm" reads as a sentence with
             // the weapon, and the reason gets the widest column.
             const float agoWidth = 60f;
             const float colonistX = 72f;
@@ -3304,15 +3867,19 @@ namespace Armory
                 case DecisionKind.EquipHand:
                     return "Equip hand weapon";
                 case DecisionKind.EquipBackup:
-                    return "Equip backup";
+                    return "Equip Sidearm 1";
+                case DecisionKind.EquipSidearmTwo:
+                    return "Equip Sidearm 2";
                 case DecisionKind.SkipUpgrade:
                     return "Skip upgrade";
                 case DecisionKind.DropBackup:
-                    return "Drop backup";
+                    return "Drop sidearm";
+                case DecisionKind.DropExtraSidearm:
+                    return "Drop extra sidearm";
                 case DecisionKind.DropFailed:
                     return "Drop failed";
                 case DecisionKind.RestoreBackup:
-                    return "Restore backup";
+                    return "Restore sidearm";
                 default:
                     return kind.ToString();
             }
@@ -3323,9 +3890,12 @@ namespace Armory
             switch (kind)
             {
                 case DecisionKind.EquipHand:
-                case DecisionKind.EquipBackup:
                     return new Color(0.72f, 0.92f, 0.72f);
+                case DecisionKind.EquipBackup:
+                case DecisionKind.EquipSidearmTwo:
+                    return new Color(0.72f, 0.84f, 0.95f);
                 case DecisionKind.DropBackup:
+                case DecisionKind.DropExtraSidearm:
                     return new Color(0.7f, 0.8f, 0.9f);
                 default:
                     return new Color(1f, 0.78f, 0.45f);

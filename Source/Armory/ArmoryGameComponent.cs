@@ -11,7 +11,9 @@ namespace Armory
         SkipUpgrade,
         DropBackup,
         DropFailed,
-        RestoreBackup
+        RestoreBackup,
+        EquipSidearmTwo,
+        DropExtraSidearm
     }
 
     /// <summary>Session-only decision log for the automation tab.</summary>

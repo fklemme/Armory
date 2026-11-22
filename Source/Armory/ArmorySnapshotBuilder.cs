@@ -110,6 +110,26 @@ namespace Armory
                         row.BestBackupPawn = analysis;
                     }
                 }
+
+                for (int i = 0; i < analysis.SidearmTwoCandidates.Count; i++)
+                {
+                    SidearmCandidate sidearm = analysis.SidearmTwoCandidates[i];
+                    if (sidearm.AlreadyCarried || sidearm.SlotScore <= 0.001f)
+                    {
+                        continue;
+                    }
+                    WeaponAnalysis row = rows[sidearm.Weapon];
+                    if (sidearm.SlotScore > row.BestAnySidearmTwoScore)
+                    {
+                        row.BestAnySidearmTwoScore = sidearm.SlotScore;
+                        row.BestAnySidearmTwoPawn = analysis;
+                    }
+                    if (sidearm.Ready && sidearm.SlotScore > row.BestSidearmTwoScore)
+                    {
+                        row.BestSidearmTwoScore = sidearm.SlotScore;
+                        row.BestSidearmTwoPawn = analysis;
+                    }
+                }
             }
 
             snapshot.Pawns.Sort(CompareColonistOrder);
@@ -124,7 +144,11 @@ namespace Armory
                 }
                 else if (row.BestBackupPawn != null)
                 {
-                    row.Status = "Backup";
+                    row.Status = "Sidearm 1";
+                }
+                else if (row.BestSidearmTwoPawn != null)
+                {
+                    row.Status = "Sidearm 2";
                 }
                 else if (row.BestAnyHandPawn != null)
                 {
@@ -132,7 +156,11 @@ namespace Armory
                 }
                 else if (row.BestAnyBackupPawn != null)
                 {
-                    row.Status = "Backup (blocked)";
+                    row.Status = "Sidearm 1 (blocked)";
+                }
+                else if (row.BestAnySidearmTwoPawn != null)
+                {
+                    row.Status = "Sidearm 2 (blocked)";
                 }
                 else
                 {
@@ -286,7 +314,7 @@ namespace Armory
                 !analysis.IsHandType(analysis.Current.def);
             if (analysis.SidearmState != null)
             {
-                ResolveBestCarriedBackup(analysis);
+                ResolveBestCarriedBackup(analysis, context);
             }
 
             // Simple Sidearms has an explicit hand role. Use SS's own QuickSwitch choice
@@ -296,6 +324,18 @@ namespace Armory
             if (analysis.HandTypeFromSimpleSidearms && analysis.SidearmState != null)
             {
                 ResolveBestCarriedHand(analysis, context, powerCache);
+            }
+            analysis.RangedHand = RangedHandFor(analysis, context);
+            analysis.LogicalHand = LogicalHandFor(analysis, context);
+            if (analysis.LogicalHand != null)
+            {
+                analysis.LogicalHandScore = CombatScoring.Compute(
+                    context, analysis.LogicalHand, out _);
+            }
+            if (analysis.SidearmState != null)
+            {
+                ResolveBestCarriedSidearmTwo(analysis, context);
+                ResolveDrawnSidearm(analysis);
             }
 
             for (int i = 0; i < weapons.Count; i++)
@@ -307,7 +347,7 @@ namespace Armory
                 }
                 if (!analysis.IsHandType(info.Thing.def))
                 {
-                    // The other type belongs in the backup slot, not the hand ranking.
+                    // The other type belongs in the Sidearm 1 slot, not the hand ranking.
                     continue;
                 }
 
@@ -355,6 +395,12 @@ namespace Armory
                 bool hard;
                 analysis.AutomationNote = ArmoryPlanner.GetAutomationNote(
                     pawn, map, ArmoryMod.Settings, Find.TickManager.TicksGame, out hard);
+                if (analysis.DrawnSidearm && !string.IsNullOrEmpty(analysis.AutomationNote) &&
+                    analysis.AutomationNote.StartsWith("manual"))
+                {
+                    analysis.AutomationNote = null;
+                    hard = false;
+                }
                 analysis.AutomationBlocked = hard;
             }
 
@@ -512,20 +558,157 @@ namespace Armory
             }
         }
 
-        private static void ResolveBestCarriedBackup(PawnAnalysis analysis)
+        private static void ResolveBestCarriedBackup(PawnAnalysis analysis,
+            PawnFitContext context)
         {
-            for (int i = 0; i < analysis.CarriedSidearms.Count; i++)
+            for (int i = 0; i < analysis.CarriedWeapons.Count; i++)
             {
-                CarriedSidearm carried = analysis.CarriedSidearms[i];
-                if (!carried.Usable || !analysis.IsBackupType(carried.Thing.def))
+                ThingWithComps weapon = analysis.CarriedWeapons[i];
+                if (weapon == null || !analysis.IsBackupType(weapon.def))
                 {
                     continue;
                 }
-                if (carried.Score > analysis.BestCarriedBackupScore)
+                string reason;
+                bool hard;
+                if (!Eligibility.CanUseCarriedWeapon(analysis.Pawn, weapon, out reason, out hard))
                 {
-                    analysis.BestCarriedBackupScore = carried.Score;
-                    analysis.BestCarriedBackup = carried.Thing;
+                    continue;
                 }
+                float score = CombatScoring.Compute(context, weapon, out _);
+                if (score > analysis.BestCarriedBackupScore)
+                {
+                    analysis.BestCarriedBackupScore = score;
+                    analysis.BestCarriedBackup = weapon;
+                }
+            }
+        }
+
+        private static void ResolveBestCarriedSidearmTwo(PawnAnalysis analysis,
+            PawnFitContext context)
+        {
+            ThingWithComps excluded = analysis.RoleIsRanged == true
+                ? analysis.RangedHand
+                : analysis.BestCarriedBackup;
+            for (int i = 0; i < analysis.CarriedWeapons.Count; i++)
+            {
+                ThingWithComps weapon = analysis.CarriedWeapons[i];
+                if (weapon == null || weapon == excluded ||
+                    !analysis.IsSidearmTwoType(weapon.def))
+                {
+                    continue;
+                }
+                string reason;
+                bool hard;
+                if (!Eligibility.CanUseCarriedWeapon(analysis.Pawn, weapon, out reason, out hard))
+                {
+                    continue;
+                }
+                float score = CombatScoring.Compute(context, weapon, out _);
+                if (score > analysis.BestCarriedSidearmTwoScore)
+                {
+                    analysis.BestCarriedSidearmTwoScore = score;
+                    analysis.BestCarriedSidearmTwo = weapon;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The ranged weapon that logically fills the hand slot: the best carried ranged
+        /// weapon at the pawn's preferred range. This is deliberately not Simple Sidearms'
+        /// current draw, because SS may temporarily draw Sidearm 2 for a close target.
+        /// </summary>
+        private static ThingWithComps RangedHandFor(PawnAnalysis analysis,
+            PawnFitContext context)
+        {
+            if (analysis.RoleIsRanged != true)
+            {
+                return null;
+            }
+            ThingWithComps best = null;
+            float bestScore = -1f;
+            for (int i = 0; i < analysis.CarriedWeapons.Count; i++)
+            {
+                ThingWithComps weapon = analysis.CarriedWeapons[i];
+                if (weapon == null || weapon.def == null || !weapon.def.IsRangedWeapon)
+                {
+                    continue;
+                }
+                float score = CombatScoring.Compute(context, weapon, out _);
+                if (best == null || score > bestScore)
+                {
+                    best = weapon;
+                    bestScore = score;
+                }
+            }
+            return best;
+        }
+
+        private static ThingWithComps LogicalHandFor(PawnAnalysis analysis,
+            PawnFitContext context)
+        {
+            if (analysis.RoleIsRanged == true)
+            {
+                return analysis.RangedHand;
+            }
+            if (analysis.RoleIsRanged == false)
+            {
+                ThingWithComps best = null;
+                float bestScore = -1f;
+                for (int i = 0; i < analysis.CarriedWeapons.Count; i++)
+                {
+                    ThingWithComps weapon = analysis.CarriedWeapons[i];
+                    if (weapon == null || weapon.def == null || !weapon.def.IsMeleeWeapon)
+                    {
+                        continue;
+                    }
+                    float score = CombatScoring.Compute(context, weapon, out _);
+                    if (best == null || score > bestScore)
+                    {
+                        best = weapon;
+                        bestScore = score;
+                    }
+                }
+                return best;
+            }
+            return null;
+        }
+
+        private static void ResolveDrawnSidearm(PawnAnalysis analysis)
+        {
+            analysis.DrawnSidearm = false;
+            analysis.DrawnSidearmName = null;
+            if (analysis.Current == null || analysis.Current.def == null ||
+                !analysis.RoleIsRanged.HasValue)
+            {
+                return;
+            }
+
+            bool currentRanged = analysis.Current.def.IsRangedWeapon;
+            bool currentMelee = analysis.Current.def.IsMeleeWeapon;
+            if (!currentRanged && !currentMelee)
+            {
+                return;
+            }
+
+            bool drawn;
+            if (analysis.RoleIsRanged.Value)
+            {
+                drawn = currentMelee;
+                if (!drawn && currentRanged && analysis.RangedHand != null &&
+                    analysis.RangedHand != analysis.Current)
+                {
+                    drawn = true;
+                }
+            }
+            else
+            {
+                drawn = currentRanged;
+            }
+
+            if (drawn)
+            {
+                analysis.DrawnSidearm = true;
+                analysis.DrawnSidearmName = analysis.Current.LabelCap;
             }
         }
 
@@ -564,10 +747,13 @@ namespace Armory
                 }
 
                 bool alreadyCarried = analysis.AlreadyCarries(info.Thing);
+                float score = CombatScoring.Compute(context, info.Thing, out _);
                 SidearmCandidate candidate = new SidearmCandidate
                 {
                     Weapon = info,
-                    Score = CombatScoring.Compute(context, info.Thing, out _),
+                    Slot = WeaponSlot.Sidearm1,
+                    Score = score,
+                    SlotScore = score,
                     Blocker = alreadyCarried ? Eligibility.AlreadyCarried : reason,
                     AlreadyCarried = alreadyCarried
                 };
@@ -592,7 +778,98 @@ namespace Armory
                 analysis.SidearmCandidates.Add(candidate);
             }
 
-            analysis.SidearmCandidates.Sort((a, b) => b.Score.CompareTo(a.Score));
+            analysis.SidearmCandidates.Sort(CompareSidearmCandidates);
+            BuildSidearmTwoCandidates(analysis, context, weapons);
+        }
+
+        private static int CompareSidearmCandidates(SidearmCandidate a, SidearmCandidate b)
+        {
+            if (a.Ready != b.Ready)
+            {
+                return a.Ready ? -1 : 1;
+            }
+            return b.SlotScore.CompareTo(a.SlotScore);
+        }
+
+        private static void BuildSidearmTwoCandidates(PawnAnalysis analysis,
+            PawnFitContext context, List<WeaponInfo> weapons)
+        {
+            SidearmCoverageModel coverage = new SidearmCoverageModel();
+            coverage.AddBaseline(context, analysis.RangedHand);
+            coverage.AddBaseline(context, analysis.BestCarriedBackup);
+
+            SidearmCandidate carriedCandidate = null;
+            if (analysis.BestCarriedSidearmTwo != null)
+            {
+                carriedCandidate = new SidearmCandidate { Slot = WeaponSlot.Sidearm2 };
+                coverage.AddCandidate(context, carriedCandidate, analysis.BestCarriedSidearmTwo);
+            }
+
+            for (int i = 0; i < weapons.Count; i++)
+            {
+                WeaponInfo info = weapons[i];
+                if (info.Thing == analysis.Current || !analysis.IsSidearmTwoType(info.Thing.def) ||
+                    !IsUsableAsBackup(info.Thing) || info.Thing.def.destroyOnDrop ||
+                    info.Thing.GetComp<CompBladelinkWeapon>() != null ||
+                    analysis.AlreadyCarries(info.Thing) ||
+                    Eligibility.IsUnbondedPersona(info.Thing))
+                {
+                    continue;
+                }
+
+                string reason;
+                bool hard;
+                if (analysis.Available)
+                {
+                    Eligibility.CheckSidearm(analysis.Pawn, info.Thing, false, out reason, out hard);
+                }
+                else
+                {
+                    reason = analysis.UnavailableReason;
+                    hard = false;
+                }
+                if (hard)
+                {
+                    continue;
+                }
+
+                float score = CombatScoring.Compute(context, info.Thing, out _);
+                SidearmCandidate candidate = new SidearmCandidate
+                {
+                    Weapon = info,
+                    Slot = WeaponSlot.Sidearm2,
+                    Score = score,
+                    Blocker = reason
+                };
+                if (!candidate.Ready && analysis.Available &&
+                    SimpleSidearmsAdapter.CanCheckSidearmType &&
+                    SimpleSidearmsAdapter.CanCheckSidearmUse &&
+                    SimpleSidearmsAdapter.CanCheckRelativeLimits)
+                {
+                    string worldReason;
+                    string ruleReason;
+                    bool ruleHard;
+                    string typeReason;
+                    string useReason;
+                    candidate.UpgradeAfterDrop =
+                        Eligibility.CheckSidearmWorld(analysis.Pawn, info.Thing, false, out worldReason) &&
+                        !Eligibility.CheckSidearmRules(analysis.Pawn, info.Thing, out ruleReason, out ruleHard) &&
+                        SimpleSidearmsAdapter.CanUseSidearm(analysis.Pawn, info.Thing, out useReason) &&
+                        SimpleSidearmsAdapter.IsValidSidearmForPawn(analysis.Pawn, info.Thing, out typeReason);
+                }
+                coverage.AddCandidate(context, candidate, info.Thing);
+                analysis.SidearmTwoCandidates.Add(candidate);
+            }
+
+            coverage.Finish();
+            if (carriedCandidate != null)
+            {
+                analysis.CarriedSidearmTwoCoverage = carriedCandidate.SlotScore;
+                analysis.CarriedSidearmTwoGain = carriedCandidate.ComplementGain;
+                analysis.CarriedSidearmTwoBand = carriedCandidate.ComplementBand;
+                analysis.CarriedSidearmTwoText = carriedCandidate.ComplementText;
+            }
+            analysis.SidearmTwoCandidates.Sort(CompareSidearmCandidates);
         }
 
         /// <summary>
@@ -601,7 +878,7 @@ namespace Armory
         /// </summary>
         private static bool IsUsableAsBackup(ThingWithComps weapon)
         {
-            if (weapon == null || weapon.def == null)
+            if (weapon == null || weapon.def == null || Eligibility.IsWorkTool(weapon.def))
             {
                 return false;
             }
@@ -617,7 +894,19 @@ namespace Armory
         private static void CollectSidearms(PawnAnalysis analysis, PawnFitContext context)
         {
             Pawn pawn = analysis.Pawn;
-            if (pawn == null || pawn.inventory == null || pawn.inventory.innerContainer == null)
+            if (pawn == null)
+            {
+                analysis.SidearmText = "none";
+                return;
+            }
+
+            analysis.CarriedWeapons.Clear();
+            if (IsCombatWeapon(analysis.Current))
+            {
+                analysis.CarriedWeapons.Add(analysis.Current);
+            }
+
+            if (pawn.inventory == null || pawn.inventory.innerContainer == null)
             {
                 analysis.SidearmText = "none";
                 return;
@@ -627,15 +916,15 @@ namespace Armory
             for (int i = 0; i < pawn.inventory.innerContainer.Count; i++)
             {
                 ThingWithComps weapon = pawn.inventory.innerContainer[i] as ThingWithComps;
-                if (weapon == null || !WeaponFilter.IsWeaponDef(weapon.def))
-                {
-                    continue;
-                }
-                if (!weapon.def.IsRangedWeapon && !weapon.def.IsMeleeWeapon)
+                if (!IsCombatWeapon(weapon))
                 {
                     // Keep the count to combat weapons; tools should not satisfy the
-                    // backup target or appear as replacement targets.
+                    // sidearm target or appear as replacement targets.
                     continue;
+                }
+                if (!analysis.CarriedWeapons.Contains(weapon))
+                {
+                    analysis.CarriedWeapons.Add(weapon);
                 }
                 float score = CombatScoring.Compute(context, weapon, out _);
                 string unusableReason;
@@ -653,6 +942,13 @@ namespace Armory
                 labels.Add(string.Format("{0} · score {1:0}", weapon.LabelCap, score));
             }
             analysis.SidearmText = labels.Count == 0 ? "none" : string.Join(", ", labels);
+        }
+
+        private static bool IsCombatWeapon(ThingWithComps weapon)
+        {
+            return weapon != null && weapon.def != null &&
+                   WeaponFilter.IsWeaponDef(weapon.def) &&
+                   (weapon.def.IsRangedWeapon || weapon.def.IsMeleeWeapon);
         }
 
         private static void ConsiderCarried(PawnAnalysis analysis, PawnFitContext context,
@@ -792,7 +1088,7 @@ namespace Armory
                 }
 
                 // Backups need SS's per-pawn memory; without it there is no managed
-                // backup slot, even though the hand slot is still typed.
+                // Sidearm slot, even though the hand slot is still typed.
                 if (!pawn.HasRole || pawn.SidearmState == null)
                 {
                     continue;
@@ -806,6 +1102,8 @@ namespace Armory
                 AddSlotWants(rows, pawn, context, craftVariants, researchVariants, false,
                     backupBaseline, threshold, LabelOf(worstBackup),
                     plannedCounts, variety);
+                AddSidearmTwoWants(rows, pawn, context, craftVariants, researchVariants,
+                    threshold, LabelOf(pawn.BestCarriedSidearmTwo), plannedCounts);
             }
 
             // Owned variants that are not already an upgrade row are kept for the optional
@@ -1016,7 +1314,8 @@ namespace Armory
                     continue;
                 }
                 bool isTop = bestCraft > 0f && score >= bestCraft - 0.001f;
-                AddWant(rows, pawn, craftSources[i], score, hand, baseline, currentLabel, isTop,
+                AddWant(rows, pawn, craftSources[i], score,
+                    hand ? WeaponSlot.Hand : WeaponSlot.Sidearm1, baseline, currentLabel, isTop,
                     plannedCounts);
             }
 
@@ -1029,9 +1328,144 @@ namespace Armory
                     continue;
                 }
                 bool isTop = bestResearch > 0f && score >= bestResearch - 0.001f;
-                AddWant(rows, pawn, researchSources[i], score, hand, baseline, currentLabel,
+                AddWant(rows, pawn, researchSources[i], score,
+                    hand ? WeaponSlot.Hand : WeaponSlot.Sidearm1, baseline, currentLabel,
                     isTop, plannedCounts);
             }
+        }
+
+        /// <summary>
+        /// Adds demand for the optional ranged complement. Uses the same coverage model
+        /// as the planner: only improvements in weak Hand + Sidearm 1 bands count.
+        /// </summary>
+        private static void AddSidearmTwoWants(Dictionary<WeaponVariantKey, DemandRow> rows,
+            PawnAnalysis pawn, PawnFitContext context, List<WeaponVariant> craftSources,
+            List<WeaponVariant> researchSources, float threshold, string currentLabel,
+            Dictionary<WeaponVariantKey, int> plannedCounts)
+        {
+            SidearmCoverageModel coverage = new SidearmCoverageModel();
+            coverage.AddBaseline(context, pawn.RangedHand);
+            coverage.AddBaseline(context, pawn.BestCarriedBackup);
+
+            Dictionary<WeaponVariantKey, SidearmCandidate> candidates =
+                new Dictionary<WeaponVariantKey, SidearmCandidate>();
+            Dictionary<WeaponVariantKey, bool> craftKeys =
+                new Dictionary<WeaponVariantKey, bool>();
+
+            for (int pass = 0; pass < 2; pass++)
+            {
+                List<WeaponVariant> source = pass == 0 ? craftSources : researchSources;
+                for (int i = 0; i < source.Count; i++)
+                {
+                    WeaponVariant variant = source[i];
+                    if (!IsSidearmTwoVariant(pawn, variant))
+                    {
+                        continue;
+                    }
+
+                    SidearmCandidate candidate = new SidearmCandidate
+                    {
+                        Slot = WeaponSlot.Sidearm2
+                    };
+                    coverage.AddCandidate(context, candidate, variant.Probe);
+                    candidates[variant.Key] = candidate;
+                    craftKeys[variant.Key] = pass == 0;
+                }
+            }
+
+            if (candidates.Count == 0)
+            {
+                return;
+            }
+            coverage.Finish();
+
+            float bestCraft = 0f;
+            float bestResearch = 0f;
+            foreach (KeyValuePair<WeaponVariantKey, SidearmCandidate> pair in candidates)
+            {
+                SidearmCandidate candidate = pair.Value;
+                if (!IsUsefulSidearmTwo(candidate, threshold))
+                {
+                    continue;
+                }
+                bool craft;
+                craftKeys.TryGetValue(pair.Key, out craft);
+                if (craft)
+                {
+                    if (candidate.SlotScore > bestCraft)
+                    {
+                        bestCraft = candidate.SlotScore;
+                    }
+                }
+                else if (candidate.SlotScore > bestResearch)
+                {
+                    bestResearch = candidate.SlotScore;
+                }
+            }
+
+            float researchRequired = bestCraft > 0f
+                ? bestCraft * (1f + threshold)
+                : 0f;
+            for (int pass = 0; pass < 2; pass++)
+            {
+                List<WeaponVariant> source = pass == 0 ? craftSources : researchSources;
+                float best = pass == 0 ? bestCraft : bestResearch;
+                for (int i = 0; i < source.Count; i++)
+                {
+                    WeaponVariant variant = source[i];
+                    SidearmCandidate candidate;
+                    if (!candidates.TryGetValue(variant.Key, out candidate) ||
+                        !IsUsefulSidearmTwo(candidate, threshold))
+                    {
+                        continue;
+                    }
+                    if (pass == 1 && researchRequired > 0f &&
+                        candidate.SlotScore <= researchRequired)
+                    {
+                        continue;
+                    }
+
+                    RangeBand band = candidate.ComplementBand ?? RangeBand.Close;
+                    float baseline = coverage.BaselineBandAverage(band);
+                    float score = SidearmCoverageModel.BandAverage(
+                        candidate.CoverageProfile, band);
+                    if (baseline > 0.01f &&
+                        score <= baseline * (1f + threshold))
+                    {
+                        continue;
+                    }
+
+                    bool isTop = best > 0f && candidate.SlotScore >= best - 0.001f;
+                    AddWant(rows, pawn, variant, score, WeaponSlot.Sidearm2, baseline,
+                        currentLabel, isTop, plannedCounts);
+                }
+            }
+        }
+
+        private static bool IsSidearmTwoVariant(PawnAnalysis pawn, WeaponVariant variant)
+        {
+            if (variant == null || variant.Def == null || variant.Probe == null ||
+                !variant.Def.IsRangedWeapon || variant.Def.destroyOnDrop ||
+                variant.Probe.GetComp<CompBladelinkWeapon>() != null ||
+                pawn == null || pawn.Pawn == null ||
+                pawn.AlreadyCarries(variant.Def) ||
+                Eligibility.IsUnbondedPersona(variant.Probe) ||
+                !IsUsableAsBackup(variant.Probe))
+            {
+                return false;
+            }
+
+            string reason;
+            return SimpleSidearmsAdapter.CanUseSidearm(pawn.Pawn, variant.Probe, out reason) &&
+                   SimpleSidearmsAdapter.IsValidSidearmForPawn(pawn.Pawn, variant.Probe,
+                       out reason);
+        }
+
+        private static bool IsUsefulSidearmTwo(SidearmCandidate candidate, float threshold)
+        {
+            return candidate != null && candidate.ComplementBand.HasValue &&
+                   candidate.SlotScore > 0.001f &&
+                   candidate.ComplementGain >= threshold;
         }
 
         /// <summary>
@@ -1099,8 +1533,9 @@ namespace Armory
         }
 
         private static void AddWant(Dictionary<WeaponVariantKey, DemandRow> rows,
-            PawnAnalysis pawn, WeaponVariant variant, float score, bool hand, float baseline,
-            string currentLabel, bool isTop, Dictionary<WeaponVariantKey, int> plannedCounts)
+            PawnAnalysis pawn, WeaponVariant variant, float score, WeaponSlot slot,
+            float baseline, string currentLabel, bool isTop,
+            Dictionary<WeaponVariantKey, int> plannedCounts)
         {
             WeaponVariantKey key = variant.Key;
             DemandRow row;
@@ -1112,22 +1547,28 @@ namespace Armory
 
             row.TotalScore += score;
 
+            bool hand = slot == WeaponSlot.Hand;
             bool typeSwitch = hand && pawn.HandTypeMismatch;
             bool isNew = baseline <= 0.01f && !typeSwitch;
             float gain = isNew || typeSwitch ? 0f : score / baseline - 1f;
 
-            if (hand)
+            if (slot == WeaponSlot.Hand)
             {
                 row.WantedHand++;
             }
-            else
+            else if (slot == WeaponSlot.Sidearm1)
             {
                 row.WantedBackup++;
+            }
+            else
+            {
+                row.WantedSidearmTwo++;
             }
 
             row.Wants.Add(new DemandWant
             {
                 Colonist = pawn.Pawn.LabelShort,
+                Slot = slot,
                 Hand = hand,
                 Gain = gain,
                 Score = score,

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using Verse;
 
 namespace Armory
@@ -44,7 +44,7 @@ namespace Armory
             }
         }
 
-        /// <summary>Backup-list limit. Zero means the automatic default of 5.</summary>
+        /// <summary>Sidearm-list limit. Zero means the automatic default of 5.</summary>
         public int EffectiveMaxSidearmCandidates
         {
             get
@@ -99,14 +99,14 @@ namespace Armory
             if (Scribe.mode == LoadSaveMode.PostLoadInit && settingsVersion < 2)
             {
                 // 0.6.0 replaces "total desired sidearms" with one hand + one opposite-type
-                // backup, and makes per-type upgrades part of the default behaviour.
+                // sidearm, and makes per-type upgrades part of the default behaviour.
                 replaceWorseSidearms = true;
                 settingsVersion = 2;
             }
 
             if (Scribe.mode == LoadSaveMode.PostLoadInit && settingsVersion < 3)
             {
-                // 0.7.11 splits the old single list limit into hand and backup limits.
+                // 0.7.11 splits the old single list limit into hand and sidearm limits.
                 // The old default (25) and the common manual minimum (5) move to the
                 // new hand default of 10; explicit other values are preserved.
                 if (maxCandidates == 25 || maxCandidates == 5)
@@ -127,7 +127,7 @@ namespace Armory
             if (Scribe.mode == LoadSaveMode.PostLoadInit && settingsVersion < 5)
             {
                 // 0.10.1 makes the list limits automatic by default. The old defaults
-                // (hand 10, backup 5) become Auto; explicit other values are preserved.
+                // (hand 10, sidearm 5) become Auto; explicit other values are preserved.
                 if (maxCandidates == 10)
                 {
                     maxCandidates = 0;
@@ -195,22 +195,23 @@ namespace Armory
                 listing.CheckboxLabeled("Respect Simple Sidearms hand type and forced weapons",
                     ref respectSimpleSidearms);
                 listing.Label(respectSimpleSidearms
-                    ? "Armory follows the colonist's Simple Sidearms hand type, leaves forced weapons alone, and will not equip the other type while the colonist carries the hand type. Backups are managed separately."
+                    ? "Armory follows the colonist's Simple Sidearms hand type, leaves forced weapons alone, and will not equip the other type while the colonist carries the hand type. Sidearms are managed separately."
                     : "Armory ignores Simple Sidearms' hand type and forced states. Expect the two mods to fight over the hand weapon.");
                 listing.Label("Simple Sidearms' primary mode is per colonist. Changing the mod's default only affects newly generated colonists; use the Simple Sidearms gizmo on an existing colonist to switch that colonist to melee or by skill.");
 
-                listing.CheckboxLabeled("Manage backup weapons (one opposite-type weapon)", ref manageSidearms);
+                listing.CheckboxLabeled("Manage sidearms", ref manageSidearms);
                 if (manageSidearms)
                 {
-                    listing.Label("Armory keeps one hand weapon (the colonist's Simple Sidearms type) and one opposite-type backup. Ranged colonists get a melee backup; melee colonists get a ranged backup.");
-                    listing.CheckboxLabeled("Upgrade a backup when a better valid one is available",
+                    listing.Label("Armory keeps one hand weapon, one opposite-type Sidearm 1, and an optional ranged Sidearm 2. Sidearm 2 is added only when it closes a real range gap and Simple Sidearms has room for it. Melee colonists can carry two ranged sidearms.");
+                    listing.CheckboxLabeled("Upgrade sidearms when a better valid one is available",
                         ref replaceWorseSidearms);
-                    listing.Label("Upgrades replace only the worst carried weapon of the same type, never the only weapon of a type and never across types. If Simple Sidearms has a free slot, the new weapon is picked up first and the old one dropped after. If slots are full, the old one is dropped first and restored if the new one cannot be added. Dropped weapons stay on the ground.");
+                    listing.Label("Armory drops duplicate and extra sidearms automatically. It keeps one usable fallback until a legal replacement is ready. Upgrades replace Sidearm 1 or Sidearm 2 in their own slot; Armory never drops one slot to fill the other. The old weapon is dropped first and restored if the new one cannot be added. Dropped weapons stay on the ground.");
+                    listing.Label("Recommended: disable Simple Sidearms' automatic re-equip in its settings so Armory can own sidearm restoration. Armory still works if Simple Sidearms restores a weapon, but it may drop an extra afterwards.");
                 }
             }
             else
             {
-                listing.Label("Simple Sidearms is not loaded. Hand-type coexistence and backup management are inactive.");
+                listing.Label("Simple Sidearms is not loaded. Hand-type coexistence and sidearm management are inactive.");
             }
 
             listing.GapLine();
@@ -257,12 +258,12 @@ namespace Armory
             }
 
             bool autoBackupCandidates = maxSidearmCandidates <= 0;
-            listing.CheckboxLabeled("Automatic backup candidate limit", ref autoBackupCandidates);
+            listing.CheckboxLabeled("Automatic sidearm candidate limit", ref autoBackupCandidates);
             if (autoBackupCandidates)
             {
                 maxSidearmCandidates = 0;
                 listing.Label(string.Format(
-                    "Backup candidates shown per colonist: {0}  (automatic; Simple Sidearms only)",
+                    "Sidearm candidates shown per colonist: {0}  (automatic; Simple Sidearms only)",
                     EffectiveMaxSidearmCandidates));
             }
             else
@@ -272,7 +273,7 @@ namespace Armory
                     maxSidearmCandidates = EffectiveMaxSidearmCandidates;
                 }
                 listing.Label(string.Format(
-                    "Backup candidates shown per colonist (Simple Sidearms only): {0}",
+                    "Sidearm candidates shown per colonist (Simple Sidearms only): {0}",
                     maxSidearmCandidates));
                 maxSidearmCandidates = Mathf.RoundToInt(listing.Slider(maxSidearmCandidates, 1f, 50f));
             }

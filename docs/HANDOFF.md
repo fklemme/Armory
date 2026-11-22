@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.10.11**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.11.0**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.10.11 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.11.0 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 **Links:** [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224) ·
@@ -12,7 +12,7 @@ tags the last pre-Demand-rework build.
 
 ## Where we are
 
-Milestones 0–4 are implemented:
+Milestones 0-6 are implemented:
 
 - **0** — mod skeleton, `MainButtonDef`, tab, settings, build/junction.
 - **1** - ranking, blockers, Colonists/Weapons/Upgrades tabs, factor ledger.
@@ -21,27 +21,34 @@ Milestones 0–4 are implemented:
 - **3** — Simple Sidearms primary coexistence via a reflection adapter:
   forced states, preferences, primary mode, carried-primary baseline, SS job
   guard, sidearm display.
-- **4** — typed hand/backup slots (0.6.0): one hand weapon of the SS mode type
+- **4** - typed hand/backup slots (0.6.0): one hand weapon of the SS mode type
   and one opposite-type backup, mirrored for melee pawns; same-type-only
   upgrades; add-first or drop-first depending on SS slots; separate Hand/Backup
   rankings and Weapons/Upgrades status.
+- **5** - polish: value columns, layout passes, comparison/material insights,
+  craft bills, duplicate-job guards and Workshop preparation.
+- **6** - **sidearm loadouts (0.11.0)**: Hand, opposite-type Sidearm 1 and
+  optional ranged Sidearm 2; range-gap coverage; full carried-set reconciliation;
+  duplicate cleanup; drawn-sidearm handling; multi-line Colonists rows and
+  Sidearm 1/2 detail sections. Design in
+  [`docs/SIDEARMS.md`](SIDEARMS.md).
 
-**Next:** milestone 5, polish and release prep. 0.7.0 turned the Upgrades view
-into an ideal-loadout build plan; remaining polish is container scanning,
-auto-haul, raid arming, localization, and Workshop prep. The Workshop item was
-created with 0.9.2 and updated to 0.10.8; its page is being made public.
+**Next:** polish and release prep. Remaining work is container scanning,
+auto-haul, raid arming, localization, and Workshop screenshots/updates. The
+Workshop item was created with 0.9.2 and updated to 0.10.8; its page is being
+made public. 0.11.0 is not uploaded yet. Upload once the private test is good
+enough.
 0.10.0 added the typed hand model, passion-based role assignment and automatic
-hand-type alignment; 0.10.1 polished the UI and list limits; 0.10.2 hardens backup
-management and unusable-backup baselines; 0.10.3 adds double-click map jumps;
-0.10.4 adds weapon comparison, material-specific upgrade variants and role
-filters; 0.10.5 polishes the accuracy columns, table widths and detail header;
-0.10.6 shows accuracy as percentages and replaces text costs with icon/count
-groups; 0.10.7 names Armory-created bills; 0.10.8 prevents duplicate pickup jobs
-from accumulating on resting pawns; 0.10.9 adds base market value columns and
-0.10.10 moves them to the second column and polishes the Weapons detail pane;
-0.10.11 removes an extra gap after blocked hand reasons. Upload once the private
-test is good enough.
-
+hand-type alignment; 0.10.1 polished the UI and list limits; 0.10.2 hardened
+backup management and unusable-backup baselines; 0.10.3 added double-click map
+jumps; 0.10.4 added weapon comparison, material-specific upgrade variants and
+role filters; 0.10.5 polished the accuracy columns, table widths and detail
+header; 0.10.6 showed accuracy as percentages and replaced text costs with
+icon/count groups; 0.10.7 named Armory-created bills; 0.10.8 prevented duplicate
+pickup jobs from accumulating on resting pawns; 0.10.9 added base market value
+columns; 0.10.10 moved them to the second column and polished the Weapons detail
+pane; 0.10.11 removed an extra gap after blocked hand reasons; 0.11.0 added
+sidearm loadouts and duplicate cleanup.
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
 0.8.3, the Colonists/Upgrades tab rename in 0.8.4, the icon/tab-order pass in
@@ -59,7 +66,52 @@ shipped model and remaining decisions are in
 
 ---
 
-## 0.10.11 — blocked-reason spacing
+## 0.11.0 - sidearm loadouts
+
+New milestone. The agreed design and decision record are in
+[`docs/SIDEARMS.md`](SIDEARMS.md).
+
+- Armory now owns three logical slots: Hand, opposite-type **Sidearm 1**, and
+  optional ranged **Sidearm 2**. Sidearm 1 always has priority.
+- Sidearm 2 is scored by **range-gap coverage**, not raw DPS. Armory compares
+  the Hand + Sidearm 1 profile across Close/Short/Medium/Long bands and adds a
+  candidate only when it closes a weak band by the upgrade threshold. Heavy
+  weapons that fail SS's cap remain visible with the blocker.
+- Full carried-set reconciliation: duplicates, unusable sidearms and weapons
+  beyond the plan are dropped automatically. One usable fallback is kept until a
+  legal replacement is ready. `Multiple backups` is no longer a terminal status.
+- Simple Sidearms memory is not rewritten. Armory uses SS's own `DropSidearm`
+  with `intentionalDrop` and `unmemorise` for deliberate drops, and tolerates a
+  later SS retrieval by dropping the extra on a later pass. Settings recommends
+  disabling SS's automatic re-equip for the cleanest result.
+- SS default/preferred weapons are treated as automatic bookkeeping, not player
+  intent. Forced weapon/unarmed states remain hard vetoes.
+- Drawn-sidearm handling: the logical hand is the best carried ranged weapon at
+  the preferred range, not whichever weapon SS currently holds. The UI shows the
+  hand as `(stowed)`, the drawn sidearm as `(drawn)`, and Armory waits before
+  swapping. SS draws no longer trigger the manual-change pause.
+- Colonists rows are multi-line: Hand, Sidearm 1 and Sidearm 2 on separate lines,
+  with status and `Best vs current` on the first line. The detail pane has
+  separate Sidearm 1 and Sidearm 2 sections.
+- Weapons and Upgrades use `Sidearm 1`/`Sidearm 2` labels; Upgrades includes
+  Sidearm 2 demand and a wider Slot column.
+- Settings and all current user-facing text were renamed from backup to sidearm.
+- Verified on an isolated copy of the current save at 1600x900:
+  - Hashoytt's two steel gladiuses were reduced to one gladius and a legal
+    ranged Sidearm 2; a downing/recovery cycle did not leave a persistent
+    duplicate.
+  - Sidearm 2 was added for Hashoytt, Trebo, Chef, Elsie and Rathat; heavy
+    candidates were rejected with SS's mass reason.
+  - Rathat's drawn Light SMG showed the anti-materiel rifle as the stowed hand
+    and did not trigger a manual pause.
+  - The Upgrades Slot column fits `Sidearm 1`/`Sidearm 2`.
+  - Build clean: 0 warnings, 0 errors.
+- Refreshed `docs/screenshots/` at 3440x1440 for 0.11.0 with the sidearm layout.
+- Pending: verify in the user's normal game at their normal resolution.
+
+---
+
+## 0.10.11 - blocked-reason spacing
 
 The new two-line blocked-fit block still used the original 24 px line advance
 after its reason, leaving an empty gap before the backup line when the hand fit
@@ -2328,6 +2380,7 @@ polish, not new core behaviour.
 | 0.10.9 | Add sortable base market value columns to Weapons and Upgrades, using actual copies on Weapons and normal-quality variants for obtainable Upgrades rows |
 | 0.10.10 | Move Value to the second column in both tables, widen the Weapons list and Value column, and split blocked hand/backup reasons onto indented lines |
 | 0.10.11 | Remove the extra vertical gap between a blocked hand reason and the following backup line |
+| 0.11.0 | Add Hand / Sidearm 1 / Sidearm 2 loadouts, range-gap Sidearm 2 scoring, carried-set reconciliation and duplicate cleanup, drawn-sidearm handling, multi-line Colonists rows and Sidearm 2 demand |
 
 ---
 

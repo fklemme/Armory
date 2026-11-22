@@ -29,8 +29,8 @@ namespace Armory
         private const float SigmaMarksman = 7f;
         private const float ReachFraction = 0.5f;
         private const int ReachMargin = 8;
-        private const int MinDistance = 3;
-        private const int MaxDistance = 45;
+        public const int MinDistance = 3;
+        public const int MaxDistance = 45;
 
         /// <summary>
         /// Builds the pawn's distance curve and resolves the automatic or overridden
@@ -145,6 +145,56 @@ namespace Armory
                 ledger += string.Format("\npersonal preference x{0:0.00}", affinity);
             }
             return score * DisplayScale;
+        }
+
+        /// <summary>
+        /// Fills the per-distance expected-DPS profile used by Sidearm 2 coverage.
+        /// Returns false for melee or unusable ranged weapons; the destination is zeroed
+        /// first so callers can treat a false result as "no ranged coverage".
+        /// </summary>
+        public static bool TryFillRangedProfile(PawnFitContext ctx, ThingWithComps weapon,
+            float[] destination)
+        {
+            if (destination == null)
+            {
+                return false;
+            }
+            for (int i = 0; i < destination.Length; i++)
+            {
+                destination[i] = 0f;
+            }
+            if (ctx == null || ctx.Pawn == null || weapon == null || weapon.def == null ||
+                !weapon.def.IsRangedWeapon)
+            {
+                return false;
+            }
+
+            WeaponPower.RangedMetrics metrics;
+            if (!WeaponPower.TryGetRangedMetrics(weapon, out metrics) ||
+                metrics.Range < MinDistance)
+            {
+                return false;
+            }
+
+            float rawDps = metrics.RawDps(ctx.Aim);
+            string fitText;
+            float fit = PawnFit.Compute(ctx, weapon, out fitText);
+            float support = metrics.Burst >= SupportBurstThreshold ? SupportMultiplier : 1f;
+            float affinity = Affinity(ctx.Pawn, weapon.def);
+            float factor = (1f + metrics.ArmorPen) * metrics.Situational * fit *
+                           support * affinity;
+
+            for (int distance = MinDistance; distance <= MaxDistance; distance++)
+            {
+                if (distance > metrics.Range || distance < metrics.MinRange)
+                {
+                    continue;
+                }
+                destination[distance] = rawDps *
+                                        metrics.Verb.GetHitChanceFactor(weapon, distance) *
+                                        ctx.AimAt(distance) * factor;
+            }
+            return true;
         }
 
         /// <summary>Farthest distance where the pawn still keeps half its 10-tile aim.</summary>

@@ -152,6 +152,39 @@ Wait for the scaffold to finish and quit, then check the log for
 line. Do not run `Setup-LiveTest.ps1 -Launch` after editing the config: it will
 overwrite your changes.
 
+### Testing sidearm loadouts (0.11.0)
+
+Use the isolated save with Simple Sidearms enabled. The test config should have
+three total SS slots including the hand, otherwise Sidearm 2 cannot fit.
+
+- **Multi-line rows:** each colonist shows a Hand line, Sidearm 1 line and
+  Sidearm 2 line. `Hand` is green; both sidearm labels are blue; blocked/missing
+  candidates are orange; a useful empty slot is gray.
+- **Duplicate cleanup:** pick a colonist carrying two copies of the same sidearm.
+  After a planner pass, exactly one is carried and any extra is dropped. The
+  accepted state is one keeper plus a legal Sidearm 2 when one is useful.
+- **Downing/recovery:** down that colonist, let Simple Sidearms drop and restore
+  weapons, heal the pawn, and let Armory run several passes. The pawn must end
+  with the planned set, not a persistent duplicate. Armory may temporarily show
+  `Sidearm job`; it should settle to `Fully equipped`.
+- **Drawn sidearm:** draft the pawn in combat or otherwise make Simple Sidearms
+  draw Sidearm 2. The hand line should keep the logical hand and show `(stowed)`;
+  the sidearm line should show `(drawn)`; status is `Sidearm drawn`; Armory must
+  not report a manual weapon change or add a duplicate. After SS stows the
+  sidearm, the status returns to normal.
+- **Range-gap selection:** a marksman with a sniper hand should prefer a light
+  close-range Sidearm 2 (pistol/light SMG), not a second sniper. A balanced
+  assault rifle often has no useful Sidearm 2.
+- **Capacity/mass:** a heavy candidate must show the Simple Sidearms mass
+  blocker. If no slot is free, the pawn still keeps Sidearm 1 and the UI explains
+  why Sidearm 2 is empty.
+- **Pacifist:** a colonist incapable of violence is not managed for hand or
+  sidearm weapons. Candidate blockers may be shown for reference, but no equip
+  or drop job should be issued.
+- **Upgrades:** the Slot column fits `Sidearm 1` and `Sidearm 2` without
+  ellipsizing, and Sidearm 2 demand rows appear when a useful complement is
+  craftable or buyable.
+
 ### Testing the hand type and auto-align (0.10.0)
 
 The setup script leaves automatic equipping **off** in the isolated config. For
@@ -171,18 +204,18 @@ With Simple Sidearms removed from `ModsConfig.xml`:
 - close and reopen the tab after changing the type; the snapshot must rebuild
   immediately rather than keeping the old type for one planner pass.
 
-Without Simple Sidearms, the Colonists list should hide the **Backup** column,
-widen **Hand** and **Status**, and show `Backup slot: requires Simple Sidearms.`
-in the pawn detail. The default hand limit is 15. With Simple Sidearms loaded,
-the Backup column returns and the automatic limits are 5 hand / 5 backup. Both
-Settings sliders use the same 1–50 range; uncheck **Automatic ... candidate limit**
-to set an explicit value.
+Without Simple Sidearms, the Colonists list should show only the Hand line and
+the pawn detail should say `Sidearm slots: require Simple Sidearms.` The default
+hand limit is 15. With Simple Sidearms loaded, the Sidearm 1 and Sidearm 2 lines
+return and the automatic limits are 5 hand / 5 sidearm. Both Settings sliders use
+the same 1-50 range; uncheck **Automatic ... candidate limit** to set an explicit
+value.
 
 With Simple Sidearms enabled and respected, every pawn should resolve
 `(Simple Sidearms mode)`, the Armory hand-type override should be ignored, and
-backup jobs should still queue.
+sidearm jobs should still queue.
 
-### Testing comparison, materials, role filters and value (0.10.4–0.10.11)
+### Testing comparison, materials, role filters and value (0.10.4-0.11.0)
 
 - **Weapons:** the list shows DPS, DPSA, AP, separate percentage
   `aC`/`aS`/`aM`/`aL` columns, Range, Best colonist and Best use. Click each
@@ -214,20 +247,20 @@ backup jobs should still queue.
   Craft, Research and Buy rows; with Show owned, Owned rows use the actual best
   copy. Tooltips must say the value is before negotiator skill and buy/sell
   multipliers.
-- **Weapons detail pane (0.10.10–0.10.11):** at the normal window size the
+- **Weapons detail pane (0.10.10-0.11.0):** at the normal window size the
   `Score = ...` formula is fully visible with no clipped bottom. A blocked best
-  hand or backup fit shows a short headline and an indented `Reason: ...` line
-  that fits the narrower pane. When both hand and backup fits are blocked, no
-  extra blank line appears between the hand reason and the backup headline.
-- **Pending pickup jobs (0.10.8):** put a colonist who needs a backup in bed or
-  otherwise busy for several planner cycles. The pawn must have at most one
-  `EquipSecondary` job in `pawn.jobs.jobQueue` at any time; Armory should add no
-  further pickup jobs while it is queued. Wake the pawn and verify exactly one
-  backup is added. A save that already contains duplicate queued jobs should
-  drain without Armory adding more; any same-def extras that already reached the
-  inventory still have to be dropped manually.
+  hand or sidearm fit shows a short headline and an indented `Reason: ...` line
+  that fits the narrower pane. When both hand and sidearm fits are blocked, no
+  extra blank line appears between the hand reason and the sidearm headline.
+- **Pending pickup jobs (0.10.8-0.11.0):** put a colonist who needs a sidearm in
+  bed or otherwise busy for several planner cycles. The pawn must have at most
+  one `EquipSecondary` job in `pawn.jobs.jobQueue` at any time; Armory should add
+  no further pickup jobs while it is queued. Wake the pawn and verify exactly one
+  sidearm is added. A save that already contains duplicate queued jobs should
+  drain without Armory adding more; Armory now also removes surviving extras
+  through Simple Sidearms' intentional-drop API.
 - **No-SS test:** the Weapons and Upgrades comparisons still work without Simple
-  Sidearms; backup-only rows may disappear, as expected.
+  Sidearms; sidearm-only rows may disappear, as expected.
 
 ### Testing double-click map jumps (0.10.3)
 

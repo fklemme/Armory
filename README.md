@@ -2,7 +2,7 @@
 
 **The right weapon, in the right hands.**
 
-**Version 0.10.11** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.11.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and automatic manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -29,7 +29,7 @@ Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0–4 complete; 5 (polish) underway; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1, backup safety/unusable-baseline fixes in 0.10.2, double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4, accuracy-column/table-layout polish in 0.10.5, percent accuracy/cost icons in 0.10.6, named craft bills in 0.10.7, pending-job duplicate guard in 0.10.8, market value columns in 0.10.9, value/layout polish in 0.10.10, blocked-reason spacing fix in 0.10.11 |
+| Current milestone | 0-5 complete; 6 (sidearm loadouts) done in 0.11.0; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1, backup safety/unusable-baseline fixes in 0.10.2, double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4, accuracy-column/table-layout polish in 0.10.5, percent accuracy/cost icons in 0.10.6, named craft bills in 0.10.7, pending-job duplicate guard in 0.10.8, market value columns in 0.10.9, value/layout polish in 0.10.10, blocked-reason spacing fix in 0.10.11, sidearm loadouts in 0.11.0 |
 
 ---
 
@@ -42,9 +42,10 @@ The list follows the **colonist bar** at the top of the screen — the same orde
 as the portraits, which defaults to join order. Drag a portrait to reorder both
 the bar and this list.
 
-- current hand weapon and its score;
+- a multi-line **Weapons** block with one line each for **Hand**, **Sidearm 1**
+  and **Sidearm 2**;
 - a **`Best vs current`** column comparing the best available hand candidate
-  with the current hand weapon; negative means the current weapon is still better.
+  with the logical hand weapon; negative means the current weapon is still better.
   When the equipped weapon is the other hand type, the column says `switch type`
   instead of a meaningless percentage;
 - a **hand slot** ranking of one type, `ranged` or `melee`, with the best
@@ -53,8 +54,12 @@ the bar and this list.
 - a **ranged role** (`CQB`, `Assault`, `Line`, `Marksman`) and preferred
   engagement distance, derived from the colonist's actual accuracy curve and genes,
   or fixed with a per-colonist override; melee pawns have no ranged role;
-- with Simple Sidearms, a **backup slot** ranking of the opposite type, with SS's
-  slot/mass/selection blockers and the currently carried backup;
+- with Simple Sidearms, **Sidearm 1** is the opposite-type slot and **Sidearm 2**
+  is an optional ranged complement chosen to cover a real range gap, with SS's
+  slot/mass/selection blockers on each candidate;
+- when Simple Sidearms temporarily draws a sidearm, the hand line keeps the
+  logical hand and marks it `(stowed)`, while the drawn sidearm is marked
+  `(drawn)`; Armory pauses weapon changes until SS stows it;
 - double-click a row to close Armory, move the camera to that colonist and select
   them on the map;
 - a full ranked list with a status per candidate and an expandable factor ledger;
@@ -70,9 +75,8 @@ Armory automatically switches to the best ready weapon of the chosen type; the
 old weapon is dropped by the normal equip job. The type is chosen from the
 player's per-pawn override, then a bonded weapon, a ranged-blocking shield belt,
 Brawler, shooting/melee passion, and finally skill. When no signal prefers melee,
-ranged is the default. Without Simple Sidearms the Backup column is hidden and the
-Hand column widens; the pawn detail notes that a backup slot requires Simple
-Sidearms.
+ranged is the default. Without Simple Sidearms only the Hand line is shown; the
+pawn detail notes that sidearm slots require Simple Sidearms.
 
 ### Weapons
 Every loose weapon on the map with:
@@ -85,8 +89,8 @@ Every loose weapon on the map with:
   list can answer "what is best for a line shooter?" without changing the pawns;
 - a **Best by role** table in the detail pane, showing the best pawn and score for
   each role, plus the usual colonist-by-score view with deep checks (reachability,
-  reservations) and separate hand/backup readiness;
-- best use (`Hand`, `Backup`, `Hand (blocked)`, `Backup (blocked)`,
+  reservations) and separate Hand / Sidearm 1 / Sidearm 2 readiness;
+- best use (`Hand`, `Sidearm 1`, `Sidearm 2`, their blocked variants, or
   `No colonist can use it`);
 - double-click a row to close Armory, move the camera to that weapon and select it
   on the map.
@@ -109,9 +113,10 @@ so the player chooses the pawn and equips the weapon manually.
 
 `Hand (blocked)` means the weapon is the best hand fit for a colonist but cannot
 currently be equipped (usually a Simple Sidearms hand-type block). A melee weapon
-can be a `Backup` candidate for a ranged colonist even when it cannot be that
+can be a `Sidearm 1` candidate for a ranged colonist even when it cannot be that
 colonist's hand weapon; if Simple Sidearms' mass cap rejects it, it is
-`Backup (blocked)` with the reason.
+`Sidearm 1 (blocked)` with the reason. `Sidearm 2` is the optional ranged
+complement; it appears only when it closes a real range gap.
 
 ### Upgrades
 The upgrade menu: every obtainable weapon **variant** that would improve a
@@ -161,8 +166,8 @@ Columns:
   full ingredient list, current stock and the total for the needed copies;
 - `Score`: range-aware expected value for the selected role (or all roles),
   summed over the colonists who would take it; this is the main sort key;
-- `Slot`: `Hand`, `Backup`, or `Both`, using the same green/blue/cyan colors as
-  the Weapons tab; hover for the hand/backup counts;
+- `Slot`: `Hand`, `Sidearm 1`, `Sidearm 2`, or `Both`, using the same
+  green/blue/cyan colors as the Weapons tab; hover for the slot counts;
 - `Wanted by`: colonists who would improve with this variant (may overlap other rows);
 - `Owned`: copies of this material in the colony (`2 · 1 forbidden` when some are forbidden);
 - `Needed`: copies still missing; `enough` (green) when the variant is the best option
@@ -250,23 +255,24 @@ not make every pawn want one.
 `Owned` includes forbidden copies; `Needed` only counts usable ones, and its
 tooltip shows how many unforbidding would cover. A research-locked def you
 already own shows `more: <project>` when only extra copies need the research.
-A pawn is never offered a second copy of a weapon def they already carry as a
-backup; hand swaps of the same def are still allowed for quality upgrades. The
-same duplicate check runs against the pawn's live inventory and queued jobs
+A pawn is never offered a second copy of an ordinary weapon def they already
+carry as a sidearm; hand swaps of the same def are still allowed for quality
+upgrades, and persona/unique weapons compare by instance. The same duplicate
+check runs against the pawn's live inventory, equipped weapon and queued jobs
 immediately before a pickup is ordered, not only against the cached snapshot.
 
 Unlike the planner, the Upgrades tab ignores transient state: a drafted, asleep, or
 full-bagged colonist still counts, because the plan is about what the colony
 should own, not what a job can do this second. Only permanent gates (age,
 violence incapability, manipulation) remove a colonist. Manual-use ranged
-weapons (such as a Molotov) are not offered as backups; biocoding and bonds do
+weapons (such as a Molotov) are not offered as sidearms; biocoding and bonds do
 not apply to hypothetical new copies.
 
 ### Log
 Session-only decision log for the planner: time, colonist, action, weapon, and
-the reason the action was taken. Actions are `Equip hand`, `Equip backup`,
-`Drop backup`, `Skip upgrade`, `Drop failed`, and `Restore backup`. Newest first,
-clearable.
+the reason the action was taken. Actions are `Equip hand`, `Equip Sidearm 1`,
+`Equip Sidearm 2`, `Drop sidearm`, `Drop extra sidearm`, `Skip upgrade`,
+`Drop failed`, and `Restore sidearm`. Newest first, clearable.
 
 ---
 
@@ -399,7 +405,7 @@ Automation is on by default. While enabled:
 - if Auto Arm or Equipment Manager is loaded, automation stays paused unless
   `overrideCompetitor` is enabled.
 
-Every hand and backup action, with its reason, goes to the **Log** tab.
+Every hand and sidearm action, with its reason, goes to the **Log** tab.
 
 ### Simple Sidearms coexistence
 
@@ -416,82 +422,99 @@ separate inventory category, and **sidearm limits apply only to the bag**. That
 is why a 2 kg Monosword can be a melee hand weapon but not a melee sidearm under
 SS's Basic preset.
 
-Armory therefore models a pawn as two typed slots when Simple Sidearms is active
-and respected:
+Armory therefore models three logical slots when Simple Sidearms is active and
+respected:
 
-- **Hand slot** = the colonist's Simple Sidearms hand type. Armory may upgrade it
-  with a better weapon of the same type via the vanilla `Equip` job, which also
-  updates Simple Sidearms' remembered preference. Without Simple Sidearms, the
-  hand type comes from Armory's own automatic assignment (override, bonded weapon,
-  shield belt, Brawler, passion, skill); the hand slot is still typed and ranked
-  the same way.
-- **Backup slot** = the opposite type. Armory keeps one legal opposite-type
-  weapon in the bag via `EquipSecondary`. Ranged pawns get a melee backup; melee
-  pawns get a ranged backup.
+- **Hand** = the colonist's Simple Sidearms hand type. Armory may upgrade it with
+  a better weapon of the same type via the vanilla `Equip` job. The logical hand
+  is the best carried ranged weapon at the pawn's preferred range, not whichever
+  weapon SS is currently holding; SS can temporarily draw Sidearm 2 for a close
+  target without confusing the plan.
+- **Sidearm 1** = the opposite type. Ranged pawns get a melee sidearm; melee
+  pawns get a ranged sidearm. It is picked from loose weapons with SS's slot,
+  mass, selection, pacifist-tool, biocoding and role rules applied.
+- **Sidearm 2** = an optional ranged complement. It is chosen by range-gap
+  coverage, not raw DPS: Armory compares the Hand + Sidearm 1 profile across
+  Close/Short/Medium/Long bands and only adds a weapon that closes a real weak
+  band by the upgrade threshold. A sniper hand often pairs with a pistol or light
+  SMG; an assault rifle often needs no second sidearm. If SS has no free slot,
+  the second sidearm stays empty and the reason is shown.
 
-Ranged and melee are never ranked against each other. The hand baseline is SS's
-own QuickSwitch choice among carried weapons (`findBestRangedWeapon` /
-`findBestMeleeWeapon`), so a weapon SS would skip — manual use, dangerous when
-SS skips dangerous weapons, or EMP — does not block a valid upgrade. If the
+Ranged and melee are never ranked against each other. The hand baseline remains
+SS's own QuickSwitch choice among carried weapons (`findBestRangedWeapon` /
+`findBestMeleeWeapon`), so a weapon SS would skip (manual use, dangerous when
+SS skips dangerous weapons, or EMP) does not block a valid upgrade. If the
 reflection call fails, Armory logs once and uses the current weapon.
 
 When **Respect Simple Sidearms** is on (default):
 
 - a forced weapon, forced unarmed, or prefer-unarmed state is an automation veto;
 - Armory waits until SS has switched the pawn to its role type before adding a
-  backup, because adding the other type while the wrong weapon is in hand invites
-  SS to promote it and looks like a manual change;
+  sidearm, because adding the other type while the wrong weapon is in hand invites
+  SS to promote it;
 - explicit hand blockers remain visible as `Requires a ranged hand` or
   `Requires a melee hand`;
 - pawns currently running `EquipSecondary` / `ReequipSecondary` /
-  `ReequipSecondaryCombat` are skipped.
+  `ReequipSecondaryCombat` are skipped;
+- if SS draws a sidearm, Armory keeps the logical hand visible as `(stowed)`,
+  marks the drawn weapon `(drawn)`, and waits for SS to stow it before swapping
+  weapons. A draw no longer registers as a manual hand change.
 
-Backup management is on by default; when enabled it:
+Sidearm management is on by default; when enabled it:
 
-- adds one opposite-type weapon via Simple Sidearms' `EquipSecondary` job;
+- adds Sidearm 1 via Simple Sidearms' `EquipSecondary` job;
+- adds Sidearm 2 only when it improves a weak range band, SS has room, and the
+  weapon is legal;
 - validates every candidate with `CanPickupSidearmInstance`, so SS slot, mass,
   selection, pacifist-tool, biocoding, and role rules all apply;
-- upgrades only the worst carried weapon of the **same** type; it never drops the
-  last weapon of a type and never drops one type to add the other;
-- always drops the old backup first, then adds the replacement; if the drop fails,
-  it does not add anything, and if SS rejects the replacement the old one is
-  restored;
+- reconciles the carried set instead of only adding: duplicates, unusable
+  sidearms and weapons beyond the plan are dropped automatically;
+- keeps one usable wrong-type fallback until a legal replacement is ready, so a
+  cleanup never deliberately leaves the pawn weaker;
+- replaces one slot at a time, drops the old weapon first, and restores it if SS
+  rejects the replacement;
 - uses the same claims, per-pawn cooldown, and manual-change protection as hand
   upgrades;
-- never acts on a pawn with a forced/unarmed/prefer-unarmed SS state.
+- never acts on a pawn with a forced/unarmed/prefer-unarmed SS state;
+- never auto-adds or auto-drops work tools and stat-boost items, including fire
+  extinguishers.
 
-Armory never adds a second backup. If more than one backup is already carried
-(for example after a failed drop, SS re-retrieving a dropped weapon, or another
-mod), it stops adding and reports **`Multiple backups`**; drop the extras
-manually. Unusable carried backups, such as a weapon biocoded to another pawn,
-are excluded from the worst-backup baseline and marked `(unusable)`. If the bag
-is full of extras, a missing backup may have no free slot; Armory reports the
-blocker rather than dropping a hand-type extra.
+Armory does **not** rewrite Simple Sidearms' remembered-weapon list. It uses SS's
+own `DropSidearm` with `intentionalDrop` and `unmemorise` for weapons it
+deliberately removes, which is the sanctioned way to prevent an immediate
+retrieval loop. If SS still restores a weapon that is beyond the plan after a
+downing, Armory drops the extra on its next pass and restores the planned
+weapon. The old `Multiple backups` manual instruction is gone.
+
+For the cleanest result, disable Simple Sidearms' automatic re-equip in its
+settings (**Settings > Automation > Re-equip**). Armory then owns sidearm
+restoration. It still works if SS re-equips; it may simply drop an extra
+afterwards.
 
 Simple Sidearms reports two different capacity failures with terse text. Armory
 expands them so they cannot be confused:
 
-- `All sidearm slots are full` — the SS slot **count** limit is reached;
+- `All sidearm slots are full` - the SS slot **count** limit is reached;
 - `Can't carry (X kg, Y kg free)` - the weapon does not fit in the pawn's
   remaining inventory **weight**, even when a slot is free.
 
-SS's mass limits still matter. The **Basic** preset caps a melee sidearm at
-1.9 kg and a ranged sidearm at 2.7 kg, with 3 total slots **including the
-equipped weapon**. A 2 kg Monosword or Zeushammer is therefore **not a valid
-melee backup** (it is still valid as a melee hand weapon), while a 0.85 kg
-gladius is. The Weapons tab shows `Backup (blocked)` with Simple Sidearms'
-reason, and the colonist detail lists the candidate under the backup slot with
-that blocker.
+SS's mass limits still matter. The Basic preset caps a melee sidearm at 1.9 kg
+and a ranged sidearm at 2.7 kg, with 3 total slots including the equipped
+weapon. A 2 kg Monosword or Zeushammer is therefore not a valid melee sidearm
+while a 0.85 kg gladius is. Heavy rifles often fail the single-sidearm cap, so
+Sidearm 2 is often a pistol or light SMG. The Weapons tab shows the blocked
+status with Simple Sidearms' reason, and the colonist detail lists the candidate
+under Sidearm 1 or Sidearm 2 with that blocker.
 
 Turning **Respect Simple Sidearms** off hands the hand type back to Armory's own
 automatic assignment; Armory may then disagree with SS's primary mode while
-backup management still runs. Leave it on unless you are deliberately taking
+sidearm management still runs. Leave it on unless you are deliberately taking
 manual control.
-
 SS's primary mode is **per pawn**. Changing SS's global default only affects
 newly generated pawns; existing colonists keep their own mode. Use the Simple
 Sidearms gizmo on a colonist to switch them to Melee or By skill. A melee-mode
-pawn gets a ranged backup, subject to SS's 2.7 kg ranged-sidearm cap.
+pawn gets a ranged Sidearm 1, subject to SS's ranged-sidearm cap, and may get a
+second ranged sidearm if it closes another range gap.
 
 ---
 
@@ -509,16 +532,16 @@ All settings are under **Options → Mod settings → Armory**. The page scrolls
 | Equip drafted colonists | off | — | Queues jobs for drafted colonists |
 | Respect manual weapon changes | on | — | Pause after a player/other-mod change |
 | Pause after a manual weapon change | 15000 ticks (~250 s) | 2500–30000 | Length of that pause |
-| Respect Simple Sidearms | on | — | SS primary mode owns the hand type; respect forced states and hand baseline; backup management |
-| Manage backup weapons | on | — | Keep one opposite-type weapon in the bag via `EquipSecondary` (Simple Sidearms only) |
-| Upgrade a worse backup | on | — | Replace the worst same-type backup when a better valid one exists; never cross-type |
+| Respect Simple Sidearms | on | - | SS primary mode owns the hand type; respect forced states, logical hand and sidearm jobs |
+| Manage sidearms | on | - | Keep an opposite-type Sidearm 1 and an optional ranged Sidearm 2; reconcile extras (Simple Sidearms only) |
+| Upgrade sidearms | on | - | Replace Sidearm 1 or Sidearm 2 when a better valid option exists |
 | Minimum upgrade gain | 10% | 0–50% | Required improvement to recommend or equip a weapon |
 | Ranged score weight | ×1.00 | 0.5–2.0 | Global scoring bias |
 | Melee score weight | ×1.00 | 0.5–2.0 | Global scoring bias |
 | Combat distance bias | 0 tiles | -5–+5 | Shift all preferred ranges closer (negative) or longer (positive) |
 | Squad variety | 50% | 0–100% | Per-colonist weapon affinity and duplicate top-choice penalty; 0% disables both |
 | Hand candidates shown per colonist | Auto | 1–50 | Auto = 15 without Simple Sidearms, 5 with it |
-| Backup candidates shown per colonist | Auto | 1–50 | Auto = 5; Simple Sidearms only |
+| Sidearm candidates shown per colonist | Auto | 1-50 | Auto = 5; Simple Sidearms only |
 | Show blocked candidates by default | on | — | Include candidates that cannot be equipped now |
 | Snapshot refresh interval | 120 ticks | 30–600 | How often the lists recalculate while open |
 | Write a snapshot summary to the log when a map loads | off | — | One-time diagnostic in `Player.log` |
@@ -640,22 +663,26 @@ Full procedure, switches, pitfalls and cleanup:
 
 ## Known limitations
 
-- **Backups are one per pawn and same-type upgrades only.** Armory does not add a
-  second backup and does not drop a hand-type extra to make room for a missing
-  backup, so a bag already full of extras can block the first backup. It does
-  not compute exact mass/weight budgets itself; SS's `CanPickupSidearmInstance`
-  is checked per candidate. Remembered weapons the pawn no longer carries are not
-  used as candidates.
-- **No duplicate backup types are added.** The planner and the Upgrades tab skip a backup
-  def the pawn already carries in the hand or bag, so a gladius is never followed
-  by a second gladius. Existing duplicates are not removed automatically: the
-  planner never drops a weapon without a replacement, so drop one manually, or it
-  may be replaced if a better different def is available.
+- **Sidearm slots are one opposite-type sidearm plus one optional ranged
+  complement.** Armory does not add a second weapon of the same slot. It does not
+  compute exact mass/weight budgets itself; SS's `CanPickupSidearmInstance` is
+  checked per candidate. Remembered weapons the pawn no longer carries are not
+  used as loose candidates.
+- **Duplicate ordinary defs are not added, and existing extras are removed.**
+  The planner and the Upgrades tab skip an ordinary sidearm def the pawn already
+  carries in the hand or bag, so a gladius is never followed by a second gladius.
+  Persona and unique weapons compare by instance. Duplicates, unusable sidearms,
+  and weapons beyond the plan are dropped automatically with Simple Sidearms'
+  intentional-drop API. One usable fallback is kept until a replacement is ready.
 - **Drop-first upgrades have a brief gap.** At SS's slot cap Armory drops the old
-  backup before queueing the new one, and restores the old weapon if SS still
+  sidearm before queueing the new one, and restores the old weapon if SS still
   rejects the replacement. The dropped weapon is on the ground in the meantime.
   Armory pre-checks SS's mass/selection/pacifist rules first and suppresses
   retries for the same pawn+weapon for about 17 minutes after a refusal.
+- **Simple Sidearms can still re-retrieve a dropped weapon after a downing.**
+  Armory does not edit SS's remembered list directly. It drops an unwanted
+  retrieval on a later pass and restores the planned sidearm. Disabling SS's
+  automatic re-equip gives the cleanest result.
 - **Container scanning** is limited to loose/spawned weapons plus ordinary
   shelves/stockpiles. Weapons inside transport pods or pawn inventory are not
   offered as hand candidates; pod occupants are still listed as unavailable
@@ -686,7 +713,7 @@ Full procedure, switches, pitfalls and cleanup:
 - **No auto-unforbid**, by design.
 - **Dropped weapons** stay on the ground; no auto-haul yet.
 - **No raid behaviour** yet (e.g., arm everyone when a raid starts).
-- **Decision log is session-only** and records hand/backup equips, drops, and
+- **Decision log is session-only** and records hand/sidearm equips, drops, and
   aborted upgrades, not every skip.
   Pawn automation pauses/blocks are shown in the Colonists tab and pawn detail.
 - **English strings are hardcoded**; localization not started.
@@ -705,15 +732,15 @@ Full procedure, switches, pitfalls and cleanup:
    - forced states and primary modes respected;
    - carried-primary baseline and SS job guard prevent most swap loops;
    - SS state and carried sidearms surfaced in pawn detail.
-2. **Milestone 4 — Sidearm ranking and assignment** — done in 0.4.0;
+2. **Milestone 4 - Sidearm ranking and assignment** - done in 0.4.0;
    sidearm visibility in 0.5.0; replaced by the typed hand/backup model in 0.6.0.
    - one typed hand slot (Simple Sidearms mode when active, otherwise Armory's
-     automatic type) and one opposite-type backup;
+     automatic type) and one opposite-type sidearm;
    - same-type-only upgrades, add-first or drop-first depending on SS slots;
    - mirrored for ranged and melee pawns;
    - SS slot/mass/selection checks on every candidate;
-   - hand and backup shown separately, never in one cross-type ranking.
-3. **Milestone 5 — Polish**
+   - hand and sidearm shown separately, never in one cross-type ranking.
+3. **Milestone 5 - Polish**
    - Upgrades as a build plan (0.7.0): ideal loadout vs owned, craftable/buyable
      defs, research-locked section, normal-quality estimates;
    - exotic container scanning;
@@ -721,8 +748,14 @@ Full procedure, switches, pitfalls and cleanup:
    - raid arming;
    - localization;
    - Workshop prep.
-4. **Later** — deliberate variation (short/long mix, multiple backups) instead of
-   one best-in-type per slot.
+4. **Milestone 6 - Sidearm loadouts** - done in 0.11.0.
+   - Hand, opposite-type Sidearm 1 and optional ranged Sidearm 2;
+   - range-gap coverage for the second sidearm;
+   - carried-set reconciliation, duplicate cleanup and drawn-sidearm handling;
+   - multi-line Colonists rows and Sidearm 1/2 detail sections;
+   - Sidearm 2 demand in Upgrades.
+5. **Later** - joint sidearm-pair optimization, per-pawn sidearm locks if
+   requested, exotic container scanning, auto-haul and raid arming.
 
 ---
 
@@ -734,5 +767,7 @@ Full procedure, switches, pitfalls and cleanup:
   next steps, open questions.
 - [`docs/TESTING.md`](docs/TESTING.md) — quick harness and live-save testing,
   including the isolated copy + temporary scaffold procedure.
-- [`docs/WORKSHOP.md`](docs/WORKSHOP.md) — clean release contents, upload
+- [`docs/WORKSHOP.md`](docs/WORKSHOP.md) - clean release contents, upload
   checklist, private-test steps and Workshop page copy.
+- [`docs/SIDEARMS.md`](docs/SIDEARMS.md) - 0.11.0 sidearm-loadout design,
+  Simple Sidearms boundary and live-test notes.

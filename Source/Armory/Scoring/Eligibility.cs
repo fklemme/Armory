@@ -146,6 +146,23 @@ namespace Armory
         }
 
         /// <summary>
+        /// Work tools such as fire extinguishers and stat-boost items. Simple Sidearms can
+        /// use some of them, but Armory does not add or drop them automatically.
+        /// </summary>
+        public static bool IsWorkTool(ThingDef def)
+        {
+            if (def == null)
+            {
+                return false;
+            }
+            if (def.defName == "Gun_Fire_Ext" || def.defName == "VWE_Gun_FireExtinguisher")
+            {
+                return true;
+            }
+            return def.equippedStatOffsets != null && def.equippedStatOffsets.Count > 0;
+        }
+
+        /// <summary>
         /// True for a persona weapon that has not bonded yet. Equipping one is permanent,
         /// so Armory displays it but leaves the bonding decision to the player.
         /// </summary>

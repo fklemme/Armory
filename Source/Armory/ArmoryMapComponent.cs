@@ -124,7 +124,7 @@ namespace Armory
                 if (pawn.SidearmState != null)
                 {
                     Log.Message(string.Format(
-                        "[Armory]     backup ({0}): carried {1}; best carried {2}; candidates {3}",
+                        "[Armory]     Sidearm 1 ({0}): carried {1}; score {2:0}; candidates {3}",
                         pawn.RoleIsRanged.Value ? "melee" : "ranged",
                         pawn.BestCarriedBackup == null ? "none" : pawn.BestCarriedBackup.LabelCap,
                         pawn.BestCarriedBackupScore,
@@ -132,9 +132,29 @@ namespace Armory
                     for (int j = 0; j < pawn.SidearmCandidates.Count && j < 3; j++)
                     {
                         SidearmCandidate sidearm = pawn.SidearmCandidates[j];
-                        Log.Message(string.Format("[Armory]       backup {0}: score {1:0}, {2}{3}",
+                        Log.Message(string.Format("[Armory]       Sidearm 1 {0}: score {1:0}, {2}{3}",
                             sidearm.Weapon.Label,
-                            sidearm.Score,
+                            sidearm.SlotScore,
+                            sidearm.Ready ? "ready" : sidearm.Blocker,
+                            sidearm.UpgradeAfterDrop ? " [drop-first]" : string.Empty));
+                    }
+
+                    Log.Message(string.Format(
+                        "[Armory]     Sidearm 2 (ranged): carried {0}; coverage {1:0.0}; candidates {2}; drawn {3}",
+                        pawn.BestCarriedSidearmTwo == null
+                            ? "none"
+                            : pawn.BestCarriedSidearmTwo.LabelCap,
+                        pawn.CarriedSidearmTwoCoverage,
+                        pawn.SidearmTwoCandidates.Count,
+                        pawn.DrawnSidearm ? pawn.DrawnSidearmName : "no"));
+                    for (int j = 0; j < pawn.SidearmTwoCandidates.Count && j < 3; j++)
+                    {
+                        SidearmCandidate sidearm = pawn.SidearmTwoCandidates[j];
+                        Log.Message(string.Format(
+                            "[Armory]       Sidearm 2 {0}: coverage {1:0.0}, gain {2:0}%, {3}{4}",
+                            sidearm.Weapon.Label,
+                            sidearm.SlotScore,
+                            sidearm.ComplementGain * 100f,
                             sidearm.Ready ? "ready" : sidearm.Blocker,
                             sidearm.UpgradeAfterDrop ? " [drop-first]" : string.Empty));
                     }

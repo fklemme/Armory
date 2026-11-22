@@ -1,9 +1,10 @@
 # Steam Workshop release copy and checklist
 
-Status: **0.10.11 development build**. The Workshop item was created with 0.9.2
+Status: **0.11.0 development build**. The Workshop item was created with 0.9.2
 and updated to 0.10.8 on 21 November 2026; its page is being made public.
-0.10.11 is not uploaded yet. Any remaining Steam automated content check is
-external. 0.10.0 added typed hands,
+0.11.0 is not uploaded yet. Any remaining Steam automated content check is
+external. 0.11.0 adds full sidearm loadouts with Hand, Sidearm 1 and optional
+ranged Sidearm 2 management. 0.10.0 added typed hands,
 passion-based role assignment and automatic hand-type alignment; 0.10.1
 polished the UI and list limits; 0.10.2 hardens backup management and
 unusable-backup baselines; 0.10.3 adds double-click map jumps; 0.10.4 adds
@@ -12,7 +13,8 @@ polishes the accuracy columns and table widths; 0.10.6 shows accuracy as
 percentages and costs as icon/count groups; 0.10.7 names Armory-created bills;
 0.10.8 stops resting pawns from accumulating duplicate pickup jobs; 0.10.9
 adds base market value columns; 0.10.10 moves Value second and polishes the
-Weapons detail pane; 0.10.11 fixes blocked-reason spacing. Test locally before
+Weapons detail pane; 0.10.11 fixes blocked-reason spacing; 0.11.0 adds sidearm
+loadouts, duplicate cleanup and multi-line Colonists rows. Test locally before
 uploading an update. Do not bump to 1.0 yet.
 
 - Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224
@@ -88,7 +90,7 @@ After the upload:
 - For a true subscriber test, temporarily move the local release copy out of
   `RimWorld\Mods` (or use a separate RimWorld install/Steam account), restart,
   and load a colony with only the Workshop copy active.
-- Check the mod icon, banner, tabs, version `0.10.11`, default-on automation,
+- Check the mod icon, banner, tabs, version `0.11.0`, default-on automation,
   colonist-bar order, the `Best vs current` column, the `Change type` /
   `Change range` buttons, the Weapons percentage accuracy columns/role filters,
   the material-specific Upgrades rows/icon costs, and that Crafted bills are
@@ -126,13 +128,12 @@ When the private test passes, set the item to **Public**.
 
 ## Workshop screenshots
 
-Current gallery source: `docs/screenshots/` (3440x1440, captured with 0.10.8).
-These predate the Value column and the 0.10.10–0.10.11 Weapons layout, so refresh
-them before uploading. Upload in this order:
+Current gallery source: `docs/screenshots/` (3440x1440, refreshed for 0.11.0
+with the Value column and sidearm layout). Upload in this order:
 
-1. [`1_colonists.jpg`](screenshots/1_colonists.jpg) — Colonists tab: hand, role, status and ranked alternatives.
-2. [`2_weapons.jpg`](screenshots/2_weapons.jpg) — Weapons tab: DPS, AP, per-range accuracy and the best colonist.
-3. [`3_upgrades.jpg`](screenshots/3_upgrades.jpg) — Upgrades tab: material variants, per-copy costs and what to craft next.
+1. [`1_colonists.jpg`](screenshots/1_colonists.jpg) - Colonists tab: Hand, Sidearm 1, Sidearm 2, role, status and ranked alternatives.
+2. [`2_weapons.jpg`](screenshots/2_weapons.jpg) - Weapons tab: Value, DPS, AP, per-range accuracy and the best colonist.
+3. [`3_upgrades.jpg`](screenshots/3_upgrades.jpg) - Upgrades tab: material variants, sidearm slots, per-copy costs and what to craft next.
 
 Keep these files as the Workshop gallery source of truth and replace them when
 the UI changes rather than adding version-numbered folders.
@@ -146,7 +147,7 @@ changes. The in-game description still comes from `About.xml`.
 ```text
 [b]The right weapon, in the right hands.[/b]
 
-Armory is a weapon inspector and automatic manager for RimWorld 1.6. It automatically equips each colonist with the best available weapon for their skills, passions, traits and combat role, and shows what to craft, research or buy next. It works especially well with Simple Sidearms.
+Armory is a weapon inspector and automatic manager for RimWorld 1.6. It automatically equips each colonist with the best available weapon for their skills, passions, traits and combat role, and shows what to craft, research or buy next. With Simple Sidearms it also manages an opposite-type sidearm and an optional ranged sidearm chosen to cover a real range gap, and cleans up duplicate or obsolete sidearms. It works especially well with Simple Sidearms.
 
 This mod started as a fun side project. Bug reports, ideas and contributions are welcome:
 https://github.com/fklemme/Armory

@@ -497,7 +497,7 @@ namespace Armory
 
         /// <summary>
         /// Weapons only. Tools and other verb-bearing items are not useful for the hand or
-        /// backup slot model, and non-combat items should never appear in demand.
+        /// sidearm slot model, and non-combat items should never appear in demand.
         /// </summary>
         private static bool IsCandidate(ThingDef def)
         {

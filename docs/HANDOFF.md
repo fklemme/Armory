@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.10.9**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.10.10**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.10.9 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.10.10 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 **Links:** [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224) ·
@@ -37,7 +37,8 @@ management and unusable-backup baselines; 0.10.3 adds double-click map jumps;
 filters; 0.10.5 polishes the accuracy columns, table widths and detail header;
 0.10.6 shows accuracy as percentages and replaces text costs with icon/count
 groups; 0.10.7 names Armory-created bills; 0.10.8 prevents duplicate pickup jobs
-from accumulating on resting pawns; 0.10.9 adds base market value columns.
+from accumulating on resting pawns; 0.10.9 adds base market value columns and
+0.10.10 moves them to the second column and polishes the Weapons detail pane.
 Upload once the private test is good enough.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
@@ -50,9 +51,31 @@ pass in 0.10.0, UI/list-limit polish in 0.10.1, backup-safety fixes in 0.10.2,
 double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4,
 accuracy-column/table-layout polish in 0.10.5, percentage accuracy/icon costs
 in 0.10.6, named craft bills in 0.10.7, a pending-job duplicate guard in 0.10.8,
-and market value columns in 0.10.9. Research, reference-mod behaviour, the
-shipped model and remaining decisions are in
-[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+market value columns in 0.10.9, and value-column/right-pane polish in 0.10.10.
+Research, reference-mod behaviour, the shipped model and remaining decisions are
+in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+
+---
+
+## 0.10.10 — value column order and Weapons detail layout
+
+- Moved `Value` to the second column in both tables, directly after the weapon
+  name and before DPS/Power.
+- Widened the Weapons list from 66% to 70% of the tab by narrowing the detail
+  pane, and widened the Weapons Value column so amounts like `$4,300` no longer
+  ellipsize.
+- Gave the `Score = ...` line a taller rect, MiddleLeft anchoring and the Tiny
+  font so its bottom is no longer clipped and the full formula fits the narrower
+  pane.
+- Split blocked best-hand and best-backup fits into a short headline plus an
+  indented `Reason: ...` line, so long blockers such as heavy-sidearm limits are
+  readable in the narrower pane.
+- Verified at 1600x900 on the isolated current save: Value is second in both
+  tables, `$4,300` and `$2,750` fit, the Score formula is fully visible, and the
+  blocked backup reason uses its own indented line. Build clean.
+
+Pending: refresh the Workshop gallery screenshots (`docs/screenshots/`) so they
+show the final 0.10.10 columns and detail layout before the next upload.
 
 ---
 
@@ -2291,6 +2314,7 @@ polish, not new core behaviour.
 | 0.10.7 | Set a recognizable `Armory: <item>` custom name on bills queued from Upgrades, with a 28-character fallback |
 | 0.10.8 | Treat current and queued Equip/EquipSecondary jobs as busy, and re-check live carried/pending weapons before a backup pickup, so resting pawns cannot accumulate duplicate pickup jobs |
 | 0.10.9 | Add sortable base market value columns to Weapons and Upgrades, using actual copies on Weapons and normal-quality variants for obtainable Upgrades rows |
+| 0.10.10 | Move Value to the second column in both tables, widen the Weapons list and Value column, and split blocked hand/backup reasons onto indented lines |
 
 ---
 

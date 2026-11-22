@@ -182,7 +182,7 @@ With Simple Sidearms enabled and respected, every pawn should resolve
 `(Simple Sidearms mode)`, the Armory hand-type override should be ignored, and
 backup jobs should still queue.
 
-### Testing comparison, materials, role filters and value (0.10.4–0.10.9)
+### Testing comparison, materials, role filters and value (0.10.4–0.10.10)
 
 - **Weapons:** the list shows DPS, DPSA, AP, separate percentage
   `aC`/`aS`/`aM`/`aL` columns, Range, Best colonist and Best use. Click each
@@ -207,12 +207,17 @@ backup jobs should still queue.
 - **Upgrades layout (0.10.5):** the first explanatory line must not be clipped at
   its bottom, Wanted by/Owned should be compact, and normal bench names in Source
   should fit without a redundant shortage suffix.
-- **Market value (0.10.9):** the Weapons `Value` column matches the item's market
-  value and changes with quality and material. Click the header to sort. The
-  Upgrades `Value` column shows a normal-quality per-copy value for Craft,
-  Research and Buy rows; with Show owned, Owned rows use the actual best copy.
-  Tooltips must say the value is before negotiator skill and buy/sell
+- **Market value (0.10.9–0.10.10):** `Value` is the second column in both tables.
+  The Weapons `Value` matches the item's market value and changes with quality
+  and material; click the header to sort. Amounts such as `$4,300` must not be
+  ellipsized. The Upgrades `Value` shows a normal-quality per-copy value for
+  Craft, Research and Buy rows; with Show owned, Owned rows use the actual best
+  copy. Tooltips must say the value is before negotiator skill and buy/sell
   multipliers.
+- **Weapons detail pane (0.10.10):** at the normal window size the `Score = ...`
+  formula is fully visible with no clipped bottom. A blocked best hand or backup
+  fit shows a short headline and an indented `Reason: ...` line that fits the
+  narrower pane.
 - **Pending pickup jobs (0.10.8):** put a colonist who needs a backup in bed or
   otherwise busy for several planner cycles. The pawn must have at most one
   `EquipSecondary` job in `pawn.jobs.jobQueue` at any time; Armory should add no

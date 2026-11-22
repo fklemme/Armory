@@ -356,28 +356,28 @@ namespace Armory
             const float gap = 5f;
             float width = row.width;
             float x = row.x;
-            label = new Rect(x, row.y, width * 0.20f - gap, row.height);
-            x += width * 0.20f;
-            dps = new Rect(x, row.y, width * 0.07f - gap, row.height);
-            x += width * 0.07f;
-            dpsa = new Rect(x, row.y, width * 0.07f - gap, row.height);
-            x += width * 0.07f;
+            label = new Rect(x, row.y, width * 0.19f - gap, row.height);
+            x += width * 0.19f;
+            value = new Rect(x, row.y, width * 0.085f - gap, row.height);
+            x += width * 0.085f;
+            dps = new Rect(x, row.y, width * 0.065f - gap, row.height);
+            x += width * 0.065f;
+            dpsa = new Rect(x, row.y, width * 0.065f - gap, row.height);
+            x += width * 0.065f;
             ap = new Rect(x, row.y, width * 0.05f - gap, row.height);
             x += width * 0.05f;
-            accC = new Rect(x, row.y, width * 0.055f - gap, row.height);
-            x += width * 0.055f;
-            accS = new Rect(x, row.y, width * 0.055f - gap, row.height);
-            x += width * 0.055f;
-            accM = new Rect(x, row.y, width * 0.055f - gap, row.height);
-            x += width * 0.055f;
-            accL = new Rect(x, row.y, width * 0.055f - gap, row.height);
-            x += width * 0.055f;
+            accC = new Rect(x, row.y, width * 0.052f - gap, row.height);
+            x += width * 0.052f;
+            accS = new Rect(x, row.y, width * 0.052f - gap, row.height);
+            x += width * 0.052f;
+            accM = new Rect(x, row.y, width * 0.052f - gap, row.height);
+            x += width * 0.052f;
+            accL = new Rect(x, row.y, width * 0.052f - gap, row.height);
+            x += width * 0.052f;
             range = new Rect(x, row.y, width * 0.05f - gap, row.height);
             x += width * 0.05f;
-            value = new Rect(x, row.y, width * 0.06f - gap, row.height);
-            x += width * 0.06f;
-            best = new Rect(x, row.y, width * 0.12f - gap, row.height);
-            x += width * 0.12f;
+            best = new Rect(x, row.y, width * 0.11f - gap, row.height);
+            x += width * 0.11f;
             status = new Rect(x, row.y, width - (x - row.x), row.height);
         }
 
@@ -1433,7 +1433,7 @@ namespace Armory
 
             BuildWeaponView(snapshot);
 
-            float listWidth = Mathf.Floor(area.width * 0.66f);
+            float listWidth = Mathf.Floor(area.width * 0.70f);
             Rect listRect = new Rect(area.x, area.y, listWidth, area.height);
             Rect detailRect = new Rect(listRect.xMax + 8f, area.y, area.width - listWidth - 8f, area.height);
 
@@ -1688,6 +1688,9 @@ namespace Armory
                 out Rect value, out Rect best, out Rect status);
             DrawCell(label, row.Weapon.Label, TextAnchor.MiddleLeft);
             TipCell(label, row.Weapon.Label);
+            DrawCell(value, MarketValueText(row.Weapon.MarketValue), TextAnchor.MiddleRight,
+                GameFont.Small, new Color(0.88f, 0.85f, 0.68f));
+            TipCell(value, "Base market value in silver for this item's material, quality and condition. Before negotiator skill and buy/sell multipliers.");
             DrawCell(dps, stats.IsRanged ? stats.RawDps.ToString("0.0") : stats.RawDps.ToString("0"),
                 TextAnchor.MiddleRight, GameFont.Small, new Color(0.82f, 0.82f, 0.82f));
             TipCell(dps, stats.IsRanged
@@ -1715,9 +1718,6 @@ namespace Armory
             DrawCell(range, RangeText(stats.Range), TextAnchor.MiddleRight, GameFont.Small,
                 new Color(0.72f, 0.82f, 0.92f));
             TipCell(range, "Maximum firing range in tiles.");
-            DrawCell(value, MarketValueText(row.Weapon.MarketValue), TextAnchor.MiddleRight,
-                GameFont.Small, new Color(0.88f, 0.85f, 0.68f));
-            TipCell(value, "Base market value in silver for this item's material, quality and condition. Before negotiator skill and buy/sell multipliers.");
 
             bool hasBest = false;
             PawnAnalysis bestPawn = null;
@@ -2028,6 +2028,8 @@ namespace Armory
             Color color = new Color(0.68f, 0.68f, 0.68f);
             DrawCell(label, SortLabel("Weapon", WeaponSort.Label), TextAnchor.MiddleLeft,
                 GameFont.Tiny, SortColor(WeaponSort.Label, color));
+            DrawCell(value, SortLabel("Value", WeaponSort.Value), TextAnchor.MiddleRight,
+                GameFont.Tiny, SortColor(WeaponSort.Value, color));
             DrawCell(dps, SortLabel("DPS", WeaponSort.Dps), TextAnchor.MiddleRight,
                 GameFont.Tiny, SortColor(WeaponSort.Dps, color));
             DrawCell(dpsa, SortLabel("DPSA", WeaponSort.Dpsa), TextAnchor.MiddleRight,
@@ -2044,8 +2046,6 @@ namespace Armory
                 GameFont.Tiny, SortColor(WeaponSort.AccLong, color));
             DrawCell(range, SortLabel("Range", WeaponSort.Range), TextAnchor.MiddleRight,
                 GameFont.Tiny, SortColor(WeaponSort.Range, color));
-            DrawCell(value, SortLabel("Value", WeaponSort.Value), TextAnchor.MiddleRight,
-                GameFont.Tiny, SortColor(WeaponSort.Value, color));
             DrawCell(best, weaponRoleFilter == RoleFilter.All ? "Best colonist" : "Best " +
                 RoleFilterLabel(weaponRoleFilter), TextAnchor.MiddleLeft, GameFont.Tiny,
                 SortColor(WeaponSort.Best, color));
@@ -2219,13 +2219,18 @@ namespace Armory
                 y += 17f;
             }
             GUI.color = new Color(0.66f, 0.68f, 0.64f);
-            Rect formulaRect = new Rect(rect.x, y, rect.width, 18f);
+            Rect formulaRect = new Rect(rect.x, y, rect.width, 22f);
+            GameFont previousFormulaFont = Text.Font;
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleLeft;
             Widgets.LabelEllipses(formulaRect,
                 "Score = range DPS x fit x (1+AP) x support x variety x 10");
+            Text.Anchor = TextAnchor.UpperLeft;
+            Text.Font = previousFormulaFont;
             TooltipHandler.TipRegion(formulaRect,
                 "Armory's combat score: expected DPS around the colonist's preferred range, multiplied by pawn fit, armor penetration, the burst-support penalty and variety. The DPSA column is a generic catalog comparison only.");
             GUI.color = Color.white;
-            y += 21f;
+            y += 24f;
 
             if (row.BestHandPawn != null)
             {
@@ -2243,12 +2248,14 @@ namespace Armory
             {
                 string primaryReason = ReasonFor(row.BestAnyHandPawn, row.Weapon);
                 DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
-                    string.Format("Best hand fit: {0}, but blocked ({1})", row.BestAnyHandPawn.Pawn.LabelShort,
-                        primaryReason),
+                    string.Format("Best hand fit: {0}, but blocked",
+                        row.BestAnyHandPawn.Pawn.LabelShort),
                     new Color(1f, 0.8f, 0.42f));
+                y += 21f;
+                DrawReasonLine(rect, ref y, primaryReason);
                 if (IsSSRoleBlock(primaryReason))
                 {
-                    y += 22f;
+                    y += 2f;
                     bool previousWrap = Text.WordWrap;
                     Text.WordWrap = true;
                     Text.Anchor = TextAnchor.UpperLeft;
@@ -2278,11 +2285,12 @@ namespace Armory
             else if (row.BestAnyBackupPawn != null)
             {
                 DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
-                    string.Format("Best backup fit: {0}, but blocked ({1})",
-                        row.BestAnyBackupPawn.Pawn.LabelShort,
-                        SidearmReasonFor(row.BestAnyBackupPawn, row.Weapon)),
+                    string.Format("Best backup fit: {0}, but blocked",
+                        row.BestAnyBackupPawn.Pawn.LabelShort),
                     new Color(1f, 0.8f, 0.42f));
-                y += 22f;
+                y += 21f;
+                DrawReasonLine(rect, ref y,
+                    SidearmReasonFor(row.BestAnyBackupPawn, row.Weapon));
             }
             y += 2f;
 
@@ -2480,11 +2488,11 @@ namespace Armory
                 columns.SlotX = columns.WantedX - Gap - SlotWidth;
                 columns.ScoreX = columns.SlotX - Gap - ScoreWidth;
                 columns.CostX = columns.ScoreX - Gap - CostWidth;
-                columns.ValueX = columns.CostX - Gap - ValueWidth;
-                columns.RangeX = columns.ValueX - Gap - RangeWidth;
+                columns.RangeX = columns.CostX - Gap - RangeWidth;
                 columns.PowerX = columns.RangeX - Gap - PowerWidth;
+                columns.ValueX = columns.PowerX - Gap - ValueWidth;
                 columns.WeaponX = 4f;
-                columns.WeaponWidth = Mathf.Max(120f, columns.PowerX - Gap - columns.WeaponX);
+                columns.WeaponWidth = Mathf.Max(120f, columns.ValueX - Gap - columns.WeaponX);
                 return columns;
             }
         }
@@ -2615,6 +2623,13 @@ namespace Armory
                         : "An upgrade, but not the best option in this section for any colonist.");
                 }
 
+                Rect valueCell = new Rect(columns.ValueX, cursor, DemandColumns.ValueWidth, RowHeight);
+                DrawCell(valueCell, MarketValueText(row.MarketValue), TextAnchor.MiddleRight,
+                    GameFont.Small, new Color(0.88f, 0.85f, 0.68f));
+                TipCell(valueCell, row.Section == DemandSection.Owned
+                    ? "Base market value in silver for this owned copy, before negotiator skill and buy/sell multipliers."
+                    : "Base market value in silver for one normal-quality copy. Actual crafted quality raises or lowers it. Before negotiator skill and buy/sell multipliers.");
+
                 DrawCell(new Rect(columns.PowerX, cursor, DemandColumns.PowerWidth, RowHeight),
                     row.Power.ToString("0"), TextAnchor.MiddleRight, GameFont.Small,
                     new Color(0.82f, 0.82f, 0.82f));
@@ -2622,13 +2637,6 @@ namespace Armory
                 DrawCell(rangeCell, RangeText(row.Range), TextAnchor.MiddleRight, GameFont.Small,
                     new Color(0.72f, 0.82f, 0.92f));
                 TooltipHandler.TipRegion(rangeCell, "Maximum firing range in tiles.");
-
-                Rect valueCell = new Rect(columns.ValueX, cursor, DemandColumns.ValueWidth, RowHeight);
-                DrawCell(valueCell, MarketValueText(row.MarketValue), TextAnchor.MiddleRight,
-                    GameFont.Small, new Color(0.88f, 0.85f, 0.68f));
-                TipCell(valueCell, row.Section == DemandSection.Owned
-                    ? "Base market value in silver for this owned copy, before negotiator skill and buy/sell multipliers."
-                    : "Base market value in silver for one normal-quality copy. Actual crafted quality raises or lowers it. Before negotiator skill and buy/sell multipliers.");
 
                 Rect costCell = new Rect(columns.CostX, cursor, DemandColumns.CostWidth, RowHeight);
                 DrawDemandCost(costCell, row, snapshot.Map);
@@ -2923,6 +2931,11 @@ namespace Armory
             DrawCell(new Rect(rect.x + columns.WeaponX + DemandColumns.BestMarkerWidth, rect.y,
                     columns.WeaponWidth - DemandColumns.BestMarkerWidth, rect.height),
                 "Weapon", TextAnchor.MiddleLeft, GameFont.Tiny, color);
+            Rect valueRect = new Rect(rect.x + columns.ValueX, rect.y, DemandColumns.ValueWidth,
+                rect.height);
+            DrawCell(valueRect, "Value", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            TooltipHandler.TipRegion(valueRect,
+                "Base market value in silver per copy, before negotiator skill and buy/sell multipliers. Craft, Research and Buy rows assume normal quality; Owned rows use the actual best copy.");
             Rect powerRect = new Rect(rect.x + columns.PowerX, rect.y, DemandColumns.PowerWidth,
                 rect.height);
             DrawCell(powerRect, "Power", TextAnchor.MiddleRight, GameFont.Tiny, color);
@@ -2932,11 +2945,6 @@ namespace Armory
                 rect.height);
             DrawCell(rangeRect, "Range", TextAnchor.MiddleRight, GameFont.Tiny, color);
             TooltipHandler.TipRegion(rangeRect, "Maximum firing range in tiles.");
-            Rect valueRect = new Rect(rect.x + columns.ValueX, rect.y, DemandColumns.ValueWidth,
-                rect.height);
-            DrawCell(valueRect, "Value", TextAnchor.MiddleRight, GameFont.Tiny, color);
-            TooltipHandler.TipRegion(valueRect,
-                "Base market value in silver per copy, before negotiator skill and buy/sell multipliers. Craft, Research and Buy rows assume normal quality; Owned rows use the actual best copy.");
             Rect costRect = new Rect(rect.x + columns.CostX, rect.y, DemandColumns.CostWidth,
                 rect.height);
             DrawCell(costRect, "Cost", TextAnchor.MiddleLeft, GameFont.Tiny, color);
@@ -3337,6 +3345,14 @@ namespace Armory
         private static void DrawColoredLine(Rect rect, string text, Color color)
         {
             DrawCell(rect, text, TextAnchor.MiddleLeft, GameFont.Small, color);
+        }
+
+        private static void DrawReasonLine(Rect rect, ref float y, string reason)
+        {
+            DrawColoredLine(new Rect(rect.x + 14f, y, rect.width - 14f, 20f),
+                "Reason: " + (string.IsNullOrEmpty(reason) ? "blocked" : reason),
+                new Color(1f, 0.78f, 0.45f));
+            y += 20f;
         }
 
         private static Color StatusColor(Candidate candidate)

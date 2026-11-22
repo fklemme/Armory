@@ -1,8 +1,8 @@
 # Steam Workshop release copy and checklist
 
-Status: **0.10.9 development build**. The Workshop item was created with 0.9.2
+Status: **0.10.10 development build**. The Workshop item was created with 0.9.2
 and updated to 0.10.8 on 21 November 2026; its page is being made public.
-0.10.9 is not uploaded yet. Any remaining Steam automated content check is
+0.10.10 is not uploaded yet. Any remaining Steam automated content check is
 external. 0.10.0 added typed hands,
 passion-based role assignment and automatic hand-type alignment; 0.10.1
 polished the UI and list limits; 0.10.2 hardens backup management and
@@ -11,8 +11,9 @@ weapon comparison, material-specific upgrade variants and role filters; 0.10.5
 polishes the accuracy columns and table widths; 0.10.6 shows accuracy as
 percentages and costs as icon/count groups; 0.10.7 names Armory-created bills;
 0.10.8 stops resting pawns from accumulating duplicate pickup jobs; 0.10.9
-adds base market value columns. Test locally before uploading an update. Do not
-bump to 1.0 yet.
+adds base market value columns; 0.10.10 moves Value second and polishes the
+Weapons detail pane. Test locally before uploading an update. Do not bump to 1.0
+yet.
 
 - Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224
 - Source and issues: https://github.com/fklemme/Armory
@@ -87,7 +88,7 @@ After the upload:
 - For a true subscriber test, temporarily move the local release copy out of
   `RimWorld\Mods` (or use a separate RimWorld install/Steam account), restart,
   and load a colony with only the Workshop copy active.
-- Check the mod icon, banner, tabs, version `0.10.9`, default-on automation,
+- Check the mod icon, banner, tabs, version `0.10.10`, default-on automation,
   colonist-bar order, the `Best vs current` column, the `Change type` /
   `Change range` buttons, the Weapons percentage accuracy columns/role filters,
   the material-specific Upgrades rows/icon costs, and that Crafted bills are
@@ -126,8 +127,8 @@ When the private test passes, set the item to **Public**.
 ## Workshop screenshots
 
 Current gallery source: `docs/screenshots/` (3440x1440, captured with 0.10.8).
-These predate the 0.10.9 Value column, so refresh them before uploading 0.10.9.
-Upload in this order:
+These predate the Value column and the 0.10.10 Weapons layout, so refresh them
+before uploading 0.10.10. Upload in this order:
 
 1. [`1_colonists.jpg`](screenshots/1_colonists.jpg) — Colonists tab: hand, role, status and ranked alternatives.
 2. [`2_weapons.jpg`](screenshots/2_weapons.jpg) — Weapons tab: DPS, AP, per-range accuracy and the best colonist.

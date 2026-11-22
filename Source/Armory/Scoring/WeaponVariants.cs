@@ -126,6 +126,7 @@ namespace Armory
                     Probe = probe,
                     Power = WeaponPower.Get(probe, null),
                     Range = WeaponPower.GetRange(probe),
+                    MarketValue = probe.MarketValue,
                     Label = GenLabel.ThingLabel(source.Def, stuff, 1).CapitalizeFirst()
                 };
 

@@ -43,6 +43,7 @@ namespace Armory
                     IsRanged = weapon.def.IsRangedWeapon,
                     Power = WeaponPower.Get(weapon, powerCache),
                     Range = WeaponPower.GetRange(weapon),
+                    MarketValue = weapon.MarketValue,
                     Comparison = WeaponPower.GetComparison(weapon)
                 });
             }
@@ -834,6 +835,7 @@ namespace Armory
                 if (bestOwned.TryGetValue(pair.Key, out actual) && actual != null)
                 {
                     ownedRow.Label = actual.LabelCap;
+                    ownedRow.MarketValue = actual.MarketValue;
                     ownedRow.Power = WeaponPower.Get(actual, null);
                     ownedRow.Range = WeaponPower.GetRange(actual);
                 }
@@ -1165,6 +1167,7 @@ namespace Armory
                 Label = variant.Label,
                 Power = variant.Power,
                 Range = variant.Range,
+                MarketValue = variant.MarketValue,
                 CostText = variant.CostText,
                 CostTooltip = variant.CostTooltip,
                 MaterialsAvailable = variant.MaterialsAvailable,

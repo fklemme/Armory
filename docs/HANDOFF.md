@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.10.8**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.10.9**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.10.8 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.10.9 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 **Links:** [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224) ·
@@ -37,7 +37,8 @@ management and unusable-backup baselines; 0.10.3 adds double-click map jumps;
 filters; 0.10.5 polishes the accuracy columns, table widths and detail header;
 0.10.6 shows accuracy as percentages and replaces text costs with icon/count
 groups; 0.10.7 names Armory-created bills; 0.10.8 prevents duplicate pickup jobs
-from accumulating on resting pawns. Upload once the private test is good enough.
+from accumulating on resting pawns; 0.10.9 adds base market value columns.
+Upload once the private test is good enough.
 
 A range/role scoring pass shipped in 0.8.0, with an unbonded-persona guard in
 0.8.1, a Source-column encoding fix in 0.8.2, an interface wording pass in
@@ -48,9 +49,37 @@ staging plus the `Best vs current` column in 0.9.2, the typed-hand/auto-align
 pass in 0.10.0, UI/list-limit polish in 0.10.1, backup-safety fixes in 0.10.2,
 double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4,
 accuracy-column/table-layout polish in 0.10.5, percentage accuracy/icon costs
-in 0.10.6, named craft bills in 0.10.7, and a pending-job duplicate guard in
-0.10.8. Research, reference-mod behaviour, the shipped model and remaining
-decisions are in [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+in 0.10.6, named craft bills in 0.10.7, a pending-job duplicate guard in 0.10.8,
+and market value columns in 0.10.9. Research, reference-mod behaviour, the
+shipped model and remaining decisions are in
+[`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+
+---
+
+## 0.10.9 — base market value columns
+
+RimWorld exposes each item's base value as `Thing.MarketValue` (the MarketValue
+stat) in silver. Quality, material and condition can change it; negotiator
+skill, difficulty settings and buy/sell multipliers do not. That makes it a
+useful comparison number alongside combat stats and material cost.
+
+- **Weapons:** a new sortable `Value` column shows each loose weapon's actual
+  market value, including its quality and material. The detail header also
+  includes the value.
+- **Upgrades:** a new `Value` column shows the per-copy value for that material
+  variant. Craft, Research and Buy rows use the existing normal-quality scoring
+  probe; Owned rows override it with the actual best owned copy.
+- Formatting uses the game's money format with thousands separators.
+- Tooltips state that the number is before negotiator skill and buy/sell
+  multipliers, and that crafted quality can raise or lower the final value.
+
+Verified on the isolated current save at 1600x900: persona monosword $4,300,
+normal monosword $2,000, good steel gladius $173, normal steel gladius $138;
+variant rows included obsidian combat knife $430, plasteel combat knife $755,
+and heavy charge blaster $3,620. Both columns fit without clipping. Build clean.
+
+Pending: refresh the Workshop gallery screenshots (`docs/screenshots/`) so they
+show the 0.10.9 Value column before the next Workshop upload.
 
 ---
 
@@ -2261,6 +2290,7 @@ polish, not new core behaviour.
 | 0.10.6 | Show accuracy as percentages, render Upgrades costs as icon/count groups with orange shortage counts, and equalize Wanted/Owned/Needed widths |
 | 0.10.7 | Set a recognizable `Armory: <item>` custom name on bills queued from Upgrades, with a 28-character fallback |
 | 0.10.8 | Treat current and queued Equip/EquipSecondary jobs as busy, and re-check live carried/pending weapons before a backup pickup, so resting pawns cannot accumulate duplicate pickup jobs |
+| 0.10.9 | Add sortable base market value columns to Weapons and Upgrades, using actual copies on Weapons and normal-quality variants for obtainable Upgrades rows |
 
 ---
 

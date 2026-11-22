@@ -38,6 +38,7 @@ namespace Armory
             AccMedium,
             AccLong,
             Range,
+            Value,
             Best,
             Label
         }
@@ -350,13 +351,13 @@ namespace Armory
 
         private static void WeaponColumns(Rect row, out Rect label, out Rect dps, out Rect dpsa,
             out Rect ap, out Rect accC, out Rect accS, out Rect accM, out Rect accL,
-            out Rect range, out Rect best, out Rect status)
+            out Rect range, out Rect value, out Rect best, out Rect status)
         {
             const float gap = 5f;
             float width = row.width;
             float x = row.x;
-            label = new Rect(x, row.y, width * 0.21f - gap, row.height);
-            x += width * 0.21f;
+            label = new Rect(x, row.y, width * 0.20f - gap, row.height);
+            x += width * 0.20f;
             dps = new Rect(x, row.y, width * 0.07f - gap, row.height);
             x += width * 0.07f;
             dpsa = new Rect(x, row.y, width * 0.07f - gap, row.height);
@@ -371,10 +372,12 @@ namespace Armory
             x += width * 0.055f;
             accL = new Rect(x, row.y, width * 0.055f - gap, row.height);
             x += width * 0.055f;
-            range = new Rect(x, row.y, width * 0.055f - gap, row.height);
-            x += width * 0.055f;
-            best = new Rect(x, row.y, width * 0.13f - gap, row.height);
-            x += width * 0.13f;
+            range = new Rect(x, row.y, width * 0.05f - gap, row.height);
+            x += width * 0.05f;
+            value = new Rect(x, row.y, width * 0.06f - gap, row.height);
+            x += width * 0.06f;
+            best = new Rect(x, row.y, width * 0.12f - gap, row.height);
+            x += width * 0.12f;
             status = new Rect(x, row.y, width - (x - row.x), row.height);
         }
 
@@ -1600,6 +1603,9 @@ namespace Armory
                 case WeaponSort.Range:
                     cmp = Stat(a).Range.CompareTo(Stat(b).Range);
                     break;
+                case WeaponSort.Value:
+                    cmp = a.Weapon.MarketValue.CompareTo(b.Weapon.MarketValue);
+                    break;
                 case WeaponSort.Best:
                     cmp = WeaponScore(a).CompareTo(WeaponScore(b));
                     break;
@@ -1679,7 +1685,7 @@ namespace Armory
             WeaponPower.ComparisonStats stats = Stat(row);
             WeaponColumns(rowRect, out Rect label, out Rect dps, out Rect dpsa, out Rect ap,
                 out Rect accC, out Rect accS, out Rect accM, out Rect accL, out Rect range,
-                out Rect best, out Rect status);
+                out Rect value, out Rect best, out Rect status);
             DrawCell(label, row.Weapon.Label, TextAnchor.MiddleLeft);
             TipCell(label, row.Weapon.Label);
             DrawCell(dps, stats.IsRanged ? stats.RawDps.ToString("0.0") : stats.RawDps.ToString("0"),
@@ -1709,6 +1715,9 @@ namespace Armory
             DrawCell(range, RangeText(stats.Range), TextAnchor.MiddleRight, GameFont.Small,
                 new Color(0.72f, 0.82f, 0.92f));
             TipCell(range, "Maximum firing range in tiles.");
+            DrawCell(value, MarketValueText(row.Weapon.MarketValue), TextAnchor.MiddleRight,
+                GameFont.Small, new Color(0.88f, 0.85f, 0.68f));
+            TipCell(value, "Base market value in silver for this item's material, quality and condition. Before negotiator skill and buy/sell multipliers.");
 
             bool hasBest = false;
             PawnAnalysis bestPawn = null;
@@ -2015,7 +2024,7 @@ namespace Armory
         {
             WeaponColumns(rect, out Rect label, out Rect dps, out Rect dpsa, out Rect ap,
                 out Rect accC, out Rect accS, out Rect accM, out Rect accL, out Rect range,
-                out Rect best, out Rect status);
+                out Rect value, out Rect best, out Rect status);
             Color color = new Color(0.68f, 0.68f, 0.68f);
             DrawCell(label, SortLabel("Weapon", WeaponSort.Label), TextAnchor.MiddleLeft,
                 GameFont.Tiny, SortColor(WeaponSort.Label, color));
@@ -2035,6 +2044,8 @@ namespace Armory
                 GameFont.Tiny, SortColor(WeaponSort.AccLong, color));
             DrawCell(range, SortLabel("Range", WeaponSort.Range), TextAnchor.MiddleRight,
                 GameFont.Tiny, SortColor(WeaponSort.Range, color));
+            DrawCell(value, SortLabel("Value", WeaponSort.Value), TextAnchor.MiddleRight,
+                GameFont.Tiny, SortColor(WeaponSort.Value, color));
             DrawCell(best, weaponRoleFilter == RoleFilter.All ? "Best colonist" : "Best " +
                 RoleFilterLabel(weaponRoleFilter), TextAnchor.MiddleLeft, GameFont.Tiny,
                 SortColor(WeaponSort.Best, color));
@@ -2049,6 +2060,7 @@ namespace Armory
             TipCell(accM, "Accuracy at medium range (25 cells). Click to sort.");
             TipCell(accL, "Accuracy at long range (40 cells). Unreachable bands count as zero in DPSA. Click to sort.");
             TipCell(range, "Maximum firing range in tiles. Click to sort.");
+            TipCell(value, "Base market value in silver for this item's material, quality and condition. This is before negotiator skill and buy/sell multipliers. Click to sort.");
             TipCell(best, "Colonist with the highest score for this weapon in its best ready slot. Click to sort.");
             TipCell(status, "Where this loose weapon is the best choice: hand, backup, or blocked in that slot.");
 
@@ -2087,6 +2099,10 @@ namespace Armory
             if (Widgets.ButtonInvisible(range))
             {
                 SetWeaponSort(WeaponSort.Range);
+            }
+            if (Widgets.ButtonInvisible(value))
+            {
+                SetWeaponSort(WeaponSort.Value);
             }
             if (Widgets.ButtonInvisible(best))
             {
@@ -2183,9 +2199,10 @@ namespace Armory
                                                  new WeaponPower.ComparisonStats();
             Color statsColor = new Color(0.86f, 0.88f, 0.9f);
             DrawCell(new Rect(rect.x, y, rect.width, 17f),
-                string.Format("{0} | DPS {1:0.0} | DPSA {2:0.0} | AP {3} | Mass {4:0.0}",
+                string.Format("{0} | DPS {1:0.0} | DPSA {2:0.0} | AP {3} | Mass {4:0.0} | Value {5}",
                     row.Weapon.IsRanged ? "Ranged" : "Melee", stats.RawDps, stats.Dpsa,
-                    stats.ArmorPen.ToStringPercent(), stats.Mass),
+                    stats.ArmorPen.ToStringPercent(), stats.Mass,
+                    MarketValueText(row.Weapon.MarketValue)),
                 TextAnchor.MiddleLeft, GameFont.Tiny, statsColor);
             y += 17f;
             if (row.Weapon.IsRanged)
@@ -2425,6 +2442,7 @@ namespace Armory
         {
             public const float PowerWidth = 50f;
             public const float RangeWidth = 42f;
+            public const float ValueWidth = 64f;
             public const float CostWidth = 136f;
             public const float ScoreWidth = 58f;
             public const float SlotWidth = 60f;
@@ -2441,6 +2459,7 @@ namespace Armory
             public float WeaponWidth;
             public float PowerX;
             public float RangeX;
+            public float ValueX;
             public float CostX;
             public float ScoreX;
             public float SlotX;
@@ -2461,7 +2480,8 @@ namespace Armory
                 columns.SlotX = columns.WantedX - Gap - SlotWidth;
                 columns.ScoreX = columns.SlotX - Gap - ScoreWidth;
                 columns.CostX = columns.ScoreX - Gap - CostWidth;
-                columns.RangeX = columns.CostX - Gap - RangeWidth;
+                columns.ValueX = columns.CostX - Gap - ValueWidth;
+                columns.RangeX = columns.ValueX - Gap - RangeWidth;
                 columns.PowerX = columns.RangeX - Gap - PowerWidth;
                 columns.WeaponX = 4f;
                 columns.WeaponWidth = Mathf.Max(120f, columns.PowerX - Gap - columns.WeaponX);
@@ -2602,6 +2622,13 @@ namespace Armory
                 DrawCell(rangeCell, RangeText(row.Range), TextAnchor.MiddleRight, GameFont.Small,
                     new Color(0.72f, 0.82f, 0.92f));
                 TooltipHandler.TipRegion(rangeCell, "Maximum firing range in tiles.");
+
+                Rect valueCell = new Rect(columns.ValueX, cursor, DemandColumns.ValueWidth, RowHeight);
+                DrawCell(valueCell, MarketValueText(row.MarketValue), TextAnchor.MiddleRight,
+                    GameFont.Small, new Color(0.88f, 0.85f, 0.68f));
+                TipCell(valueCell, row.Section == DemandSection.Owned
+                    ? "Base market value in silver for this owned copy, before negotiator skill and buy/sell multipliers."
+                    : "Base market value in silver for one normal-quality copy. Actual crafted quality raises or lowers it. Before negotiator skill and buy/sell multipliers.");
 
                 Rect costCell = new Rect(columns.CostX, cursor, DemandColumns.CostWidth, RowHeight);
                 DrawDemandCost(costCell, row, snapshot.Map);
@@ -2905,6 +2932,11 @@ namespace Armory
                 rect.height);
             DrawCell(rangeRect, "Range", TextAnchor.MiddleRight, GameFont.Tiny, color);
             TooltipHandler.TipRegion(rangeRect, "Maximum firing range in tiles.");
+            Rect valueRect = new Rect(rect.x + columns.ValueX, rect.y, DemandColumns.ValueWidth,
+                rect.height);
+            DrawCell(valueRect, "Value", TextAnchor.MiddleRight, GameFont.Tiny, color);
+            TooltipHandler.TipRegion(valueRect,
+                "Base market value in silver per copy, before negotiator skill and buy/sell multipliers. Craft, Research and Buy rows assume normal quality; Owned rows use the actual best copy.");
             Rect costRect = new Rect(rect.x + columns.CostX, rect.y, DemandColumns.CostWidth,
                 rect.height);
             DrawCell(costRect, "Cost", TextAnchor.MiddleLeft, GameFont.Tiny, color);
@@ -3369,6 +3401,11 @@ namespace Armory
         private static string RangeText(float range)
         {
             return range <= 0.01f ? "-" : range.ToString("0.0");
+        }
+
+        private static string MarketValueText(float value)
+        {
+            return value <= 0.01f ? "-" : value.ToStringMoney("N0");
         }
 
         private static string FormatPct(float value)

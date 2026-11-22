@@ -14,6 +14,9 @@ namespace Armory
         public float Power;
         public float Range;
 
+        /// <summary>Base market value in silver before negotiator and trade multipliers.</summary>
+        public float MarketValue;
+
         /// <summary>Pawn-independent comparison numbers used by the Weapons table.</summary>
         public WeaponPower.ComparisonStats Comparison;
     }
@@ -66,6 +69,10 @@ namespace Armory
         public ThingWithComps Probe;
         public float Power;
         public float Range;
+
+        /// <summary>Base market value in silver for one normal-quality copy.</summary>
+        public float MarketValue;
+
         public string Label;
 
         /// <summary>Per-copy ingredients. Empty when no cost is known (owned-only def).</summary>
@@ -524,6 +531,12 @@ namespace Armory
 
         /// <summary>Maximum firing range in tiles; zero for melee weapons.</summary>
         public float Range;
+
+        /// <summary>
+        /// Base market value in silver per copy. Normal quality for obtainable rows;
+        /// the actual best copy for Owned rows.
+        /// </summary>
+        public float MarketValue;
 
         /// <summary>Sum of relative gains; used as a secondary ordering key.</summary>
         public float TotalGain;

@@ -147,7 +147,9 @@ namespace Armory
 
         /// <summary>
         /// Work tools such as fire extinguishers and stat-boost items. Simple Sidearms can
-        /// use some of them, but Armory does not add or drop them automatically.
+        /// use some of them, but Armory does not add or drop them automatically. A real
+        /// ranged/melee weapon is not a tool just because a weapon trait gives it stat
+        /// offsets; many unique and modded weapons do.
         /// </summary>
         public static bool IsWorkTool(ThingDef def)
         {
@@ -159,7 +161,28 @@ namespace Armory
             {
                 return true;
             }
-            return def.equippedStatOffsets != null && def.equippedStatOffsets.Count > 0;
+            if (ContainsToolWord(def.defName) || ContainsToolWord(def.label))
+            {
+                return true;
+            }
+            if (def.weaponTags != null)
+            {
+                for (int i = 0; i < def.weaponTags.Count; i++)
+                {
+                    if (ContainsToolWord(def.weaponTags[i]))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return !def.IsRangedWeapon && !def.IsMeleeWeapon &&
+                   def.equippedStatOffsets != null && def.equippedStatOffsets.Count > 0;
+        }
+
+        private static bool ContainsToolWord(string text)
+        {
+            return !string.IsNullOrEmpty(text) &&
+                   text.IndexOf("tool", System.StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         /// <summary>

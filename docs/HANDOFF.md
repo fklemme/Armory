@@ -1,8 +1,8 @@
 # Handoff / project state
 
-**Snapshot:** Armory **0.11.1**, RimWorld **1.6.4871**.
+**Snapshot:** Armory **0.12.0**, RimWorld **1.6.4871**.
 Build is clean (0 warnings, 0 errors). No test hooks remain in source.
-Git repository on `main`; 0.2.3 through 0.11.1 are committed; `v0.6.7-stable`
+Git repository on `main`; 0.2.3 through 0.12.0 are committed; `v0.6.7-stable`
 tags the last pre-Demand-rework build.
 
 **Links:** [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3842538224) ·
@@ -32,11 +32,15 @@ Milestones 0-6 are implemented:
   duplicate cleanup; drawn-sidearm handling; multi-line Colonists rows and
   Sidearm 1/2 detail sections. Design in
   [`docs/SIDEARMS.md`](SIDEARMS.md).
+- **7 - Simple Sidearms hand alignment (0.12.0)**: Armory sets SS's default
+  ranged / preferred melee weapon to the Armory hand and remembers that hand
+  through SS's own API, so the white default dots and equipped-first gizmo icon
+  match the Armory Hand slot. Forced states and manual pauses still win.
 
 **Next:** polish and release prep. Remaining work is container scanning,
 auto-haul, raid arming, localization, and Workshop screenshots/updates. The
 Workshop item was created with 0.9.2 and updated to 0.10.8; its page is being
-made public. 0.11.1 is not uploaded yet. Upload once the private test is good
+made public. 0.12.0 is not uploaded yet. Upload once the private test is good
 enough.
 0.10.0 added the typed hand model, passion-based role assignment and automatic
 hand-type alignment; 0.10.1 polished the UI and list limits; 0.10.2 hardened
@@ -63,6 +67,56 @@ market value columns in 0.10.9, value-column/right-pane polish in 0.10.10, and a
 blocked-reason spacing fix in 0.10.11. Research, reference-mod behaviour, the
 shipped model and remaining decisions are in
 [`docs/RANGE_AND_ROLES.md`](RANGE_AND_ROLES.md).
+
+---
+
+## 0.12.0 - Simple Sidearms hand alignment
+
+Behavior change requested after Rathat's machine pistol kept appearing first in
+the SS gizmo with the white default dots even though Armory planned the
+anti-materiel rifle as the hand.
+
+Root cause: SS enforces its per-pawn `DefaultRangedWeapon` /
+`PreferredMeleeWeapon` in `equipBestWeaponFromInventoryByPreference`. Armory was
+reading SS state and using its own hand plan, but never aligned that preference.
+The gizmo also sorts carried icons by equipped first, then market value; the
+white dots identify the default, not a fixed slot order.
+
+Implemented:
+
+- New setting **Align Simple Sidearms hand preference** (default on).
+- Armory sets SS's default ranged / preferred melee weapon to the Armory hand
+  using SS's own `SetRangedWeaponTypeAsDefault` /
+  `SetMeleeWeaponTypeAsPreferred` methods.
+- If the chosen hand is carried but not remembered, Armory calls
+  `InformOfAddedPrimary`, which adds it to SS memory and sets the preference. No
+  direct `rememberedWeapons` edits.
+- Alignment runs only when SS is respected and automation is active; it is
+  skipped while drafted, while a manual pause is active, and for any forced /
+  forced-unarmed / prefer-unarmed state.
+- Once the preference is aligned, a remembered sidearm in hand can be restored
+  because SS will keep the Armory hand. The prior read-only fallback remains when
+  alignment is off.
+- The hand plan uses Armory's own carried-hand score, not SS's DPS QuickSwitch,
+  so hand upgrades and the aligned default cannot chase each other.
+- `Eligibility.IsWorkTool` no longer classifies every weapon with
+  `equippedStatOffsets` as a tool. Unique weapons and stat-offset weapons such as
+  the anti-materiel rifle are valid hand weapons; named tools/fire extinguishers
+  and non-weapon stat-boost items are still excluded.
+- Log/decision kind `Align SS hand` records preference changes.
+- Removed the misleading `Best carried hand weapon` line when it pointed at SS's
+  internal QuickSwitch rather than the Armory plan.
+
+Verified on an isolated copy of the current save at 1600x900 and 3440x1440:
+
+- Rathat's default changed from machine pistol to anti-materiel rifle, the rifle
+  was restored as the hand, and the machine pistol remained a useful Sidearm 2.
+- Chef's unremembered sniper was remembered, set as the SS default, and restored.
+- Kruecke's no-gap Burngun was restored away and dropped.
+- Trebo's preferred melee weapon was set to the persona monosword.
+- With alignment off, no `AlignSimpleSidearms` writes occurred and Rathat stayed
+  on the machine pistol, as expected from the read-only behavior.
+- Build clean: 0 warnings, 0 errors. Screenshots refreshed for 0.12.0.
 
 ---
 
@@ -2422,6 +2476,7 @@ polish, not new core behaviour.
 | 0.10.11 | Remove the extra vertical gap between a blocked hand reason and the following backup line |
 | 0.11.0 | Add Hand / Sidearm 1 / Sidearm 2 loadouts, range-gap Sidearm 2 scoring, carried-set reconciliation and duplicate cleanup, drawn-sidearm handling, multi-line Colonists rows and Sidearm 2 demand |
 | 0.11.1 | Restore the remembered hand for an unremembered sidearm or a no-gap Sidearm 2 left equipped outside combat, leave remembered sidearms that still fill a gap to Simple Sidearms, and add a persistent rolling diagnostic log with snapshot/log buttons |
+| 0.12.0 | Align Simple Sidearms' default ranged / preferred melee weapon with the Armory hand, remember the chosen hand through SS's API, restore remembered sidearms in hand after alignment, and stop treating stat-offset weapons as work tools |
 
 ---
 

@@ -446,7 +446,10 @@ namespace Armory
                             ? string.Format(
                                 "Sidearm in hand: {0}. {1}",
                                 pawn.DrawnSidearmName,
-                                !pawn.PlannedHandRemembered
+                                AlignSimpleSidearmsActive()
+                                    ? "Armory is aligning Simple Sidearms' default hand with " +
+                                      pawn.LogicalHand.LabelCap + " and restoring it."
+                                    : !pawn.PlannedHandRemembered
                                     ? "Simple Sidearms has not remembered the planned hand " +
                                       pawn.LogicalHand.LabelCap +
                                       "; click it in the SS gizmo to remember it."
@@ -586,6 +589,15 @@ namespace Armory
                 text += "  -  no useful gap";
             }
             return text;
+        }
+
+        private static bool AlignSimpleSidearmsActive()
+        {
+            ArmorySettings settings = ArmoryMod.Settings;
+            return ArmoryMod.AutomationActive && settings != null &&
+                   settings.respectSimpleSidearms && settings.alignSimpleSidearms &&
+                   SimpleSidearmsAdapter.CanAlignHand &&
+                   SimpleSidearmsAdapter.CanEquipFromInventory;
         }
 
         private static bool IsCurrentNoGapSidearmTwo(PawnAnalysis pawn)
@@ -985,6 +997,10 @@ namespace Armory
                     : activeSettings.upgradeThreshold;
                 bool currentNoGap = pawn.Current == pawn.BestCarriedSidearmTwo &&
                                     !pawn.IsCarriedSidearmTwoUseful(sidearmThreshold);
+                if (AlignSimpleSidearmsActive())
+                {
+                    return "Restoring hand";
+                }
                 if (pawn.CurrentSidearmRemembered && !currentNoGap)
                 {
                     return "Sidearm in hand";
@@ -1217,6 +1233,16 @@ namespace Armory
                     text = "Drawn sidearm: " + pawn.DrawnSidearmName +
                            ". Armory waits for Simple Sidearms to stow it before changing weapons.";
                 }
+                else if (AlignSimpleSidearmsActive())
+                {
+                    text = "Sidearm in hand: " + pawn.DrawnSidearmName +
+                           ". Armory is aligning Simple Sidearms' default hand with " +
+                           pawn.LogicalHand.LabelCap + " and restoring it.";
+                    if (currentNoGap && (activeSettings == null || activeSettings.manageSidearms))
+                    {
+                        text += " The no-gap sidearm will then be removed.";
+                    }
+                }
                 else if (!pawn.PlannedHandRemembered && pawn.LogicalHand != null)
                 {
                     text = "Sidearm in hand: " + pawn.DrawnSidearmName +
@@ -1358,15 +1384,6 @@ namespace Armory
                         second, sidearmColor);
                     y += 22f;
                 }
-
-                if (pawn.BestCarriedPrimary != null && pawn.BestCarriedPrimary != pawn.Current)
-                {
-                    DrawColoredLine(new Rect(rect.x, y, rect.width, 22f),
-                        string.Format("Best carried hand weapon: {0}    Score {1:0}",
-                            pawn.BestCarriedPrimary.LabelCap, pawn.BestCarriedPrimaryScore),
-                        new Color(0.72f, 0.82f, 0.92f));
-                    y += 22f;
-                }
             }
 
             if (!pawn.Available)
@@ -1381,9 +1398,6 @@ namespace Armory
             Candidate bestAny = pawn.TopOverall;
             float threshold = ArmoryMod.Settings == null ? 0.10f : ArmoryMod.Settings.upgradeThreshold;
             float baselineScore = pawn.HandBaselineScore;
-            bool carriedIsBaseline = pawn.BestCarriedPrimary != null &&
-                                     pawn.BestCarriedPrimary != pawn.Current &&
-                                     pawn.BestCarriedPrimaryScore >= pawn.HandBaselineScore;
 
             visibleRanked.Clear();
             bool showBlocked = (ArmoryMod.Settings == null || ArmoryMod.Settings.showBlocked) || !pawn.Available;
@@ -1460,8 +1474,8 @@ namespace Armory
                     string baselineLabel = pawn.DrawnSidearm && pawn.LogicalHand != null
                         ? pawn.LogicalHand.LabelCap +
                           (pawn.CombatSidearmDraw ? " (stowed hand)" : " (planned hand)")
-                        : carriedIsBaseline
-                            ? pawn.BestCarriedPrimary.LabelCap + " (best carried hand weapon)"
+                        : pawn.LogicalHand != null && pawn.LogicalHand != pawn.Current
+                            ? pawn.LogicalHand.LabelCap + " (Armory hand)"
                             : "current weapon";
                     float delta = bestReady.Score / baselineScore - 1f;
                     int percent = Mathf.Max(1, Mathf.RoundToInt(Mathf.Abs(delta) * 100f));
@@ -4023,6 +4037,8 @@ namespace Armory
                     return "Drop failed";
                 case DecisionKind.RestoreBackup:
                     return "Restore sidearm";
+                case DecisionKind.AlignSimpleSidearms:
+                    return "Align SS hand";
                 default:
                     return kind.ToString();
             }
@@ -4036,6 +4052,7 @@ namespace Armory
                     return new Color(0.72f, 0.92f, 0.72f);
                 case DecisionKind.EquipBackup:
                 case DecisionKind.EquipSidearmTwo:
+                case DecisionKind.AlignSimpleSidearms:
                     return new Color(0.72f, 0.84f, 0.95f);
                 case DecisionKind.DropBackup:
                 case DecisionKind.DropExtraSidearm:

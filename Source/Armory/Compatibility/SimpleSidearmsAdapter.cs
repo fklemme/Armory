@@ -93,6 +93,9 @@ namespace Armory.Compatibility
         private static MethodInfo canUseSidearmMethod;
         private static MethodInfo dropSidearmMethod;
         private static MethodInfo equipFromInventoryMethod;
+        private static MethodInfo informOfAddedPrimaryMethod;
+        private static MethodInfo setRangedDefaultMethod;
+        private static MethodInfo setMeleePreferredMethod;
         private static MethodInfo findBestRangedMethod;
         private static MethodInfo findBestMeleeMethod;
         private static MethodInfo isValidSidearmMethod;
@@ -161,6 +164,23 @@ namespace Armory.Compatibility
             {
                 EnsureInitialized();
                 return active && equipFromInventoryMethod != null;
+            }
+        }
+
+        /// <summary>
+        /// True when Armory can align SS's default ranged / preferred melee weapon with the
+        /// planned hand through SS's own memory methods.
+        /// </summary>
+        public static bool CanAlignHand
+        {
+            get
+            {
+                EnsureInitialized();
+                return active && pairConstructor != null &&
+                       informOfAddedPrimaryMethod != null &&
+                       setRangedDefaultMethod != null &&
+                       setMeleePreferredMethod != null &&
+                       defaultRangedProperty != null && preferredMeleeProperty != null;
             }
         }
 
@@ -757,6 +777,73 @@ namespace Armory.Compatibility
         }
 
         /// <summary>
+        /// Aligns Simple Sidearms' per-pawn hand preference with Armory's chosen hand. Uses
+        /// SS's own InformOfAddedPrimary / SetRangedWeaponTypeAsDefault /
+        /// SetMeleeWeaponTypeAsPreferred methods, never direct memory edits. Forced states are
+        /// a hard veto. Returns true when the preference is aligned after the call.
+        /// </summary>
+        public static bool TryAlignHand(Pawn pawn, ThingWithComps weapon, bool ranged,
+            out bool changed, out bool addedToMemory)
+        {
+            changed = false;
+            addedToMemory = false;
+            if (!CanAlignHand || !RespectEnabled || ArmoryMod.Settings == null ||
+                !ArmoryMod.Settings.alignSimpleSidearms || pawn == null || pawn.Drafted ||
+                weapon == null || weapon.def == null)
+            {
+                return false;
+            }
+
+            PawnState state = GetState(pawn);
+            if (state == null || state.AutomationVeto)
+            {
+                return false;
+            }
+
+            object comp = GetMemoryComp(pawn);
+            if (comp == null)
+            {
+                return false;
+            }
+            PropertyInfo preference = ranged ? defaultRangedProperty : preferredMeleeProperty;
+            if (preference == null)
+            {
+                return false;
+            }
+
+            bool remembered = IsRemembered(pawn, weapon);
+            bool aligned = PairMatches(preference.GetValue(comp), weapon);
+            if (aligned && remembered)
+            {
+                return true;
+            }
+
+            try
+            {
+                if (!remembered)
+                {
+                    // SS's own API: adds the hand to rememberedWeapons and sets the
+                    // default ranged / preferred melee preference in one step.
+                    informOfAddedPrimaryMethod.Invoke(comp, new object[] { weapon });
+                    addedToMemory = true;
+                    changed = true;
+                    return true;
+                }
+
+                MethodInfo setter = ranged ? setRangedDefaultMethod : setMeleePreferredMethod;
+                object pair = pairConstructor.Invoke(new object[] { weapon.def, weapon.Stuff });
+                setter.Invoke(comp, new object[] { pair });
+                changed = true;
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Disable("aligning the Simple Sidearms hand preference failed", exception);
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Asks Simple Sidearms which carried weapon it would use as the primary for this
         /// pawn (QuickSwitch filters: manual use, dangerous, EMP, blocked weapons). This is
         /// the baseline Armory must beat; do not substitute "best carried by Armory score".
@@ -916,6 +1003,19 @@ namespace Armory.Compatibility
             return weapon.def == def && weapon.Stuff == stuff;
         }
 
+        private static bool PairMatches(object pair, ThingWithComps weapon)
+        {
+            if (pair == null || weapon == null || pairThingField == null)
+            {
+                return false;
+            }
+            ThingDef def = pairThingField.GetValue(pair) as ThingDef;
+            ThingDef stuff = pairStuffField == null
+                ? null
+                : pairStuffField.GetValue(pair) as ThingDef;
+            return def == weapon.def && stuff == weapon.Stuff;
+        }
+
         private static bool CarriesPair(Pawn pawn, ThingDef def, ThingDef stuff)
         {
             if (pawn == null)
@@ -1040,6 +1140,27 @@ namespace Armory.Compatibility
                 if (sidearmPairType != null)
                 {
                     pairConstructor = sidearmPairType.GetConstructor(new[] { typeof(ThingDef), typeof(ThingDef) });
+                    if (pairConstructor != null)
+                    {
+                        informOfAddedPrimaryMethod = memoryType.GetMethod(
+                            "InformOfAddedPrimary",
+                            BindingFlags.Public | BindingFlags.Instance,
+                            null,
+                            new[] { typeof(Thing) },
+                            null);
+                        setRangedDefaultMethod = memoryType.GetMethod(
+                            "SetRangedWeaponTypeAsDefault",
+                            BindingFlags.Public | BindingFlags.Instance,
+                            null,
+                            new[] { sidearmPairType },
+                            null);
+                        setMeleePreferredMethod = memoryType.GetMethod(
+                            "SetMeleeWeaponTypeAsPreferred",
+                            BindingFlags.Public | BindingFlags.Instance,
+                            null,
+                            new[] { sidearmPairType },
+                            null);
+                    }
                     if (statCalculatorType != null && pairConstructor != null)
                     {
                         isValidSidearmMethod = statCalculatorType.GetMethod(

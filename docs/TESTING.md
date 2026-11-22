@@ -152,7 +152,7 @@ Wait for the scaffold to finish and quit, then check the log for
 line. Do not run `Setup-LiveTest.ps1 -Launch` after editing the config: it will
 overwrite your changes.
 
-### Testing sidearm loadouts (0.11.x)
+### Testing sidearm loadouts (0.11.x-0.12.0)
 
 Use the isolated save with Simple Sidearms enabled. The test config should have
 three total SS slots including the hand, otherwise Sidearm 2 cannot fit.
@@ -179,10 +179,10 @@ three total SS slots including the hand, otherwise Sidearm 2 cannot fit.
   sidearm that no longer covers a gap is dropped. Status passes through
   `Restoring hand` / `Cleaning up sidearms` and ends at `Fully equipped` or
   `No useful Sidearm 2`.
-- **Remembered sidearm in hand (0.11.1):** if Simple Sidearms remembers the
-  equipped sidearm and it still fills a gap, Armory must show `Sidearm in hand`
-  and leave it alone. If the planned hand is not remembered either, show
-  `Remember hand in SS` and explain the gizmo action in the detail pane. Armory
+- **Remembered sidearm in hand (0.11.1 / 0.12.0):** with **Align Simple
+  Sidearms hand preference** off, a remembered sidearm that still fills a gap is
+  left to Simple Sidearms. With alignment on, Armory sets the SS hand preference
+  to the planned hand and restores it, leaving the old weapon as a sidearm. Armory
   must not fight SS by re-equipping the same pair every pass.
 - **Remembered no-gap Sidearm 2 (0.11.1):** add the sidearm def to SS's remembered
   list in a test save. If the equipped Sidearm 2 no longer fills a gap, Armory
@@ -208,6 +208,34 @@ three total SS slots including the hand, otherwise Sidearm 2 cannot fit.
 - **Upgrades:** the Slot column fits `Sidearm 1` and `Sidearm 2` without
   ellipsizing, and Sidearm 2 demand rows appear when a useful complement is
   craftable or buyable.
+
+### Testing SS hand alignment (0.12.0)
+
+Use the isolated save with Simple Sidearms enabled and **Align Simple Sidearms
+hand preference** on.
+
+- **Default/preferred weapon:** pick a colonist whose current SS default is a
+  sidearm but whose Armory Hand slot plans another carried weapon. After a
+  planner pass, the detail line `Simple Sidearms - Default ranged weapon: ...`
+  must name the Armory hand, and the pawn must hold it. The old sidearm stays in
+  the bag when it still covers a gap.
+- **White dots and icon order:** open the SS gizmo. The two white dots must be on
+  the Armory hand. Because the hand is equipped, it is the first icon; the other
+  icons follow SS's equipped-first/value sort. Armory does not reorder icons.
+- **Unremembered hand:** choose a hand that SS shows with the diagonal temporary
+  marker. After alignment it must be in SS's remembered list, the diagonal marker
+  must disappear, and it must remain equipped through a later planner pass.
+- **Melee pawn:** a melee colonist's `Preferred melee weapon` must be the Armory
+  hand (for example a persona monosword), not a stale ranged default.
+- **Alignment off:** turn the setting off and repeat. No `Align SS hand` log
+  entries should appear; SS's default and the equipped weapon must remain
+  unchanged.
+- **Forced states:** force a weapon or force unarmed in the SS gizmo, run several
+  planner passes, and verify Armory changes neither the default nor the forced
+  state. Remove the force and verify alignment resumes.
+- **No hand-chasing:** after alignment, watch for several planner intervals. The
+  hand, SS default and Armory Hand line must stay on the same weapon; there must
+  be no alternating align/equip cycle.
 
 ### Testing the hand type and auto-align (0.10.0)
 

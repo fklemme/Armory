@@ -189,10 +189,11 @@ namespace Armory
             string settingSummary = settings == null
                 ? "not loaded"
                 : string.Format(
-                    "auto={0}, sidearms={1}, replace={2}, upgrade={3}%, cooldown={4}, swap={5}, manual={6}, respectSS={7}",
+                    "auto={0}, sidearms={1}, replace={2}, align={3}, upgrade={4}%, cooldown={5}, swap={6}, manual={7}, respectSS={8}",
                     settings.autoEquipEnabled,
                     settings.manageSidearms,
                     settings.replaceWorseSidearms,
+                    settings.alignSimpleSidearms,
                     (int)(settings.upgradeThreshold * 100f),
                     settings.plannerIntervalTicks,
                     settings.swapCooldownTicks,

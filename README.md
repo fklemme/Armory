@@ -2,7 +2,7 @@
 
 **The right weapon, in the right hands.**
 
-**Version 0.11.1** · RimWorld **1.6** · packageId **`kruecke.armory`**
+**Version 0.12.0** · RimWorld **1.6** · packageId **`kruecke.armory`**
 
 A weapon inspector and automatic manager for RimWorld. It answers two
 questions that existing managers leave opaque:
@@ -29,7 +29,7 @@ Four tabs: **Colonists**, **Weapons**, **Upgrades**, **Log**.
 | Workspace | `C:\Users\mail\Projects\Rimworld Mods\Armory` |
 | Game install | `C:\Program Files (x86)\Steam\steamapps\common\RimWorld` |
 | Junction | `...\RimWorld\Mods\Armory` → workspace |
-| Current milestone | 0-5 complete; 6 (sidearm loadouts) done in 0.11.0; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1, backup safety/unusable-baseline fixes in 0.10.2, double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4, accuracy-column/table-layout polish in 0.10.5, percent accuracy/cost icons in 0.10.6, named craft bills in 0.10.7, pending-job duplicate guard in 0.10.8, market value columns in 0.10.9, value/layout polish in 0.10.10, blocked-reason spacing fix in 0.10.11, sidearm loadouts in 0.11.0, stale-sidearm cleanup and persistent diagnostics in 0.11.1 |
+| Current milestone | 0-6 complete; 7 (Simple Sidearms hand alignment) done in 0.12.0; range/role scoring in 0.8.0, persona guard in 0.8.1, encoding fix in 0.8.2, interface wording pass in 0.8.3, tab rename/width pass in 0.8.4, icon/tab-order pass in 0.8.5, simplified icon in 0.8.6, release text/defaults/banner pass in 0.9.0, colonist-bar order in 0.9.1, release staging and `Best vs current` in 0.9.2, typed hand/auto-align/passion in 0.10.0, list/UI polish in 0.10.1, backup safety/unusable-baseline fixes in 0.10.2, double-click map jumps in 0.10.3, comparison/material/role insights in 0.10.4, accuracy-column/table-layout polish in 0.10.5, percent accuracy/cost icons in 0.10.6, named craft bills in 0.10.7, pending-job duplicate guard in 0.10.8, market value columns in 0.10.9, value/layout polish in 0.10.10, blocked-reason spacing fix in 0.10.11, sidearm loadouts in 0.11.0, stale-sidearm cleanup and persistent diagnostics in 0.11.1, Simple Sidearms hand-preference alignment in 0.12.0 |
 
 ---
 
@@ -57,6 +57,9 @@ the bar and this list.
 - with Simple Sidearms, **Sidearm 1** is the opposite-type slot and **Sidearm 2**
   is an optional ranged complement chosen to cover a real range gap, with SS's
   slot/mass/selection blockers on each candidate;
+- SS's own default ranged / preferred melee preference is aligned with the
+  Armory hand. The white default dots and the equipped-first gizmo icon then
+  follow the same weapon Armory displays in the Hand slot;
 - when Simple Sidearms draws a sidearm in combat, the hand line keeps the
   logical hand and marks it `(stowed)`, while the drawn sidearm is marked
   `(drawn)`; Armory pauses weapon changes until SS stows it. Outside combat an
@@ -275,7 +278,7 @@ not apply to hypothetical new copies.
 Session decision log for the planner: time, colonist, action, weapon, and the
 reason the action was taken. Actions are `Equip hand`, `Equip Sidearm 1`,
 `Equip Sidearm 2`, `Drop sidearm`, `Drop extra sidearm`, `Skip upgrade`,
-`Drop failed`, and `Restore sidearm`. Newest first, clearable.
+`Drop failed`, `Restore sidearm`, and `Align SS hand`. Newest first, clearable.
 
 The same decisions, plus full snapshots on map load and on demand, are written
 to a persistent rolling log in `ArmoryLogs` next to the save data. **Log
@@ -448,15 +451,20 @@ respected:
   SMG; an assault rifle often needs no second sidearm. If SS has no free slot,
   the second sidearm stays empty and the reason is shown.
 
-Ranged and melee are never ranked against each other. The hand baseline remains
-SS's own QuickSwitch choice among carried weapons (`findBestRangedWeapon` /
-`findBestMeleeWeapon`), so a weapon SS would skip (manual use, dangerous when
-SS skips dangerous weapons, or EMP) does not block a valid upgrade. If the
+Ranged and melee are never ranked against each other. Armory's own per-pawn
+best carried hand is the plan. SS's QuickSwitch choice remains a conservative
+baseline for hand upgrades, so a weapon SS would skip (manual use, dangerous when
+SS skips dangerous weapons, or EMP) does not inflate an upgrade; if the
 reflection call fails, Armory logs once and uses the current weapon.
 
 When **Respect Simple Sidearms** is on (default):
 
 - a forced weapon, forced unarmed, or prefer-unarmed state is an automation veto;
+- with **Align Simple Sidearms hand preference** on (default), Armory sets SS's
+  `DefaultRangedWeapon` / `PreferredMeleeWeapon` to the Armory hand and remembers
+  that hand through SS's own API. The white default dots and the equipped-first
+  gizmo icon then follow the Armory Hand slot. This also clears the temporary
+  diagonal marker from the hand;
 - Armory waits until SS has switched the pawn to its role type before adding a
   sidearm, because adding the other type while the wrong weapon is in hand invites
   SS to promote it;
@@ -466,11 +474,10 @@ When **Respect Simple Sidearms** is on (default):
   `ReequipSecondaryCombat` are skipped;
 - if SS draws a sidearm in combat, Armory keeps the logical hand visible as
   `(stowed)`, marks the drawn weapon `(drawn)`, and waits for SS to stow it
-  before swapping weapons. Outside combat a sidearm SS has **not remembered** is
-  treated as temporary: Armory puts the remembered hand back through SS's own
-  inventory-equip helper. A remembered sidearm that still fills a gap is
-  SS-managed and left alone; a remembered **no-gap Sidearm 2** is restored and
-  removed. A draw no longer registers as a manual hand change;
+  before swapping weapons. Outside combat Armory aligns SS's hand preference and
+  restores the hand, even when the sidearm in hand is remembered and useful. A
+  remembered **no-gap Sidearm 2** is restored and removed. A draw no longer
+  registers as a manual hand change;
 
 Sidearm management is on by default; when enabled it:
 
@@ -490,20 +497,26 @@ Sidearm management is on by default; when enabled it:
 - uses the same claims, per-pawn cooldown, and manual-change protection as hand
   upgrades;
 - never acts on a pawn with a forced/unarmed/prefer-unarmed SS state;
-- never auto-adds or auto-drops work tools and stat-boost items, including fire
-  extinguishers.
+- never auto-adds or auto-drops named work tools, fire extinguishers, or
+  non-weapon stat-boost items; real weapons with stat offsets are still weapons.
 
-Armory does **not** rewrite Simple Sidearms' remembered-weapon list. It uses SS's
-own `DropSidearm` with `intentionalDrop` and `unmemorise` for weapons it
-deliberately removes, which is the sanctioned way to prevent an immediate
+Armory does **not** edit Simple Sidearms' remembered-weapon list directly. It
+uses SS's own APIs: `InformOfAddedPrimary` to remember the chosen hand,
+`SetRangedWeaponTypeAsDefault` / `SetMeleeWeaponTypeAsPreferred` for the hand
+preference, and `DropSidearm` with `intentionalDrop` and `unmemorise` for weapons
+it deliberately removes. The last is the sanctioned way to prevent an immediate
 retrieval loop. If SS still restores a weapon that is beyond the plan after a
 downing, Armory drops the extra on its next pass and restores the planned
 weapon. The old `Multiple backups` manual instruction is gone.
 
-For the cleanest result, disable Simple Sidearms' automatic re-equip in its
-settings (**Settings > Automation > Re-equip**). Armory then owns sidearm
-restoration. It still works if SS re-equips; it may simply drop an extra
-afterwards.
+SS sorts the carried icons by equipped first, then market value. Armory does
+**not** reorder the gizmo. Aligning the preference and restoring the hand makes
+the hand the equipped, default weapon, so it naturally appears first and carries
+the white dots; the remaining sidearms follow SS's value sort.
+
+Disabling SS's automatic re-equip is no longer required for hand consistency.
+It still gives Armory full control of sidearm restoration; if SS re-equips
+instead, Armory may drop an extra afterwards.
 
 Simple Sidearms reports two different capacity failures with terse text. Armory
 expands them so they cannot be confused:
@@ -547,6 +560,7 @@ All settings are under **Options → Mod settings → Armory**. The page scrolls
 | Respect manual weapon changes | on | — | Pause after a player/other-mod change |
 | Pause after a manual weapon change | 15000 ticks (~250 s) | 2500–30000 | Length of that pause |
 | Respect Simple Sidearms | on | - | SS primary mode owns the hand type; respect forced states, logical hand and sidearm jobs |
+| Align Simple Sidearms hand preference | on | - | Set SS's default ranged / preferred melee weapon to the Armory hand and remember it through SS's API |
 | Manage sidearms | on | - | Keep an opposite-type Sidearm 1 and an optional ranged Sidearm 2; reconcile extras (Simple Sidearms only) |
 | Upgrade sidearms | on | - | Replace Sidearm 1 or Sidearm 2 when a better valid option exists |
 | Minimum upgrade gain | 10% | 0–50% | Required improvement to recommend or equip a weapon |
@@ -782,7 +796,12 @@ Full procedure, switches, pitfalls and cleanup:
    - carried-set reconciliation, duplicate cleanup and drawn-sidearm handling;
    - multi-line Colonists rows and Sidearm 1/2 detail sections;
    - Sidearm 2 demand in Upgrades.
-5. **Later** - joint sidearm-pair optimization, per-pawn sidearm locks if
+5. **Milestone 7 - Simple Sidearms hand alignment** - done in 0.12.0.
+   - SS default ranged / preferred melee weapon follows the Armory hand;
+   - chosen hand remembered through SS's own API;
+   - white default dots and equipped-first gizmo order match the Hand slot;
+   - remembered sidearms left in hand are restored once the preference is aligned.
+6. **Later** - joint sidearm-pair optimization, per-pawn sidearm locks if
    requested, exotic container scanning, auto-haul and raid arming.
 
 ---
@@ -798,4 +817,4 @@ Full procedure, switches, pitfalls and cleanup:
 - [`docs/WORKSHOP.md`](docs/WORKSHOP.md) - clean release contents, upload
   checklist, private-test steps and Workshop page copy.
 - [`docs/SIDEARMS.md`](docs/SIDEARMS.md) - sidearm-loadout design,
-  Simple Sidearms boundary and 0.11.x live-test notes.
+  Simple Sidearms boundary, hand-preference alignment and live-test notes.

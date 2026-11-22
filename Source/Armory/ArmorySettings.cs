@@ -25,6 +25,7 @@ namespace Armory
         public bool equipDrafted;
         public bool respectManualEquip = true;
         public bool respectSimpleSidearms = true;
+        public bool alignSimpleSidearms = true;
         public bool manageSidearms = true;
         public bool replaceWorseSidearms = true;
         public int manualCooldownTicks = 15000;
@@ -82,6 +83,7 @@ namespace Armory
             Scribe_Values.Look(ref equipDrafted, "equipDrafted", false);
             Scribe_Values.Look(ref respectManualEquip, "respectManualEquip", true);
             Scribe_Values.Look(ref respectSimpleSidearms, "respectSimpleSidearms", true);
+            Scribe_Values.Look(ref alignSimpleSidearms, "alignSimpleSidearms", true);
             Scribe_Values.Look(ref manageSidearms, "manageSidearms", true);
             Scribe_Values.Look(ref replaceWorseSidearms, "replaceWorseSidearms", true);
             Scribe_Values.Look(ref manualCooldownTicks, "manualCooldownTicks", 15000);
@@ -199,6 +201,12 @@ namespace Armory
                 listing.Label(respectSimpleSidearms
                     ? "Armory follows the colonist's Simple Sidearms hand type, leaves forced weapons alone, and will not equip the other type while the colonist carries the hand type. Sidearms are managed separately."
                     : "Armory ignores Simple Sidearms' hand type and forced states. Expect the two mods to fight over the hand weapon.");
+                if (respectSimpleSidearms)
+                {
+                    listing.CheckboxLabeled("Align Simple Sidearms hand preference with Armory",
+                        ref alignSimpleSidearms);
+                    listing.Label("Armory sets SS's default ranged weapon or preferred melee weapon to its chosen hand and remembers that hand through SS's own API. The white default dots move to the Armory hand, SS no longer pulls a sidearm back over it, and the hand loses the temporary diagonal marker. Forced weapons, prefer-unarmed and manual changes are still respected. Turning this off stops future alignment; existing SS preferences remain until you change them.");
+                }
                 listing.Label("Simple Sidearms' primary mode is per colonist. Changing the mod's default only affects newly generated colonists; use the Simple Sidearms gizmo on an existing colonist to switch that colonist to melee or by skill.");
 
                 listing.CheckboxLabeled("Manage sidearms", ref manageSidearms);

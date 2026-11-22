@@ -13,7 +13,8 @@ namespace Armory
         DropFailed,
         RestoreBackup,
         EquipSidearmTwo,
-        DropExtraSidearm
+        DropExtraSidearm,
+        AlignSimpleSidearms
     }
 
     /// <summary>Session-only decision log for the automation tab.</summary>

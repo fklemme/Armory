@@ -332,7 +332,7 @@ namespace Armory
                 analysis.LogicalHandScore = CombatScoring.Compute(
                     context, analysis.LogicalHand, out _);
             }
-            ThingWithComps plannedHand = analysis.BestCarriedPrimary ?? analysis.LogicalHand;
+            ThingWithComps plannedHand = analysis.LogicalHand;
             analysis.PlannedHandRemembered = plannedHand == null ||
                 !SimpleSidearmsAdapter.Active ||
                 SimpleSidearmsAdapter.IsRemembered(analysis.Pawn, plannedHand);

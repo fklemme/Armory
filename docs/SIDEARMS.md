@@ -1,4 +1,4 @@
-# Sidearm Loadouts (0.11.x)
+# Sidearm Loadouts and Simple Sidearms Hand Alignment (0.11.x-0.12.0)
 
 Design and decision record for Armory's sidearm management.
 
@@ -33,13 +33,17 @@ repairs extras instead of refusing to act.
 
 ## Simple Sidearms boundary
 
-Armory does **not** rewrite Simple Sidearms' remembered-weapon list.
+Armory does **not** edit Simple Sidearms' `rememberedWeapons` list directly.
 
 - Armory may call Simple Sidearms' own `DropSidearm` for a weapon it
   intentionally drops.
 - The drop uses `intentionalDrop: true` and `unmemorise: true`. This is the
   sanctioned way to say "this drop was deliberate, do not retrieve it again".
   It is not a direct edit of the memory list.
+- Since 0.12.0, Armory also calls SS's `InformOfAddedPrimary`,
+  `SetRangedWeaponTypeAsDefault` and `SetMeleeWeaponTypeAsPreferred` to make the
+  Armory hand the remembered, default hand. This uses SS's own API, not direct
+  field/list edits.
 - If Simple Sidearms still retrieves a weapon that is beyond the plan, Armory
   drops it on a later scan and restores the planned weapon if needed.
 - Armory does not prune stale memory entries directly. This is deliberately
@@ -47,13 +51,21 @@ Armory does **not** rewrite Simple Sidearms' remembered-weapon list.
 
 ### Recommended Simple Sidearms setting
 
-For the cleanest result, disable Simple Sidearms' automatic re-equip in its
-settings. In Simple Sidearms, open **Settings > Automation** and turn off
-**Re-equip best available** / the automatic re-equip option. Armory will restore
-missing hand and sidearm weapons on its next scan.
+Disabling Simple Sidearms' automatic re-equip is **no longer required for hand
+consistency** since 0.12.0 aligns the hand preference. It still gives Armory
+full control of sidearm restoration. Armory must remain correct when Simple
+Sidearms' retrieval is enabled.
 
-This is a recommendation, not a requirement. Armory must remain correct when
-Simple Sidearms' retrieval is enabled.
+### Gizmo order and the white dots
+
+SS's gizmo sorts **carried** weapons by equipped first, then market value. The
+order is not a stable slot order, and editing it would require a Harmony patch.
+The two white dots mark SS's `DefaultRangedWeapon`.
+
+Armory therefore does not reorder icons. It aligns the default/preferred weapon
+to the Armory hand. The hand is then both the equipped weapon and the default,
+so it appears first and carries the white dots. The remaining sidearms follow
+SS's value sort.
 
 ## Sidearm 2 selection
 
@@ -188,10 +200,11 @@ Sidearm 2 remains empty with the Simple Sidearms reason.
 
 ## Version
 
-This is **0.11.x**, the sidearm-loadout milestone. The initial 0.11.0 release
-shipped reconciliation, rename, multi-line UI, Sidearm 2 selection and demands
-together. 0.11.1 is a bugfix for a sidearm left in hand outside combat and for a
-stale Sidearm 2 whose range gap disappeared.
+This is **0.11.x-0.12.0**, the sidearm-loadout and SS hand-alignment milestone.
+0.11.0 shipped reconciliation, rename, multi-line UI, Sidearm 2 selection and
+demands together. 0.11.1 fixed a sidearm left in hand outside combat and a stale
+Sidearm 2 whose range gap disappeared. 0.12.0 aligns SS's per-pawn default
+ranged / preferred melee weapon with the Armory hand.
 
 ## Decisions
 
@@ -199,10 +212,13 @@ stale Sidearm 2 whose range gap disappeared.
 - Melee pawns get two ranged sidearms.
 - Extras and duplicates are dropped; one usable fallback is kept until a
   replacement is ready; no opt-out.
-- Armory does not rewrite Simple Sidearms memory. It uses Simple Sidearms' own
-  intentional-drop API and tolerates later retrieval.
-- Simple Sidearms' default/preferred weapons are overridden; forced states are
-  respected. No opt-out.
+- Armory does not edit SS memory directly. It uses SS's own `DropSidearm`,
+  `InformOfAddedPrimary`, `SetRangedWeaponTypeAsDefault` and
+  `SetMeleeWeaponTypeAsPreferred` methods.
+- Simple Sidearms' default/preferred hand is aligned with Armory's assignment by
+  default, with an opt-out; forced states are always respected.
+- Gizmo icon order is SS's equipped-first/value sort and is not patched. The hand
+  appears first because it is equipped and default.
 - Colonist rows are multi-line; labels are `Sidearm 1` and `Sidearm 2`.
 - One 0.11.0 release with both implementation stages.
 
@@ -237,7 +253,7 @@ it was still restored and removed. Chef and Rathat still carried remembered
 sidearms that covered a gap; Armory left those to Simple Sidearms. Useful
 Sidearm 2 weapons were kept. Build clean: 0 warnings, 0 errors.
 
-## Implementation status
+## 0.11.0 implementation status
 
 Implemented in 0.11.0. Live-tested on an isolated copy of the current save at
 1600x900 with Simple Sidearms enabled:
@@ -253,11 +269,47 @@ Implemented in 0.11.0. Live-tested on an isolated copy of the current save at
 - The Upgrades Slot column fits `Sidearm 1`/`Sidearm 2`.
 - Build clean: 0 warnings, 0 errors.
 
-Refreshed `docs/screenshots/` at 3440x1440 for 0.11.1. Pending: verify in the
+Refreshed `docs/screenshots/` at 3440x1440 for 0.12.0. Pending: verify in the
 user's normal game at their normal resolution.
 
 0.11.1 re-tested the same save after the stale-sidearm fix. Kruecke's
 unremembered Burngun was replaced by the remembered hand and dropped as a no-gap
-Sidearm 2. Chef and Rathat had remembered sidearms in hand; Armory left them to
-Simple Sidearms. Useful Sidearm 2 weapons remained. The persistent diagnostic
-log captured the restore and drop. Build clean: 0 warnings, 0 errors.
+Sidearm 2. Chef and Rathat had remembered sidearms in hand; at the time Armory
+left them to Simple Sidearms. Useful Sidearm 2 weapons remained. The persistent
+diagnostic log captured the restore and drop. Build clean: 0 warnings, 0 errors.
+
+## 0.12.0 follow-up: align SS hand preference
+
+Rathat's machine pistol kept appearing first in the SS gizmo with the two white
+dots even though Armory planned the anti-materiel rifle. Root cause: SS enforces
+its per-pawn `DefaultRangedWeapon` in
+`equipBestWeaponFromInventoryByPreference`; Armory read SS state but never
+aligned that preference. The gizmo also sorts by equipped first, then value, so
+the first icon is simply the equipped weapon.
+
+Fix: when **Respect Simple Sidearms** and **Align Simple Sidearms hand
+preference** are on:
+
+- Armory sets SS's default ranged / preferred melee weapon to the Armory hand
+  through SS's own methods.
+- A carried hand that is not remembered is added with `InformOfAddedPrimary`.
+  This also clears the temporary diagonal marker.
+- Alignment is skipped while drafted, during a manual pause, and for forced /
+  forced-unarmed / prefer-unarmed pawns.
+- With the preference aligned, a remembered sidearm in hand is safely restored
+  and kept as a sidearm; SS no longer pulls it back over the hand.
+- The hand plan uses Armory's own carried-hand score, not SS's DPS QuickSwitch,
+  so hand upgrades and default alignment cannot chase each other.
+- `Eligibility.IsWorkTool` no longer treats every weapon with
+  `equippedStatOffsets` as a tool; real weapons such as the unique
+  anti-materiel rifle remain valid hands.
+
+Live-tested on the current save:
+
+- Rathat: default changed from machine pistol to anti-materiel rifle; the rifle
+  became the hand and the machine pistol remained a useful Sidearm 2.
+- Chef: unremembered sniper was remembered, set as SS default, and restored.
+- Kruecke: no-gap Burngun was restored away and dropped.
+- Trebo: preferred melee weapon set to the persona monosword.
+- With alignment off: no alignment writes, Rathat stayed on the machine pistol.
+- Build clean: 0 warnings, 0 errors. Screenshots refreshed for 0.12.0.

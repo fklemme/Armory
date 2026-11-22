@@ -112,12 +112,25 @@ namespace Armory
                 }
                 if (analysis.HandLocked)
                 {
-                    // The bonded persona weapon is in hand. Do not replace it; the
-                    // separate sidearm pass can still maintain the off-hand weapon.
+                    // The bonded persona weapon is in hand. Keep SS's preference on that
+                    // same weapon when possible, but do not replace the hand.
+                    if (settings.respectSimpleSidearms && settings.alignSimpleSidearms &&
+                        !pawn.Drafted && analysis.SidearmState != null)
+                    {
+                        TryAlignSimpleSidearmsHand(analysis, now, settings, analysis.Current);
+                    }
                     continue;
                 }
-                if (analysis.DrawnSidearm && settings.manageSidearms &&
-                    TryRestoreHandFromSidearm(analysis, now))
+                bool handAligned = false;
+                if (settings.respectSimpleSidearms && settings.alignSimpleSidearms &&
+                    !pawn.Drafted && analysis.SidearmState != null)
+                {
+                    handAligned = TryAlignSimpleSidearmsHand(analysis, now, settings);
+                }
+                bool restoreFromSidearm = settings.manageSidearms ||
+                    (settings.respectSimpleSidearms && settings.alignSimpleSidearms);
+                if (analysis.DrawnSidearm && restoreFromSidearm &&
+                    TryRestoreHandFromSidearm(analysis, now, handAligned))
                 {
                     continue;
                 }
@@ -424,12 +437,66 @@ namespace Armory
         }
 
         /// <summary>
+        /// Makes Armory's chosen hand also Simple Sidearms' default ranged / preferred
+        /// melee weapon, and remembers it through SS's own API. This keeps the white default
+        /// dots and SS's automatic hand restoration on the same weapon Armory displays.
+        /// </summary>
+        private static bool TryAlignSimpleSidearmsHand(PawnAnalysis analysis, int now,
+            ArmorySettings settings, ThingWithComps hand = null)
+        {
+            if (settings == null || !settings.alignSimpleSidearms ||
+                !SimpleSidearmsAdapter.CanAlignHand)
+            {
+                return false;
+            }
+            Pawn pawn = analysis.Pawn;
+            hand = hand ?? analysis.LogicalHand;
+            if (pawn == null || pawn.Drafted || hand == null || hand.def == null ||
+                !analysis.IsHandType(hand.def) || Eligibility.IsWorkTool(hand.def))
+            {
+                return false;
+            }
+
+            string reason;
+            bool hard;
+            if (!Eligibility.CanUseCarriedWeapon(pawn, hand, out reason, out hard))
+            {
+                return false;
+            }
+
+            bool changed;
+            bool addedToMemory;
+            if (!SimpleSidearmsAdapter.TryAlignHand(pawn, hand,
+                analysis.RoleIsRanged == true, out changed, out addedToMemory))
+            {
+                return false;
+            }
+
+            if (changed)
+            {
+                ArmoryGameComponent.Record(now, pawn, hand,
+                    DecisionKind.AlignSimpleSidearms,
+                    addedToMemory
+                        ? "Remembered and set as SS hand"
+                        : "Set as SS hand preference");
+                if (settings.debugLogging)
+                {
+                    Log.Message(string.Format("[Armory] aligned SS hand for {0}: {1}{2}",
+                        pawn.LabelShort, hand.LabelCap,
+                        addedToMemory ? " (remembered)" : string.Empty));
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Simple Sidearms can leave a sidearm equipped after combat. Put the carried hand
         /// weapon back through SS's own swap helper instead of waiting forever for a stow
         /// that only happens during combat. The current sidearm moves to the inventory and is
         /// reconciled on the next planner pass.
         /// </summary>
-        private static bool TryRestoreHandFromSidearm(PawnAnalysis analysis, int now)
+        private static bool TryRestoreHandFromSidearm(PawnAnalysis analysis, int now,
+            bool handAligned)
         {
             Pawn pawn = analysis.Pawn;
             if (pawn == null || pawn.Drafted || pawn.equipment == null ||
@@ -438,10 +505,10 @@ namespace Armory
                 return false;
             }
 
-            ThingWithComps hand = analysis.BestCarriedPrimary;
+            ThingWithComps hand = analysis.LogicalHand;
             if (hand == null || hand == pawn.equipment.Primary)
             {
-                hand = analysis.LogicalHand;
+                hand = analysis.BestCarriedPrimary;
             }
             if (hand == null || hand == pawn.equipment.Primary || hand.Destroyed ||
                 hand.def == null || !analysis.IsHandType(hand.def))
@@ -456,12 +523,12 @@ namespace Armory
             bool currentNoGapSidearmTwo =
                 analysis.BestCarriedSidearmTwo == analysis.Current &&
                 !analysis.IsCarriedSidearmTwoUseful(threshold);
-            if (!handRemembered || (currentRemembered && !currentNoGapSidearmTwo))
+            if (!handRemembered || (currentRemembered && !currentNoGapSidearmTwo && !handAligned))
             {
-                // A remembered sidearm in hand is normally Simple Sidearms' business.
-                // The exception is a remembered Sidearm 2 that no longer fills a gap:
-                // restore the hand and let the next pass drop it. An unremembered planned
-                // hand would be swapped straight back, so never use one here.
+                // A hand preference aligned with Armory means SS will keep the planned
+                // hand, so a remembered sidearm can be safely put back in the bag. Without
+                // alignment, a remembered sidearm is SS-managed; only unremembered
+                // weapons and a no-gap Sidearm 2 are corrected.
                 return false;
             }
 

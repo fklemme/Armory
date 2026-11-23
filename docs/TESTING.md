@@ -152,6 +152,15 @@ Wait for the scaffold to finish and quit, then check the log for
 line. Do not run `Setup-LiveTest.ps1 -Launch` after editing the config: it will
 overwrite your changes.
 
+### Testing the header counters (0.12.0)
+
+- Open the Armory tab and leave the game running. When `updated ...` changes from
+  `just now` to `1s ago`, `2s ago`, the
+  `N colonists | M loose weapons | updated` block must stay in the same place.
+  Only the age value inside its reserved field may change.
+- Check at 1920x1080 with UI scale 1.0 and 1.25. The Workshop gallery uses 1.25
+  for legibility; both scales use the same 1280x720 window layout.
+
 ### Testing sidearm loadouts (0.11.x-0.12.0)
 
 Use the isolated save with Simple Sidearms enabled. The test config should have

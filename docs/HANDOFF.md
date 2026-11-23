@@ -106,8 +106,12 @@ Implemented:
 - Log/decision kind `Align SS hand` records preference changes.
 - Removed the misleading `Best carried hand weapon` line when it pointed at SS's
   internal QuickSwitch rather than the Armory plan.
+- The header's `updated ...` age now uses a fixed-width field, so the
+  `N colonists | M loose weapons | updated` text no longer shifts left and right
+  as the age text changes width.
 
-Verified on an isolated copy of the current save at 1600x900 and 3440x1440:
+Verified on an isolated copy of the current save at 1600x900, 1920x1080 (UI
+scale 1.0 and 1.25) and 3440x1440:
 
 - Rathat's default changed from machine pistol to anti-materiel rifle, the rifle
   was restored as the hand, and the machine pistol remained a useful Sidearm 2.
@@ -116,7 +120,8 @@ Verified on an isolated copy of the current save at 1600x900 and 3440x1440:
 - Trebo's preferred melee weapon was set to the persona monosword.
 - With alignment off, no `AlignSimpleSidearms` writes occurred and Rathat stayed
   on the machine pistol, as expected from the read-only behavior.
-- Build clean: 0 warnings, 0 errors. Screenshots refreshed for 0.12.0.
+- Build clean: 0 warnings, 0 errors. Screenshots refreshed for 0.12.0 at
+  1920x1080 (16:9, UI scale 1.25).
 
 ---
 

@@ -191,21 +191,27 @@ namespace Armory
                 selectedCandidate = -1;
             }
 
-            string info = string.Format("{0} colonists  |  {1} loose weapons  |  updated {2}",
+            string counts = string.Format("{0} colonists  |  {1} loose weapons  |  updated",
                 snapshot.Pawns.Count,
-                snapshot.Weapons.Count,
-                FormatSnapshotAge(snapshot));
+                snapshot.Weapons.Count);
 
             bool previousWrap = Text.WordWrap;
             Text.WordWrap = false;
             Text.Anchor = TextAnchor.MiddleRight;
             GUI.color = new Color(0.72f, 0.72f, 0.72f);
-            Rect infoRect = new Rect(rect.xMax - 540f, rect.y, 370f, rect.height);
-            Widgets.Label(infoRect, info);
+            // Reserve a fixed-width age field. Otherwise the once-per-second age text
+            // changes width and drags the counts left and right with its right alignment.
+            Rect ageRect = new Rect(rect.xMax - 246f, rect.y, 76f, rect.height);
+            Rect infoRect = new Rect(rect.xMax - 540f, rect.y,
+                ageRect.x - (rect.xMax - 540f) - 4f, rect.height);
+            Widgets.Label(infoRect, counts);
+            Text.Anchor = TextAnchor.MiddleLeft;
+            Widgets.Label(ageRect, FormatSnapshotAge(snapshot));
             GUI.color = Color.white;
             Text.Anchor = TextAnchor.UpperLeft;
             Text.WordWrap = previousWrap;
-            TooltipHandler.TipRegion(infoRect,
+            TooltipHandler.TipRegion(new Rect(infoRect.x, rect.y,
+                    ageRect.xMax - infoRect.x, rect.height),
                 "Colonists and loose weapons on this map. The age shows when the lists were last rebuilt; Armory rebuilds them after the snapshot refresh interval in Settings.");
 
             Rect refreshRect = new Rect(rect.xMax - 166f, rect.y + 2f, 74f, rect.height - 4f);

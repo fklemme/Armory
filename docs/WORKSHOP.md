@@ -133,8 +133,9 @@ When the private test passes, set the item to **Public**.
 
 ## Workshop screenshots
 
-Current gallery source: `docs/screenshots/` (3440x1440, refreshed for 0.12.0
-with the Value column and sidearm layout). Upload in this order:
+Current gallery source: `docs/screenshots/` (1920x1080, 16:9, UI scale 1.25;
+refreshed for 0.12.0 with the Value column and sidearm layout). Upload in this
+order:
 
 1. [`1_colonists.jpg`](screenshots/1_colonists.jpg) - Colonists tab: Hand, Sidearm 1, Sidearm 2, role, status and ranked alternatives.
 2. [`2_weapons.jpg`](screenshots/2_weapons.jpg) - Weapons tab: Value, DPS, AP, per-range accuracy and the best colonist.

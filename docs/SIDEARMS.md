@@ -269,8 +269,8 @@ Implemented in 0.11.0. Live-tested on an isolated copy of the current save at
 - The Upgrades Slot column fits `Sidearm 1`/`Sidearm 2`.
 - Build clean: 0 warnings, 0 errors.
 
-Refreshed `docs/screenshots/` at 3440x1440 for 0.12.0. Pending: verify in the
-user's normal game at their normal resolution.
+Refreshed `docs/screenshots/` at 1920x1080 (16:9, UI scale 1.25) for 0.12.0.
+Pending: verify in the user's normal game at their normal resolution.
 
 0.11.1 re-tested the same save after the stale-sidearm fix. Kruecke's
 unremembered Burngun was replaced by the remembered hand and dropped as a no-gap
